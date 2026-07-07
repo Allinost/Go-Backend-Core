@@ -10,7 +10,7 @@
 | 日志 | **zerolog** | 零分配 JSON 日志器，性能优于 zap 且 API 更简洁 |
 | 依赖注入 | **Wire** | Google 出品，编译期注入，类型安全 |
 | 数据库 ORM | **GORM** | 功能全面、自动迁移、钩子机制、关联查询 |
-| 数据库驱动 | **pgx** (PostgreSQL) / **go-sql-driver/mysql** | 成熟稳定驱动 |
+| 数据库驱动 | **go-sql-driver/mysql** (MySQL) / **pgx** (PostgreSQL) | 成熟稳定驱动 |
 | Redis 客户端 | **go-redis/redis v9** | 官方推荐，支持集群/哨兵/管道 |
 | 任务队列 | **asynq** | 基于 Redis 的分布式任务队列，延迟任务支持 |
 | API 文档 | **swaggo/swag** | 注解自动生成 Swagger/OpenAPI 文档 |
@@ -57,7 +57,8 @@
 
 | 组件 | 选型 | 说明 |
 |------|------|------|
-| 主数据库 | **PostgreSQL 16** | 关系型、JSONB 支持、GIS 扩展 |
+| 主数据库 | **MySQL 8** | 关系型，主业务数据存储 |
+| 辅助数据库 | **PostgreSQL 16** | NAS 场景，JSONB 高级查询 |
 | 缓存 | **Redis 7** | 缓存/会话/队列/排行榜 |
 | 对象存储 | **RustFS** | 自建云存储服务，S3 兼容 |
 | 搜索引擎(预留) | **Meilisearch / Elasticsearch** | 后续按需引入 |

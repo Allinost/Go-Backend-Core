@@ -27,6 +27,21 @@ go.work.sum
 # env file
 .env
 
+# Build artifacts
+server
+server.exe
+tmp/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
 # Editor/IDE
 # .idea/
 # .vscode/

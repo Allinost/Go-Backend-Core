@@ -1,0 +1,27 @@
+# Air 热重载配置
+# 安装: go install github.com/air-verse/air@latest
+# 运行: air
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o tmp/server ./cmd/server/"
+  bin = "tmp/server"
+  include_ext = ["go", "yaml", "yml", "toml"]
+  exclude_dir = ["tmp", "vendor", ".git", "docs"]
+  exclude_file = []
+  exclude_regex = [".*_test.go"]
+  exclude_unchanged = true
+  follow_symlink = false
+  log = "build-errors.log"
+  stop_on_error = false
+  send_interrupt = true
+  kill_delay = "3s"
+
+[log]
+  main_only = true
+  time = true
+
+[misc]
+  clean_on_exit = true

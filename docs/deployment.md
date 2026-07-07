@@ -9,7 +9,7 @@ services:
     ports:
       - "29090:29090"
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -18,14 +18,17 @@ services:
     environment:
       - GIN_MODE=release
 
-  postgres:
-    image: postgres:16-alpine
+  mysql:
+    image: mysql:8
     ports:
-      - "5432:5432"
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: go_backend_core
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - mysqldata:/var/lib/mysql
 
   redis:
     image: redis:7-alpine
@@ -35,7 +38,7 @@ services:
       test: ["CMD", "redis-cli", "ping"]
 
 volumes:
-  pgdata:
+  mysqldata:
 ```
 
 ## 生产部署推荐
@@ -44,7 +47,7 @@ volumes:
 
 - 单机部署，适合月活 < 10 万
 - Nginx 反向代理 + TLS 终结
-- PostgreSQL + Redis 独立数据卷
+- MySQL + Redis 独立数据卷
 
 ### 方案 2：Kubernetes（大规模）
 
@@ -57,7 +60,7 @@ volumes:
 
 | 环境 | 配置 | 数据库 |
 |------|------|--------|
-| local | config.local.yaml | Docker 本地 PG/Redis |
+| local | config.local.yaml | Docker 本地 MySQL/Redis |
 | dev | config.dev.yaml | 开发服务器 |
 | staging | config.staging.yaml | 预发布环境 |
 | production | config.prod.yaml | 生产环境 |
@@ -88,7 +91,8 @@ jobs:
 | 端口 | 用途 |
 |------|------|
 | 29090 | 主服务 HTTP API |
-| 5432 | PostgreSQL（仅内网） |
+| 3306 | MySQL（仅内网） |
+| 5432 | PostgreSQL NAS（仅内网） |
 | 6379 | Redis（仅内网） |
 | 9090 | Prometheus |
 | 3000 | Grafana |

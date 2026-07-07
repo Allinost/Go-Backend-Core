@@ -14,17 +14,17 @@
 
 **目标**: 搭建脚手架，跑通 CI/CD
 
-- [ ] Go Module 初始化 (`go mod init github.com/xxx/go-backend-core`)
-- [ ] 目录结构搭建
-- [ ] `config.yaml` + Viper 配置加载
-- [ ] Gin 引擎 + 基础中间件（Logger, CORS, Recovery, RateLimit）
-- [ ] 统一响应格式 + 错误码体系
-- [ ] 模块注册器框架
-- [ ] Dockerfile + docker-compose.yml（仅 Go 后端）
-- [ ] Makefile（build/run/test/lint 等命令）
-- [ ] golangci-lint 配置
-- [ ] GitHub Actions 基础流水线（lint → test → build）
-- [ ] `air` 热重载配置
+- [x] Go Module 初始化 (`go mod init github.com/Allinost/go-backend-core`)
+- [x] 目录结构搭建
+- [x] `config.yaml` + Viper 配置加载
+- [x] Gin 引擎 + 基础中间件（Logger, CORS, Recovery, RateLimit）
+- [x] 统一响应格式 + 错误码体系
+- [x] 模块注册器框架
+- [x] Dockerfile + docker-compose.yml（仅 Go 后端）
+- [x] Makefile（build/run/test/lint 等命令）
+- [x] golangci-lint 配置
+- [x] GitHub Actions 基础流水线（lint → test → build，仅 tag 触发）
+- [x] `air` 热重载配置
 
 **交付物**: 能通过 `docker-compose up` 启动，`:29090/ping` 返回 pong
 
@@ -39,7 +39,7 @@
 ```
 
 - [ ] `internal/database` — 统一数据访问层
-  - PostgreSQL / MySQL / Redis / MinIO / RustFS 连接池
+  - MySQL / PostgreSQL / Redis / MinIO / RustFS 连接池
   - DBManager 全局管理器 + 多实例配置
   - 健康检查 + Prometheus 指标
 - [ ] `internal/services/config` — 配置管理（Viper 热加载 + Reloader 接口）

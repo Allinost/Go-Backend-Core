@@ -1,0 +1,44 @@
+# Go-Backend-Core 全局配置文件
+# 优先级：Docker Secret > 环境变量(APP_*) > 此文件 > 内置默认值
+
+server:
+  name: go-backend-core        # 服务名称，用于日志/监控标识
+  version: v0.1.0              # 当前版本号
+  port: 29090                  # HTTP 监听端口
+  mode: debug                  # Gin 运行模式：debug | release | test
+
+log:
+  level: info                  # 日志级别：debug | info | warn | error | fatal
+  format: json                 # 日志输出格式：json | text
+  output: stdout               # 日志输出目标：stdout | stderr | file
+
+database:
+  mysql:
+    main:                      # 主数据库实例标识
+      host: localhost          # MySQL 主机地址
+      port: 3306               # MySQL 监听端口
+      user: root               # 数据库用户名（通过 .env 中 APP_DATABASE_MYSQL_MAIN_* 覆盖）
+      password: ""             # ⚠️ 密码通过 .env 或 Docker Secret 注入，此处留空
+      dbname: go_backend_core  # 数据库名称
+
+  postgres:
+    nas:                       # NAS 上的 PostgreSQL 实例（仅 NAS 场景使用）
+      host: localhost
+      port: 5432
+      user: postgres
+      password: ""             # ⚠️ 密码通过 .env 注入
+      dbname: go_backend_core
+
+redis:
+  main:                        # 主 Redis 实例标识
+    addr: localhost:6379       # Redis 地址
+    password: ""               # Redis 密码（生产环境务必设置）
+    db: 0                      # Redis 数据库编号
+
+auth:
+  jwt_secret: ""                        # ⚠️ JWT 签名密钥通过 .env 中 APP_AUTH_JWT_SECRET 注入
+  jwt_expire: 24h                       # JWT 令牌有效期（如 72h/7d/30d）
+
+config:
+  watch: true                  # 是否启用配置文件热加载
+  watch_interval: 5s           # 文件变更监听轮询间隔
