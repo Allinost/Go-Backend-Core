@@ -10,7 +10,10 @@ server:
 log:
   level: info                  # 日志级别：debug | info | warn | error | fatal
   format: json                 # 日志输出格式：json | text
-  output: stdout               # 日志输出目标：stdout | stderr | file
+  output: stdout               # 日志输出目标：stdout | file | rotate
+  log_dir: logs                # 日志目录（rotate/file 模式）
+  max_size_mb: 100             # 单文件最大 MB，超限自动切分
+  max_age_days: 30             # 日志保留天数
 
 database:
   mysql:
@@ -20,6 +23,9 @@ database:
       user: root               # 数据库用户名（通过 .env 中 APP_DATABASE_MYSQL_MAIN_* 覆盖）
       password: ""             # ⚠️ 密码通过 .env 或 Docker Secret 注入，此处留空
       dbname: go_backend_core  # 数据库名称
+      max_open: 50             # 最大打开连接数
+      max_idle: 10             # 最大空闲连接数
+      conn_max_lifetime: 30m   # 连接最大存活时间
 
   postgres:
     nas:                       # NAS 上的 PostgreSQL 实例（仅 NAS 场景使用）
@@ -28,12 +34,32 @@ database:
       user: postgres
       password: ""             # ⚠️ 密码通过 .env 注入
       dbname: go_backend_core
+      max_open: 20
+      max_idle: 5
+      conn_max_lifetime: 30m
+
+  s3:
+    minio:                     # MinIO 对象存储
+      endpoint: "minio:9000"
+      access_key: ""
+      secret_key: ""
+      use_ssl: false
+      bucket: "app-data"
+      region: "us-east-1"
+    rustfs:                    # RustFS 自建对象存储
+      endpoint: "rustfs.example.com"
+      access_key: ""
+      secret_key: ""
+      use_ssl: true
+      bucket: "app-files"
+      region: "us-east-1"
 
 redis:
   main:                        # 主 Redis 实例标识
     addr: localhost:6379       # Redis 地址
     password: ""               # Redis 密码（生产环境务必设置）
     db: 0                      # Redis 数据库编号
+    pool_size: 50              # 连接池大小
 
 auth:
   jwt_secret: ""                        # ⚠️ JWT 签名密钥通过 .env 中 APP_AUTH_JWT_SECRET 注入

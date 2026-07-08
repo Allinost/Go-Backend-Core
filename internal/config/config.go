@@ -28,32 +28,61 @@ type ServerConfig struct {
 }
 
 type LogConfig struct {
-	Level  string `mapstructure:"level"`  // 日志级别
-	Format string `mapstructure:"format"` // 日志格式(json/text)
-	Output string `mapstructure:"output"` // 日志输出目标
+	Level      string `mapstructure:"level"`        // 日志级别
+	Format     string `mapstructure:"format"`       // 日志格式(json/text)
+	Output     string `mapstructure:"output"`       // 日志输出目标
+	LogDir     string `mapstructure:"log_dir"`      // 日志目录（rotate 模式）
+	MaxSizeMB  int    `mapstructure:"max_size_mb"`  // 单文件最大 MB
+	MaxAgeDays int    `mapstructure:"max_age_days"` // 日志保留天数
 }
 
 type DatabaseConfig struct {
-	MySQL    map[string]DBConfig `mapstructure:"mysql"`    // MySQL 实例集（主数据库）
-	Postgres map[string]DBConfig `mapstructure:"postgres"` // PostgreSQL 实例集（NAS）
+	MySQL    map[string]MySQLConfig `mapstructure:"mysql"`    // MySQL 实例集（主数据库）
+	Postgres map[string]PGConfig    `mapstructure:"postgres"` // PostgreSQL 实例集（NAS）
+	S3       map[string]S3Config    `mapstructure:"s3"`       // S3 兼容对象存储
 }
 
-type DBConfig struct {
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"password"`
-	DBName   string `mapstructure:"dbname"`
+type MySQLConfig struct {
+	Host            string `mapstructure:"host"`
+	Port            int    `mapstructure:"port"`
+	User            string `mapstructure:"user"`
+	Password        string `mapstructure:"password"`
+	DBName          string `mapstructure:"dbname"`
+	MaxOpen         int    `mapstructure:"max_open"`          // 最大打开连接数
+	MaxIdle         int    `mapstructure:"max_idle"`          // 最大空闲连接数
+	ConnMaxLifetime string `mapstructure:"conn_max_lifetime"` // 连接最大存活时间
+}
+
+type PGConfig struct {
+	Host            string `mapstructure:"host"`
+	Port            int    `mapstructure:"port"`
+	User            string `mapstructure:"user"`
+	Password        string `mapstructure:"password"`
+	DBName          string `mapstructure:"dbname"`
+	MaxOpen         int    `mapstructure:"max_open"`
+	MaxIdle         int    `mapstructure:"max_idle"`
+	ConnMaxLifetime string `mapstructure:"conn_max_lifetime"`
+}
+
+type S3Config struct {
+	Endpoint  string `mapstructure:"endpoint"`
+	AccessKey string `mapstructure:"access_key"`
+	SecretKey string `mapstructure:"secret_key"`
+	UseSSL    bool   `mapstructure:"use_ssl"`
+	Bucket    string `mapstructure:"bucket"`
+	Region    string `mapstructure:"region"`
 }
 
 type RedisConfig struct {
-	Main RedisInstance `mapstructure:"main"`
+	Main  RedisInstance            `mapstructure:"main"`
+	Extra map[string]RedisInstance `mapstructure:"extra"` // 额外 Redis 实例
 }
 
 type RedisInstance struct {
 	Addr     string `mapstructure:"addr"`
 	Password string `mapstructure:"password"`
 	DB       int    `mapstructure:"db"`
+	PoolSize int    `mapstructure:"pool_size"` // 连接池大小
 }
 
 type AuthConfig struct {
@@ -72,9 +101,9 @@ type Reloader interface {
 }
 
 var (
-	v          *viper.Viper      // Viper 实例
-	globalCfg  *Config           // 全局配置缓存
-	rls        []Reloader        // 已注册的热加载器列表
+	v         *viper.Viper // Viper 实例
+	globalCfg *Config      // 全局配置缓存
+	rls       []Reloader   // 已注册的热加载器列表
 )
 
 // Load 加载 .env 和配置文件，.env 中 APP_* 变量会覆盖 config.yaml

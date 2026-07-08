@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Allinost/go-backend-core/internal/config"
+	"github.com/Allinost/go-backend-core/internal/database"
 	"github.com/Allinost/go-backend-core/internal/pkg/response"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -51,6 +52,10 @@ func TestModule_Ping(t *testing.T) {
 }
 
 func TestModule_Health(t *testing.T) {
+	err := database.InitAll(&config.Config{})
+	assert.NoError(t, err)
+	t.Cleanup(database.CloseAll)
+
 	_, r := newTestModule(t)
 
 	w := httptest.NewRecorder()
@@ -60,13 +65,17 @@ func TestModule_Health(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var resp response.Response
-	err := json.Unmarshal(w.Body.Bytes(), &resp)
+	err = json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, resp.Code)
 
 	data := resp.Data.(map[string]interface{})
 	assert.Equal(t, "ok", data["status"])
 	assert.Equal(t, "v0.0.0", data["version"])
+
+	dbHealth, ok := data["database"].(map[string]interface{})
+	assert.True(t, ok)
+	assert.NotNil(t, dbHealth)
 }
 
 func TestModule_Echo(t *testing.T) {

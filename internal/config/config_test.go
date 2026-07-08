@@ -92,6 +92,22 @@ func TestGet_AfterLoad(t *testing.T) {
 	assert.Equal(t, cfg.Server.Name, got.Server.Name)
 }
 
+func TestLoad_EnvOverride(t *testing.T) {
+	content := "server:\n  port: 29090\n  mode: test\nlog:\n  level: info\n  format: json\n  output: stdout\ndatabase:\n  mysql:\n    main:\n      host: localhost\n      port: 3306\n      user: root\n      password: \"\"\n      dbname: test\nredis:\n  main:\n    addr: localhost:6379\n    password: \"\"\n    db: 0\nauth:\n  jwt_secret: \"\"\n  jwt_expire: 24h\nconfig:\n  watch: false\n"
+	path := "test_env_config.yaml"
+	err := os.WriteFile(path, []byte(content), 0644)
+	require.NoError(t, err)
+	defer os.Remove(path)
+
+	t.Setenv("APP_SERVER_PORT", "12345")
+	t.Setenv("APP_AUTH_JWT_SECRET", "env-secret")
+
+	cfg, err := Load(path)
+	require.NoError(t, err)
+	assert.Equal(t, 12345, cfg.Server.Port)
+	assert.Equal(t, "env-secret", cfg.Auth.JWTSecret)
+}
+
 func TestRegisterReloader(t *testing.T) {
 	RegisterReloader(&testReloader{fn: func(cfg *Config) error {
 		return nil

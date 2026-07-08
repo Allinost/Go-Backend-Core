@@ -2,6 +2,7 @@ package s0
 
 import (
 	"github.com/Allinost/go-backend-core/internal/config"
+	"github.com/Allinost/go-backend-core/internal/database"
 	"github.com/Allinost/go-backend-core/internal/pkg/response"
 	"github.com/gin-gonic/gin"
 )
@@ -41,28 +42,38 @@ func (m *Module) Ping(c *gin.Context) {
 
 // Health 各依赖服务健康状态聚合
 func (m *Module) Health(c *gin.Context) {
-	status := "ok"
+	dbHealth := database.Health()
 
-	// TODO: 后续接入 database/redis 健康检查
-	// dbOk := database.Ping()
-	// redisOk := redis.Ping()
+	overall := "ok"
+	for _, h := range dbHealth {
+		if h.Status == "error" {
+			overall = "degraded"
+			break
+		}
+	}
 
 	response.Success(c, gin.H{
-		"status":  status,
-		"version": m.cfg.Server.Version,
+		"status":   overall,
+		"version":  m.cfg.Server.Version,
+		"database": dbHealth,
 	})
 }
 
 // Echo 请求回显（调试用）
 func (m *Module) Echo(c *gin.Context) {
 	response.Success(c, gin.H{
-		"method":     c.Request.Method,
-		"path":       c.Request.URL.Path,
-		"query":      c.Request.URL.RawQuery,
-		"headers":    c.Request.Header,
-		"client_ip":  c.ClientIP(),
+		"method":    c.Request.Method,
+		"path":      c.Request.URL.Path,
+		"query":     c.Request.URL.RawQuery,
+		"headers":   c.Request.Header,
+		"client_ip": c.ClientIP(),
 	})
 }
 
 // 编译期检查确保实现 modules.Module 接口
-var _ interface{ Name() string; Init(*config.Config) error; Close() error; RegisterRoutes(*gin.RouterGroup) } = (*Module)(nil)
+var _ interface {
+	Name() string
+	Init(*config.Config) error
+	Close() error
+	RegisterRoutes(*gin.RouterGroup)
+} = (*Module)(nil)

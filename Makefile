@@ -9,7 +9,7 @@
 BINARY ?= server
 SCRIPTS := scripts
 
-.PHONY: build release run test lint clean docker-build
+.PHONY: build release run test lint clean docker-build coverage coverage-html
 
 build: ## debug 构建（保留调试符号）
 	@bash $(SCRIPTS)/build.sh debug $(BINARY)
@@ -22,6 +22,12 @@ run: build ## 构建并本地启动
 
 test: ## 运行全部单元测试
 	@bash $(SCRIPTS)/test.sh
+
+coverage: ## 生成覆盖率报告（终端文本）
+	@bash $(SCRIPTS)/coverage.sh
+
+coverage-html: ## 生成并打开覆盖率 HTML 报告
+	@bash $(SCRIPTS)/coverage.sh html
 
 lint: ## 运行 golangci-lint
 	@bash $(SCRIPTS)/lint.sh

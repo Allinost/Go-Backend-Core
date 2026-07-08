@@ -1,0 +1,23 @@
+title: Go Backend Core
+description: 模块化 Go 后端服务 — 设计文档
+remote_theme: just-the-docs/just-the-docs
+color_scheme: dark
+search_enabled: true
+
+aux_links:
+  "GitHub Repository":
+    - "https://github.com/Allinost/go-backend-core"
+
+footer_content: "Copyright &copy; 2026 Allinost. Distributed by an MIT license."
+
+# 导航配置
+just_the_docs:
+  collections:
+    architecture:
+      name: 架构设计
+    features:
+      name: 功能设计
+    development:
+      name: 开发指南
+    operations:
+      name: 运维部署

@@ -8,4 +8,4 @@ PKG="${1:-./...}"
 shift 2>/dev/null || true
 
 echo "==> 运行测试: $PKG $@"
-go test "$@" -count=1 -race -cover "$PKG"
+go test "$@" -count=1 -race -covermode=atomic "$PKG"
