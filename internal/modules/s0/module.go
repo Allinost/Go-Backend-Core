@@ -1,65 +1,144 @@
 package s0
 
 import (
+	"context"
+	"time"
+
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/Allinost/go-backend-core/internal/database"
 	"github.com/Allinost/go-backend-core/internal/pkg/response"
+	"github.com/Allinost/go-backend-core/internal/services/eventbus"
+	"github.com/Allinost/go-backend-core/internal/services/monitor"
 	"github.com/gin-gonic/gin"
 )
 
-// Module S0 调试服务模块
 type Module struct {
-	cfg *config.Config
+	Bus     eventbus.EventBus
+	cfg     *config.Config
+	checker *monitor.HealthChecker
+	metrics *monitor.MetricsRegistry
 }
 
-// Name 模块标识
 func (m *Module) Name() string {
 	return "s0"
 }
 
-// Init 模块初始化
 func (m *Module) Init(cfg *config.Config) error {
 	m.cfg = cfg
+
+	m.checker = monitor.NewHealthChecker()
+	m.metrics = monitor.NewMetricsRegistry("go_backend_core", "s0")
+
+	dbHealth := database.Health()
+	for name := range dbHealth {
+		name := name
+		m.checker.Register("database:"+name, func(ctx context.Context) monitor.CheckResult {
+			health := database.Health()
+			h, ok := health[name]
+			if !ok {
+				return monitor.CheckResult{Status: monitor.StatusDown, Error: "no health data"}
+			}
+			if h.Status == "error" {
+				return monitor.CheckResult{Status: monitor.StatusDown, Error: h.Error}
+			}
+			return monitor.CheckResult{Status: monitor.StatusUp}
+		})
+	}
+
+	if cfg.Config.Watch {
+		m.checker.StartPolling(context.Background(), monitor.PollingConfig{
+			Enabled:  true,
+			Interval: 30 * time.Second,
+		})
+	}
+
+	monitor.NewRuntimeCollector(m.metrics)
+
+	monitor.RegisterDBPoolMetrics(m.metrics, func() map[string]monitor.DBPoolStats {
+		return collectDBPoolStats()
+	})
+
 	return nil
 }
 
-// Close 关闭模块
+func collectDBPoolStats() map[string]monitor.DBPoolStats {
+	stats := make(map[string]monitor.DBPoolStats)
+	if database.DB == nil {
+		return stats
+	}
+	for name, pool := range database.DB.MySQL {
+		if pool.DB != nil {
+			s := pool.DB.Stats()
+			stats["mysql:"+name] = monitor.DBPoolStats{
+				Open:  s.OpenConnections,
+				InUse: s.InUse,
+				Idle:  s.Idle,
+			}
+		}
+	}
+	for name, pool := range database.DB.Postgres {
+		if pool.Pool != nil {
+			s := pool.Stat()
+			stats["postgres:"+name] = monitor.DBPoolStats{
+				Open:  int(s.TotalConns()),
+				InUse: int(s.AcquiredConns()),
+				Idle:  int(s.IdleConns()),
+			}
+		}
+	}
+	for name, client := range database.DB.Redis {
+		if client.Client != nil {
+			s := client.PoolStats()
+			stats["redis:"+name] = monitor.DBPoolStats{
+				Open:  int(s.TotalConns),
+				InUse: int(s.TotalConns - s.IdleConns),
+				Idle:  int(s.IdleConns),
+			}
+		}
+	}
+	return stats
+}
+
 func (m *Module) Close() error {
+	if m.checker != nil {
+		m.checker.Stop()
+	}
 	return nil
 }
 
-// RegisterRoutes 注册路由
 func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/ping", m.Ping)
 	r.GET("/health", m.Health)
 	r.GET("/echo", m.Echo)
+	r.GET("/metrics", m.Metrics)
 }
 
-// Ping 存活检查
 func (m *Module) Ping(c *gin.Context) {
 	response.Success(c, gin.H{"message": "pong"})
 }
 
-// Health 各依赖服务健康状态聚合
 func (m *Module) Health(c *gin.Context) {
-	dbHealth := database.Health()
+	results := m.checker.Check(c.Request.Context())
 
 	overall := "ok"
-	for _, h := range dbHealth {
-		if h.Status == "error" {
+	for _, r := range results {
+		if r.Status == monitor.StatusDown {
 			overall = "degraded"
 			break
 		}
 	}
 
 	response.Success(c, gin.H{
-		"status":   overall,
-		"version":  m.cfg.Server.Version,
-		"database": dbHealth,
+		"status":  overall,
+		"version": m.cfg.Server.Version,
+		"checks":  results,
 	})
 }
 
-// Echo 请求回显（调试用）
+func (m *Module) Metrics(c *gin.Context) {
+	m.metrics.Handler().ServeHTTP(c.Writer, c.Request)
+}
+
 func (m *Module) Echo(c *gin.Context) {
 	response.Success(c, gin.H{
 		"method":    c.Request.Method,
@@ -70,7 +149,6 @@ func (m *Module) Echo(c *gin.Context) {
 	})
 }
 
-// 编译期检查确保实现 modules.Module 接口
 var _ interface {
 	Name() string
 	Init(*config.Config) error

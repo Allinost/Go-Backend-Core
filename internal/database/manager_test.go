@@ -1,7 +1,9 @@
 package database
 
 import (
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +18,7 @@ func TestInitAll_Empty(t *testing.T) {
 	assert.NotNil(t, DB.Redis)
 	assert.NotNil(t, DB.S3)
 	assert.NotNil(t, DB.RustFS)
+	assert.NotNil(t, DB.breakers)
 	CloseAll()
 }
 
@@ -33,8 +36,9 @@ func TestInitAll_InvalidMySQL(t *testing.T) {
 		},
 	}
 	err := InitAll(cfg)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "MySQL[main]")
+	assert.NoError(t, err)
+	assert.Empty(t, DB.MySQL)
+	CloseAll()
 }
 
 func TestInitAll_InvalidPostgres(t *testing.T) {
@@ -51,8 +55,9 @@ func TestInitAll_InvalidPostgres(t *testing.T) {
 		},
 	}
 	err := InitAll(cfg)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "PostgreSQL[nas]")
+	assert.NoError(t, err)
+	assert.Empty(t, DB.Postgres)
+	CloseAll()
 }
 
 func TestInitAll_InvalidS3(t *testing.T) {
@@ -69,26 +74,9 @@ func TestInitAll_InvalidS3(t *testing.T) {
 		},
 	}
 	err := InitAll(cfg)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "MinIO")
-}
-
-func TestInitAll_InvalidRustFS(t *testing.T) {
-	cfg := &config.Config{
-		Database: config.DatabaseConfig{
-			S3: map[string]config.S3Config{
-				"rustfs": {
-					Endpoint:  "invalid:invalid:9000",
-					AccessKey: "test",
-					SecretKey: "test",
-					Bucket:    "test",
-				},
-			},
-		},
-	}
-	err := InitAll(cfg)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "RustFS")
+	assert.NoError(t, err)
+	assert.Empty(t, DB.S3)
+	CloseAll()
 }
 
 func TestHealth_NilDB(t *testing.T) {
@@ -116,8 +104,8 @@ func TestInitAll_UnknownS3Type(t *testing.T) {
 		},
 	}
 	err := InitAll(cfg)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "未知的 S3 存储类型")
+	assert.NoError(t, err)
+	CloseAll()
 }
 
 func TestCloseAll_Multiple(t *testing.T) {
@@ -126,4 +114,61 @@ func TestCloseAll_Multiple(t *testing.T) {
 
 	CloseAll()
 	CloseAll()
+}
+
+func TestReload_RecreatesPools(t *testing.T) {
+	err := InitAll(&config.Config{})
+	assert.NoError(t, err)
+
+	err = DB.Reload(&config.Config{})
+	assert.NoError(t, err)
+	CloseAll()
+}
+
+func TestRunWithBreaker(t *testing.T) {
+	DB = &DBManager{breakers: map[string]*CircuitBreaker{}}
+	DB.breakers["mysql:main"] = NewCircuitBreaker(1, time.Second)
+
+	var called int
+	err := RunWithBreaker("mysql:main", func() error {
+		called++
+		return nil
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 1, called)
+}
+
+func TestBreaker_OpensAfterFailures(t *testing.T) {
+	cb := NewCircuitBreaker(3, time.Minute)
+	assert.True(t, cb.Allow())
+
+	for i := 0; i < 3; i++ {
+		cb.Failure()
+	}
+	assert.False(t, cb.Allow())
+
+	cb.Success()
+	assert.True(t, cb.Allow())
+}
+
+func TestGetRedis_Nil(t *testing.T) {
+	DB = nil
+	client := GetRedis("main")
+	assert.Nil(t, client)
+}
+
+func TestConcurrentHealth(t *testing.T) {
+	err := InitAll(&config.Config{})
+	assert.NoError(t, err)
+	defer CloseAll()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			Health()
+		}()
+	}
+	wg.Wait()
 }

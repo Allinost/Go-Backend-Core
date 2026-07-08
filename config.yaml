@@ -61,9 +61,23 @@ redis:
     db: 0                      # Redis 数据库编号
     pool_size: 50              # 连接池大小
 
+cache:
+  default_ttl: 5m                       # 默认缓存 TTL
+  default_nil_ttl: 30s                  # 空值缓存 TTL（防穿透）
+  jitter: 10s                           # TTL 随机抖动范围（防雪崩）
+  l1_max_size: 10000                    # L1 内存缓存最大条目数
+  redis_key: main                       # 使用的 Redis 实例名称
+
 auth:
   jwt_secret: ""                        # ⚠️ JWT 签名密钥通过 .env 中 APP_AUTH_JWT_SECRET 注入
   jwt_expire: 24h                       # JWT 令牌有效期（如 72h/7d/30d）
+
+scheduler:
+  enabled: true                # 是否启用调度器
+  worker_concurrency: 5        # 同时执行任务数
+  default_timeout: 300         # 默认超时秒数
+  default_max_retries: 3       # 默认重试次数
+  log_retention_days: 90       # 执行日志保留天数
 
 config:
   watch: true                  # 是否启用配置文件热加载

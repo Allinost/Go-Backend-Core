@@ -72,10 +72,17 @@ func TestModule_Health(t *testing.T) {
 	data := resp.Data.(map[string]interface{})
 	assert.Equal(t, "ok", data["status"])
 	assert.Equal(t, "v0.0.0", data["version"])
+}
 
-	dbHealth, ok := data["database"].(map[string]interface{})
-	assert.True(t, ok)
-	assert.NotNil(t, dbHealth)
+func TestModule_Metrics(t *testing.T) {
+	_, r := newTestModule(t)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/s0/metrics", nil)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "go_backend_core_s0_goroutines")
 }
 
 func TestModule_Echo(t *testing.T) {

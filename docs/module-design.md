@@ -678,8 +678,46 @@ func (b *BackupModule) Init(cfg *config.Config) error {
                 Handler:    "backup_executor",
                 Payload:    json.Marshal(p),
             })
-        }
     }
+}
+
+---
+
+## 附录：公开工具库
+
+### A. `pkg/apierror` — 公开错误类型
+
+提供给外部客户端解析 API 错误响应时引用。
+
+| 导出项 | 说明 |
+|--------|------|
+| `AppError` | 公开错误结构体（Code / Message / Detail），带 `Is()` 方法按 Code 匹配 |
+| `CodeSuccess` / `CodeParamErr` 等 | 错误码常量 |
+| `New()` / `WithDetail()` / `CodeMsg()` | 错误创建与提示查询 |
+
+**单一来源策略**: 内部 `internal/pkg/errors` 的常量通过 `pkg/apierror` 引用，新增错误码只需在 `pkg/apierror` 一处定义。
+
+### B. `pkg/pagination` — 分页工具
+
+提供 Offset / Page / Cursor 三种分页模式的参数解析、响应封装和 SQL 查询构建。
+
+| 导出项 | 说明 |
+|--------|------|
+| `ParseOffset()` / `ParsePage()` / `ParseCursor()` | 参数解析，自动处理默认值和边界限制 |
+| `NewOffsetResult()` / `NewPageResult()` / `NewCursorResult()` | 分页响应封装，自动计算 `HasMore` |
+| `CursorQuery` / `SQLClause` | 游标分页参数模型 |
+| `BuildCursorQuery()` | 生成 `WHERE col > ? ORDER BY col ASC LIMIT ?` 等 SQL 子句 |
+| `BuildOffsetQuery()` / `BuildPageQuery()` | Offset/Page 模式的 SQL 构建 |
+
+**三种分页模式**:
+
+```
+Offset: SELECT ... LIMIT {size} OFFSET {(page-1)*size}
+Page:   SELECT ... LIMIT {size} OFFSET {(page-1)*size}
+Cursor: SELECT ... WHERE {col} > {cursor} ORDER BY {col} ASC LIMIT {limit}
+```
+
+**版本**: v1alpha1，在 v1 之前不保证向后兼容。
     return nil
 }
 ```

@@ -23,6 +23,12 @@ run: build ## 构建并本地启动
 test: ## 运行全部单元测试
 	@bash $(SCRIPTS)/test.sh
 
+test-race: ## 运行竞态检测（需 CGO_ENABLED=1，Linux/macOS）
+	CGO_ENABLED=1 go test -race -count=1 -short ./... 2>&1
+
+test-bench: ## 运行所有基准测试
+	go test -bench=. -benchmem -count=1 ./... 2>&1
+
 coverage: ## 生成覆盖率报告（终端文本）
 	@bash $(SCRIPTS)/coverage.sh
 
