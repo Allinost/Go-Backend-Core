@@ -28,7 +28,6 @@ go.work.sum
 .env
 
 # Build artifacts
-server
 server.exe
 tmp/
 
