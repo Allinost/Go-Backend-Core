@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -218,6 +219,142 @@ func TestMe_Authenticated(t *testing.T) {
 	assert.Contains(t, meResp.Data, "roles")
 }
 
+func TestUpdateProfile(t *testing.T) {
+	m := testModule(t)
+	r := setupRouter(m)
+	token := loginAndGetToken(t, m, r, "profi1e", "pass123")
+
+	body := `{"nickname":"NewNick","email":"new@test.com"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("PUT", "/api/v1/auth/profile", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp struct {
+		Data struct {
+			Nickname string `json:"nickname"`
+			Email    string `json:"email"`
+		} `json:"data"`
+	}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.Equal(t, "NewNick", resp.Data.Nickname)
+	assert.Equal(t, "new@test.com", resp.Data.Email)
+}
+
+func TestChangePassword(t *testing.T) {
+	m := testModule(t)
+	r := setupRouter(m)
+	token := loginAndGetToken(t, m, r, "changep1", "oldpass")
+
+	body := `{"old_password":"oldpass","new_password":"newpass123"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("PUT", "/api/v1/auth/password", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestChangePassword_WrongOld(t *testing.T) {
+	m := testModule(t)
+	r := setupRouter(m)
+	token := loginAndGetToken(t, m, r, "changep2", "realpass")
+
+	body := `{"old_password":"wrongpass","new_password":"newpass123"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("PUT", "/api/v1/auth/password", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+func TestListUsers_Forbidden(t *testing.T) {
+	m := testModule(t)
+	r := setupRouter(m)
+	token := loginAndGetToken(t, m, r, "normaluser", "pass123")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/auth/users", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestAdminListUsers(t *testing.T) {
+	m := testModule(t)
+	r := setupRouter(m)
+	token := loginAndGetToken(t, m, r, "adminuser", "pass123")
+	m.rbac.AssignRole(1, "admin")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/auth/users", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp struct {
+		Data struct {
+			Data  []any  `json:"data"`
+			Total int    `json:"total"`
+			Page  int    `json:"page"`
+			Size  int    `json:"size"`
+		} `json:"data"`
+	}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.GreaterOrEqual(t, resp.Data.Total, 0)
+	assert.Equal(t, 1, resp.Data.Page)
+}
+
+func TestAdminGetUser(t *testing.T) {
+	m := testModule(t)
+	r := setupRouter(m)
+	token := loginAndGetToken(t, m, r, "admin2", "pass123")
+	m.rbac.AssignRole(1, "admin")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/auth/users/1", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestAdminUpdateUser(t *testing.T) {
+	m := testModule(t)
+	r := setupRouter(m)
+	token := loginAndGetToken(t, m, r, "admin3", "pass123")
+	m.rbac.AssignRole(1, "admin")
+
+	body := `{"nickname":"AdminUpdated"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("PUT", "/api/v1/auth/users/1", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestAdminDeleteUser(t *testing.T) {
+	m := testModule(t)
+	r := setupRouter(m)
+	token := loginAndGetToken(t, m, r, "admin4", "pass123")
+	m.rbac.AssignRole(1, "admin")
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("DELETE", "/api/v1/auth/users/1", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
 func TestLogout(t *testing.T) {
 	m := testModule(t)
 	r := setupRouter(m)
@@ -321,6 +458,92 @@ func TestListAccounts(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/v1/auth/accounts", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCreateAPIKey(t *testing.T) {
+	m := testModule(t)
+	r := setupRouter(m)
+	token := loginAndGetToken(t, m, r, "keyuser1", "pass123")
+
+	body := `{"name":"my-key","scopes":"task:read"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/api/v1/auth/api-keys", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp struct {
+		Data struct {
+			ID        uint   `json:"id"`
+			RawKey    string `json:"raw_key"`
+			Name      string `json:"name"`
+			KeyPrefix string `json:"key_prefix"`
+			Scopes    string `json:"scopes"`
+		} `json:"data"`
+	}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.NotEmpty(t, resp.Data.RawKey)
+	assert.Equal(t, "my-key", resp.Data.Name)
+	assert.Equal(t, "task:read", resp.Data.Scopes)
+}
+
+func TestListAPIKeys_Own(t *testing.T) {
+	m := testModule(t)
+	r := setupRouter(m)
+	token := loginAndGetToken(t, m, r, "keyuser2", "pass123")
+
+	_, _ = m.apiKeys.GenerateKey("k1", 1, "*:*", nil)
+	_, _ = m.apiKeys.GenerateKey("k2", 1, "*:*", nil)
+	_, _ = m.apiKeys.GenerateKey("k3", 2, "*:*", nil)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/auth/api-keys", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestListAPIKeys_Admin(t *testing.T) {
+	m := testModule(t)
+	r := setupRouter(m)
+	token := loginAndGetToken(t, m, r, "keyadmin", "pass123")
+	m.rbac.AssignRole(1, "admin")
+
+	_, _ = m.apiKeys.GenerateKey("k1", 1, "*:*", nil)
+	_, _ = m.apiKeys.GenerateKey("k2", 2, "*:*", nil)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/auth/api-keys", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp struct {
+		Data struct {
+			Data  []any `json:"data"`
+			Total int   `json:"total"`
+			Page  int   `json:"page"`
+		} `json:"data"`
+	}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.Equal(t, 2, resp.Data.Total)
+}
+
+func TestDeleteAPIKey(t *testing.T) {
+	m := testModule(t)
+	r := setupRouter(m)
+	token := loginAndGetToken(t, m, r, "keydel", "pass123")
+
+	key, _ := m.apiKeys.GenerateKey("del-me", 1, "*:*", nil)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("DELETE", "/api/v1/auth/api-keys/"+fmt.Sprint(key.ID), nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	r.ServeHTTP(w, req)
 

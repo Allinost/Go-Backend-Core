@@ -111,6 +111,50 @@ func TestModule_Name(t *testing.T) {
 	assert.Equal(t, "s0", m.Name())
 }
 
+func TestModule_Info(t *testing.T) {
+	_, r := newTestModule(t)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/s0/info", nil)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp response.Response
+	err := json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, resp.Code)
+
+	data := resp.Data.(map[string]interface{})
+	assert.Equal(t, "test", data["name"])
+	assert.Equal(t, "v0.0.0", data["version"])
+	assert.Equal(t, "test", data["mode"])
+	assert.Contains(t, data, "uptime")
+	assert.Contains(t, data, "start_time")
+	assert.Contains(t, data, "go_version")
+	assert.Contains(t, data, "goroutines")
+	assert.Contains(t, data, "modules")
+}
+
+func TestModule_Modules(t *testing.T) {
+	_, r := newTestModule(t)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/v1/s0/modules", nil)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp response.Response
+	err := json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, resp.Code)
+
+	data := resp.Data.(map[string]interface{})
+	assert.Contains(t, data, "count")
+	assert.Contains(t, data, "modules")
+}
+
 func TestModule_Close(t *testing.T) {
 	m := &Module{}
 	assert.NoError(t, m.Close())

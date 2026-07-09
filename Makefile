@@ -8,10 +8,14 @@
 
 BINARY ?= server
 SCRIPTS := scripts
+SWAGGER_OUT := api/swagger
 
-.PHONY: build release run test lint clean docker-build coverage coverage-html
+.PHONY: build release run test lint clean docker-build coverage coverage-html swagger
 
-build: ## debug 构建（保留调试符号）
+swagger: ## 生成 Swagger API 文档
+	swag init -g cmd/server/docs.go -o $(SWAGGER_OUT) --parseDependency --parseInternal
+
+build: swagger ## debug 构建（保留调试符号）
 	@bash $(SCRIPTS)/build.sh debug $(BINARY)
 
 release: ## release 构建（剥离调试信息）
@@ -40,6 +44,7 @@ lint: ## 运行 golangci-lint
 
 clean: ## 清理构建产物
 	@bash $(SCRIPTS)/clean.sh
+	rm -rf $(SWAGGER_OUT)
 
 docker-build: ## 构建 Docker 镜像
 	docker compose build

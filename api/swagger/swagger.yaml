@@ -1,0 +1,432 @@
+basePath: /api/v1
+definitions:
+  github_com_Allinost_go-backend-core_internal_pkg_response.Response:
+    properties:
+      code:
+        description: 业务错误码（0 表示成功）
+        type: integer
+      data:
+        description: 响应数据
+      detail:
+        description: 错误详情（仅开发环境可见）
+        type: string
+      message:
+        description: 提示信息
+        type: string
+      trace_id:
+        description: 请求追踪 ID
+        type: string
+    type: object
+  github_com_Allinost_go-backend-core_internal_services_auth.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  github_com_Allinost_go-backend-core_internal_services_auth.RegisterRequest:
+    properties:
+      nickname:
+        type: string
+      password:
+        maxLength: 128
+        minLength: 6
+        type: string
+      username:
+        maxLength: 32
+        minLength: 3
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  github_com_Allinost_go-backend-core_internal_services_auth.TokenPair:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      user_id:
+        type: integer
+      username:
+        type: string
+    type: object
+host: localhost:29090
+info:
+  contact:
+    name: Allinost
+    url: https://github.com/Allinost/go-backend-core
+  description: 模块化 Go 后端服务 API 文档
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://github.com/Allinost/go-backend-core
+  title: Go Backend Core API
+  version: 0.1.0
+paths:
+  /auth/{provider}/callback:
+    post:
+      description: 第三方登录授权回调处理，自动注册或登录
+      parameters:
+      - description: 平台名称
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: 授权码
+        in: query
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.TokenPair'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: OAuth 登录回调
+      tags:
+      - auth-社交登录
+  /auth/{provider}/url:
+    get:
+      description: 获取指定第三方登录平台的授权跳转 URL
+      parameters:
+      - description: '平台名称: wechat/feishu/qq/apple/huawei/honor'
+        in: path
+        name: provider
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    auth_url:
+                      type: string
+                    provider:
+                      type: string
+                    state:
+                      type: string
+                  type: object
+              type: object
+      summary: 获取 OAuth 授权 URL
+      tags:
+      - auth-社交登录
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 使用用户名/邮箱和密码登录，返回 JWT token 对
+      parameters:
+      - description: 登录请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.TokenPair'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 用户密码登录
+      tags:
+      - auth-认证
+  /auth/logout:
+    post:
+      description: 将当前 JWT token 加入黑名单，立即失效
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 用户注销
+      tags:
+      - auth-认证
+  /auth/me:
+    get:
+      description: 返回当前登录用户的详细信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户信息
+      tags:
+      - auth-用户
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: 使用 refresh_token 获取新的 access_token
+      parameters:
+      - description: 刷新令牌
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            refresh_token:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.TokenPair'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 刷新访问令牌
+      tags:
+      - auth-认证
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 使用用户名/邮箱和密码注册新用户
+      parameters:
+      - description: 注册请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.TokenPair'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 用户注册
+      tags:
+      - auth-认证
+  /s0/echo:
+    get:
+      description: 返回请求的详细信息，包括方法、路径、查询参数、请求头和客户端 IP
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    client_ip:
+                      type: string
+                    headers:
+                      type: object
+                    method:
+                      type: string
+                    path:
+                      type: string
+                    query:
+                      type: string
+                  type: object
+              type: object
+      summary: 请求回显（调试用）
+      tags:
+      - s0-调试
+  /s0/health:
+    get:
+      description: 返回所有依赖服务的健康检查结果
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    checks:
+                      type: object
+                    status:
+                      type: string
+                    uptime:
+                      type: string
+                    version:
+                      type: string
+                  type: object
+              type: object
+      summary: 全服务健康状态
+      tags:
+      - s0-调试
+  /s0/info:
+    get:
+      description: 返回服务名称、版本、运行时长、Go 运行时信息等
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    config_watch:
+                      type: boolean
+                    go_arch:
+                      type: string
+                    go_os:
+                      type: string
+                    go_version:
+                      type: string
+                    goroutines:
+                      type: integer
+                    mode:
+                      type: string
+                    modules:
+                      items:
+                        type: string
+                      type: array
+                    name:
+                      type: string
+                    start_time:
+                      type: string
+                    uptime:
+                      type: string
+                    version:
+                      type: string
+                  type: object
+              type: object
+      summary: 服务信息
+      tags:
+      - s0-调试
+  /s0/metrics:
+    get:
+      description: 返回 Prometheus 格式的监控指标
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Prometheus 指标暴露
+      tags:
+      - s0-调试
+  /s0/modules:
+    get:
+      description: 返回所有已注册的业务模块名称
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    modules:
+                      items:
+                        type: object
+                      type: array
+                  type: object
+              type: object
+      summary: 已注册模块列表
+      tags:
+      - s0-调试
+  /s0/ping:
+    get:
+      description: 返回 pong 表示服务运行正常
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    message:
+                      type: string
+                  type: object
+              type: object
+      summary: 存活检查
+      tags:
+      - s0-调试
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT Bearer token, 格式: "Bearer {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -234,6 +235,174 @@ func TestFeishuProvider_NameAndURL(t *testing.T) {
 	p := NewFeishuProvider("appid", "secret", "https://example.com/callback")
 	assert.Equal(t, "feishu", p.Name())
 	assert.Contains(t, p.AuthURL("state123"), "feishu.cn")
+}
+
+func TestInMemoryUserStore_ListUsers_Empty(t *testing.T) {
+	store := NewInMemoryUserStore()
+	users, total, err := store.ListUsers(1, 20, "")
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), total)
+	assert.Empty(t, users)
+}
+
+func TestInMemoryUserStore_ListUsers_Pagination(t *testing.T) {
+	store := NewInMemoryUserStore()
+	for i := 0; i < 5; i++ {
+		_, _ = store.CreateUser(RegisterRequest{
+			Username: fmt.Sprintf("user%d", i),
+			Password: "pass123",
+		})
+	}
+
+	users, total, err := store.ListUsers(1, 2, "")
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), total)
+	assert.Equal(t, 2, len(users))
+
+	users, total, err = store.ListUsers(3, 2, "")
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), total)
+	assert.Equal(t, 1, len(users))
+}
+
+func TestInMemoryUserStore_ListUsers_Search(t *testing.T) {
+	store := NewInMemoryUserStore()
+	_, _ = store.CreateUser(RegisterRequest{Username: "alice", Password: "pass123", Nickname: "Alice"})
+	_, _ = store.CreateUser(RegisterRequest{Username: "bob", Password: "pass123", Nickname: "Bob"})
+
+	users, total, err := store.ListUsers(1, 20, "alice")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), total)
+	assert.Equal(t, "alice", users[0].Username)
+}
+
+func TestInMemoryUserStore_UpdateUser(t *testing.T) {
+	store := NewInMemoryUserStore()
+	user, _ := store.CreateUser(RegisterRequest{Username: "update_me", Password: "pass123"})
+
+	email := "new@email.com"
+	nick := "NewName"
+	updated, err := store.UpdateUser(user.ID, UpdateUserRequest{
+		Nickname: &nick,
+		Email:    &email,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "NewName", updated.Nickname)
+	assert.Equal(t, "new@email.com", updated.Email)
+
+	_, err = store.UpdateUser(9999, UpdateUserRequest{})
+	assert.Error(t, err)
+}
+
+func TestInMemoryUserStore_DeleteUser(t *testing.T) {
+	store := NewInMemoryUserStore()
+	user, _ := store.CreateUser(RegisterRequest{Username: "delete_me", Password: "pass123"})
+
+	err := store.DeleteUser(user.ID)
+	require.NoError(t, err)
+
+	_, err = store.FindByID(user.ID)
+	assert.Error(t, err)
+
+	err = store.DeleteUser(9999)
+	assert.Error(t, err)
+}
+
+func TestInMemoryUserStore_ChangePassword(t *testing.T) {
+	store := NewInMemoryUserStore()
+	user, _ := store.CreateUser(RegisterRequest{Username: "changepass", Password: "oldpass"})
+
+	err := store.ChangePassword(user.ID, "oldpass", "newpass")
+	require.NoError(t, err)
+
+	_, err = store.VerifyPassword("changepass", "oldpass")
+	assert.Error(t, err)
+
+	result, err := store.VerifyPassword("changepass", "newpass")
+	require.NoError(t, err)
+	assert.Equal(t, user.ID, result.ID)
+}
+
+func TestInMemoryUserStore_ChangePassword_WrongOld(t *testing.T) {
+	store := NewInMemoryUserStore()
+	user, _ := store.CreateUser(RegisterRequest{Username: "wrongold", Password: "realpass"})
+
+	err := store.ChangePassword(user.ID, "wrongpass", "newpass")
+	assert.Error(t, err)
+}
+
+func TestInMemoryUserStore_InactiveCannotLogin(t *testing.T) {
+	store := NewInMemoryUserStore()
+	user, _ := store.CreateUser(RegisterRequest{Username: "inactiveuser", Password: "pass123"})
+	_ = store.DeleteUser(user.ID)
+
+	_, err := store.VerifyPassword("inactiveuser", "pass123")
+	assert.Error(t, err)
+}
+
+func TestApiKeyService_GenerateAndValidate(t *testing.T) {
+	store := NewInMemoryApiKeyStore()
+	svc := NewApiKeyService(store)
+
+	key, err := svc.GenerateKey("test-key", 1, "*:*", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "test-key", key.Name)
+	assert.NotEmpty(t, key.RawKey)
+	assert.Contains(t, key.RawKey, "gbk_")
+	assert.NotEmpty(t, key.KeyPrefix)
+	assert.Equal(t, "*:*", key.Scopes)
+	assert.Equal(t, "active", key.Status)
+
+	validated, err := svc.ValidateKey(key.RawKey)
+	require.NoError(t, err)
+	assert.Equal(t, key.ID, validated.ID)
+	assert.NotNil(t, validated.LastUsedAt)
+}
+
+func TestApiKeyService_InvalidKey(t *testing.T) {
+	store := NewInMemoryApiKeyStore()
+	svc := NewApiKeyService(store)
+
+	_, err := svc.ValidateKey("gbk_invalidkey")
+	assert.Error(t, err)
+}
+
+func TestApiKeyService_ExpiredKey(t *testing.T) {
+	store := NewInMemoryApiKeyStore()
+	svc := NewApiKeyService(store)
+
+	past := time.Now().Add(-time.Hour)
+	key, err := svc.GenerateKey("expired", 1, "*:*", &past)
+	require.NoError(t, err)
+
+	_, err = svc.ValidateKey(key.RawKey)
+	assert.Error(t, err)
+}
+
+func TestApiKeyService_ListAndDelete(t *testing.T) {
+	store := NewInMemoryApiKeyStore()
+	svc := NewApiKeyService(store)
+
+	_, _ = svc.GenerateKey("k1", 1, "*:*", nil)
+	_, _ = svc.GenerateKey("k2", 1, "*:*", nil)
+	_, _ = svc.GenerateKey("k3", 2, "*:*", nil)
+
+	keys, total, err := svc.ListAll(1, 20)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), total)
+	assert.Equal(t, 3, len(keys))
+
+	user1Keys, err := svc.ListByUser(1)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(user1Keys))
+
+	_ = svc.Delete(user1Keys[0].ID)
+	keys, total, _ = svc.ListAll(1, 20)
+	assert.Equal(t, int64(2), total)
+
+	_, err = svc.ListByUser(999)
+	require.NoError(t, err)
+	assert.Empty(t, err)
 }
 
 func TestInMemoryRBACStore_Defaults(t *testing.T) {

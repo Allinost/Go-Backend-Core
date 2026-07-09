@@ -4,7 +4,8 @@
 server:
   name: go-backend-core        # 服务名称，用于日志/监控标识
   version: v0.1.0              # 当前版本号
-  port: 29090                  # HTTP 监听端口
+  port: 29090                  # 业务 API 监听端口（Nginx 对外暴露）
+  debug_port: 29092            # 调试/监控/运维端口（仅内网，含 Swagger UI + s0）
   mode: debug                  # Gin 运行模式：debug | release | test
 
 log:
@@ -59,7 +60,7 @@ database:
       region: "us-east-1"
 
 redis:
-    main:                        # 主 Redis 实例标识
+  main:                        # 主 Redis 实例标识
     enabled: true              # 是否启用 Redis
     addr: localhost:6379       # Redis 地址
     password: ""               # Redis 密码（生产环境务必设置）

@@ -13,10 +13,7 @@ type Module interface {
 	Close() error                          // 模块关闭（资源清理）
 }
 
-var (
-	registry = make(map[string]Module) // 全局模块注册表
-	router   *gin.Engine               // Gin 引擎引用（InitAll 时设置）
-)
+var registry = make(map[string]Module) // 全局模块注册表
 
 // Register 注册模块到全局注册表
 func Register(m Module) {
@@ -27,14 +24,28 @@ func Register(m Module) {
 	registry[name] = m
 }
 
-// InitAll 初始化所有已注册模块并挂载路由
-func InitAll(cfg *config.Config, r *gin.Engine) {
-	router = r
+// InitAll 初始化所有已注册模块（调用 Init），不自动挂载路由
+func InitAll(cfg *config.Config) {
 	for _, m := range registry {
 		if err := m.Init(cfg); err != nil {
 			panic("模块 " + m.Name() + " 初始化失败: " + err.Error())
 		}
+	}
+}
+
+// RegisterAllRoutes 将所有模块路由挂载到指定引擎
+func RegisterAllRoutes(r *gin.Engine) {
+	for _, m := range registry {
 		m.RegisterRoutes(r.Group("/api/v1/" + m.Name()))
+	}
+}
+
+// RegisterRoutesTo 将指定模块挂载到指定引擎
+func RegisterRoutesTo(r *gin.Engine, names ...string) {
+	for _, name := range names {
+		if m, ok := registry[name]; ok {
+			m.RegisterRoutes(r.Group("/api/v1/" + name))
+		}
 	}
 }
 
@@ -48,4 +59,13 @@ func CloseAll() {
 // Get 按名称获取已注册模块
 func Get(name string) Module {
 	return registry[name]
+}
+
+// List 返回所有已注册模块的名称列表
+func List() []string {
+	names := make([]string, 0, len(registry))
+	for name := range registry {
+		names = append(names, name)
+	}
+	return names
 }

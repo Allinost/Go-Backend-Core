@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/joho/godotenv"
@@ -32,13 +33,41 @@ type Config struct {
 	Auth      AuthConfig      `mapstructure:"auth"`
 	Config    ConfigOpts      `mapstructure:"config"`
 	Scheduler SchedulerConfig `mapstructure:"scheduler"`
+	Crypto    CryptoConfig    `mapstructure:"crypto"`
+	Net       NetConfig       `mapstructure:"net"`
+}
+
+type CryptoConfig struct {
+	MasterKeyHex string            `mapstructure:"master_key_hex"`
+	Enabled      bool              `mapstructure:"enabled"`
+	OldKeys      map[int]string    `mapstructure:"old_keys"`
+}
+
+type NetConfig struct {
+	HTTP NetHTTPConfig `mapstructure:"http"`
+	TCP  NetTCPConfig  `mapstructure:"tcp"`
+}
+
+type NetHTTPConfig struct {
+	DefaultTimeout  time.Duration `mapstructure:"default_timeout"`
+	MaxRetries      int           `mapstructure:"max_retries"`
+	RetryWaitMin    time.Duration `mapstructure:"retry_wait_min"`
+	RetryWaitMax    time.Duration `mapstructure:"retry_wait_max"`
+	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
+	IdleConnTimeout time.Duration `mapstructure:"idle_conn_timeout"`
+}
+
+type NetTCPConfig struct {
+	ConnectTimeout time.Duration `mapstructure:"connect_timeout"`
+	ReadTimeout    time.Duration `mapstructure:"read_timeout"`
 }
 
 type ServerConfig struct {
-	Name    string `mapstructure:"name"`    // 服务名称
-	Version string `mapstructure:"version"` // 版本号
-	Port    int    `mapstructure:"port"`    // HTTP 监听端口
-	Mode    string `mapstructure:"mode"`    // Gin 运行模式
+	Name      string `mapstructure:"name"`       // 服务名称
+	Version   string `mapstructure:"version"`    // 版本号
+	Port      int    `mapstructure:"port"`       // 业务 API 监听端口（Nginx 对外暴露）
+	DebugPort int    `mapstructure:"debug_port"` // 调试/监控/运维端口（仅内网）
+	Mode      string `mapstructure:"mode"`       // Gin 运行模式
 }
 
 type LogConfig struct {

@@ -48,14 +48,31 @@ func TestInitAll(t *testing.T) {
 	Register(&testModule{name: "m1"})
 	Register(&testModule{name: "m2"})
 
-	r := gin.New()
 	cfg := &config.Config{
 		Server: config.ServerConfig{Mode: "test"},
 	}
 
-	assert.NotPanics(t, func() { InitAll(cfg, r) })
+	assert.NotPanics(t, func() { InitAll(cfg) })
 	assert.NotNil(t, Get("m1"))
 	assert.NotNil(t, Get("m2"))
+}
+
+func TestRegisterAllRoutes(t *testing.T) {
+	resetRegistry()
+	Register(&testModule{name: "m1"})
+	Register(&testModule{name: "m2"})
+
+	r := gin.New()
+	assert.NotPanics(t, func() { RegisterAllRoutes(r) })
+}
+
+func TestRegisterRoutesTo(t *testing.T) {
+	resetRegistry()
+	Register(&testModule{name: "m1"})
+	Register(&testModule{name: "m2"})
+
+	r := gin.New()
+	assert.NotPanics(t, func() { RegisterRoutesTo(r, "m1") })
 }
 
 func TestCloseAll(t *testing.T) {
