@@ -54,6 +54,10 @@ func InitAll(cfg *config.Config) error {
 
 func initMySQL(cfg *config.Config) {
 	for name, dbCfg := range cfg.Database.MySQL {
+		if !dbCfg.Enabled {
+			log.Printf("[database] MySQL[%s] 已禁用，跳过", name)
+			continue
+		}
 		pool, err := mysql.NewPool(dbCfg)
 		if err != nil {
 			log.Printf("[database] MySQL[%s] 初始化失败: %v", name, err)
@@ -66,6 +70,10 @@ func initMySQL(cfg *config.Config) {
 
 func initPostgres(cfg *config.Config) {
 	for name, dbCfg := range cfg.Database.Postgres {
+		if !dbCfg.Enabled {
+			log.Printf("[database] PostgreSQL[%s] 已禁用，跳过", name)
+			continue
+		}
 		pool, err := postgres.NewPool(dbCfg)
 		if err != nil {
 			log.Printf("[database] PostgreSQL[%s] 初始化失败: %v", name, err)
@@ -78,6 +86,10 @@ func initPostgres(cfg *config.Config) {
 
 func initS3(cfg *config.Config) {
 	for name, s3Cfg := range cfg.Database.S3 {
+		if !s3Cfg.Enabled {
+			log.Printf("[database] S3[%s] 已禁用，跳过", name)
+			continue
+		}
 		switch name {
 		case "minio":
 			client, err := minio.NewClient(s3Cfg)
@@ -103,7 +115,7 @@ func initS3(cfg *config.Config) {
 
 func initRedis(cfg *config.Config) {
 	mainCfg := cfg.Redis.Main
-	if mainCfg.Addr != "" {
+	if mainCfg.Enabled && mainCfg.Addr != "" {
 		client, err := redis.NewClient(mainCfg)
 		if err != nil {
 			log.Printf("[database] Redis[main] 初始化失败: %v", err)
@@ -113,6 +125,10 @@ func initRedis(cfg *config.Config) {
 		}
 	}
 	for name, rc := range cfg.Redis.Extra {
+		if !rc.Enabled {
+			log.Printf("[database] Redis[%s] 已禁用，跳过", name)
+			continue
+		}
 		client, err := redis.NewClient(rc)
 		if err != nil {
 			log.Printf("[database] Redis[%s] 初始化失败: %v", name, err)

@@ -18,6 +18,7 @@ log:
 database:
   mysql:
     main:                      # 主数据库实例标识
+      enabled: true            # 是否启用 MySQL
       host: localhost          # MySQL 主机地址
       port: 3306               # MySQL 监听端口
       user: root               # 数据库用户名（通过 .env 中 APP_DATABASE_MYSQL_MAIN_* 覆盖）
@@ -29,6 +30,7 @@ database:
 
   postgres:
     nas:                       # NAS 上的 PostgreSQL 实例（仅 NAS 场景使用）
+      enabled: true            # 是否启用 PostgreSQL
       host: localhost
       port: 5432
       user: postgres
@@ -40,6 +42,7 @@ database:
 
   s3:
     minio:                     # MinIO 对象存储
+      enabled: false         # 是否启用 MinIO（默认关闭）
       endpoint: "minio:9000"
       access_key: ""
       secret_key: ""
@@ -47,6 +50,7 @@ database:
       bucket: "app-data"
       region: "us-east-1"
     rustfs:                    # RustFS 自建对象存储
+      enabled: true         # 是否启用 RustFS
       endpoint: "rustfs.example.com"
       access_key: ""
       secret_key: ""
@@ -55,7 +59,8 @@ database:
       region: "us-east-1"
 
 redis:
-  main:                        # 主 Redis 实例标识
+    main:                        # 主 Redis 实例标识
+    enabled: true              # 是否启用 Redis
     addr: localhost:6379       # Redis 地址
     password: ""               # Redis 密码（生产环境务必设置）
     db: 0                      # Redis 数据库编号

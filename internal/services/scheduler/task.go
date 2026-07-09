@@ -50,7 +50,8 @@ const (
 
 type TaskLog struct {
 	ID        uint            `json:"id" gorm:"primaryKey;autoIncrement"`
-	TaskID    uint            `json:"task_id" gorm:"index"`
+	TaskID    uint            `json:"task_id" gorm:"index;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Task      *Task           `json:"-" gorm:"foreignKey:TaskID"`
 	TaskName  string          `json:"task_name" gorm:"size:255"`
 	Status    TaskLogStatus   `json:"status" gorm:"size:20"`
 	StartedAt time.Time       `json:"started_at"`

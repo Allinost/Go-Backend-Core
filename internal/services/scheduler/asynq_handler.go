@@ -20,16 +20,20 @@ type asynqPayload struct {
 
 func newAsynqClient(rdb *redis.Client) *asynq.Client {
 	return asynq.NewClient(asynq.RedisClientOpt{
-		Addr: rdb.Options().Addr,
-		DB:   rdb.Options().DB,
+		Addr:     rdb.Options().Addr,
+		Username: rdb.Options().Username,
+		Password: rdb.Options().Password,
+		DB:       rdb.Options().DB,
 	})
 }
 
 func newAsynqServer(rdb *redis.Client, concurrency, timeout int) *asynq.Server {
 	return asynq.NewServer(
 		asynq.RedisClientOpt{
-			Addr: rdb.Options().Addr,
-			DB:   rdb.Options().DB,
+			Addr:     rdb.Options().Addr,
+			Username: rdb.Options().Username,
+			Password: rdb.Options().Password,
+			DB:       rdb.Options().DB,
 		},
 		asynq.Config{
 			Concurrency: concurrency,

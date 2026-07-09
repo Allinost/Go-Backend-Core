@@ -19,6 +19,7 @@ type Client struct {
 func NewClient(cfg config.RedisInstance) (*Client, error) {
 	opts := &redis.Options{
 		Addr:         cfg.Addr,
+		Username:     cfg.Username,
 		Password:     cfg.Password,
 		DB:           cfg.DB,
 		DialTimeout:  5 * time.Second,

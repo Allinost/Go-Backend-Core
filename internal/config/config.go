@@ -57,6 +57,7 @@ type DatabaseConfig struct {
 }
 
 type MySQLConfig struct {
+	Enabled         bool   `mapstructure:"enabled"`
 	Host            string `mapstructure:"host"`
 	Port            int    `mapstructure:"port"`
 	User            string `mapstructure:"user"`
@@ -68,6 +69,7 @@ type MySQLConfig struct {
 }
 
 type PGConfig struct {
+	Enabled         bool   `mapstructure:"enabled"`
 	Host            string `mapstructure:"host"`
 	Port            int    `mapstructure:"port"`
 	User            string `mapstructure:"user"`
@@ -79,6 +81,7 @@ type PGConfig struct {
 }
 
 type S3Config struct {
+	Enabled   bool   `mapstructure:"enabled"`
 	Endpoint  string `mapstructure:"endpoint"`
 	AccessKey string `mapstructure:"access_key"`
 	SecretKey string `mapstructure:"secret_key"`
@@ -93,7 +96,9 @@ type RedisConfig struct {
 }
 
 type RedisInstance struct {
+	Enabled  bool   `mapstructure:"enabled"`
 	Addr     string `mapstructure:"addr"`
+	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
 	DB       int    `mapstructure:"db"`
 	PoolSize int    `mapstructure:"pool_size"` // 连接池大小
@@ -108,8 +113,32 @@ type CacheConfig struct {
 }
 
 type AuthConfig struct {
-	JWTSecret string `mapstructure:"jwt_secret"` // JWT 签名密钥
-	JWTExpire string `mapstructure:"jwt_expire"` // JWT 过期时长
+	JWTSecret string       `mapstructure:"jwt_secret"` // JWT 签名密钥
+	JWTExpire string       `mapstructure:"jwt_expire"` // JWT 过期时长
+	OAuth2    OAuth2Config `mapstructure:"oauth2"`
+}
+
+type OAuth2Config struct {
+	Wechat *OAuth2ClientConfig `mapstructure:"wechat"`
+	Feishu *OAuth2ClientConfig `mapstructure:"feishu"`
+	QQ     *OAuth2ClientConfig `mapstructure:"qq"`
+	Apple  *AppleOAuth2Config  `mapstructure:"apple"`
+	Huawei *OAuth2ClientConfig `mapstructure:"huawei"`
+	Honor  *OAuth2ClientConfig `mapstructure:"honor"`
+}
+
+type OAuth2ClientConfig struct {
+	ClientID     string `mapstructure:"client_id"`
+	ClientSecret string `mapstructure:"client_secret"`
+	RedirectURL  string `mapstructure:"redirect_url"`
+}
+
+type AppleOAuth2Config struct {
+	ClientID    string `mapstructure:"client_id"`
+	TeamID      string `mapstructure:"team_id"`
+	KeyID       string `mapstructure:"key_id"`
+	PrivateKey  string `mapstructure:"private_key"`
+	RedirectURL string `mapstructure:"redirect_url"`
 }
 
 type ConfigOpts struct {
