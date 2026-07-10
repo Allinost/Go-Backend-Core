@@ -1,0 +1,13 @@
+.git/
+.gitignore
+.idea/
+.air.toml
+.env
+.env.example
+logs/
+server.exe
+cover/
+coverage/
+aiPrompt/
+zzz/
+docs/

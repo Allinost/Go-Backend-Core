@@ -279,6 +279,70 @@ func (r *Repository) ListInboundLogs(ctx context.Context, inventoryID string) ([
 	return items, rows.Err()
 }
 
+func (r *Repository) GetInboundLog(ctx context.Context, id string) (*InboundLog, error) {
+	var item InboundLog
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, inventory_id, order_no, type, remark, items, created_at
+		 FROM `+tableInboundLogs+` WHERE id = ?`, id).
+		Scan(&item.ID, &item.InventoryID, &item.OrderNo, &item.Type,
+			&item.Remark, &item.Items, &item.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+func (r *Repository) CreateInboundLog(ctx context.Context, req *CreateInboundLogReq) (*InboundLog, error) {
+	now := time.Now()
+	itemsJSON, _ := json.Marshal(req.Items)
+	item := &InboundLog{
+		ID:          uuid.New().String(),
+		InventoryID: req.InventoryID,
+		OrderNo:     req.OrderNo,
+		Type:        req.Type,
+		Remark:      req.Remark,
+		Items:       itemsJSON,
+		CreatedAt:   now,
+	}
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO `+tableInboundLogs+` (id, inventory_id, order_no, type, remark, items, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		item.ID, item.InventoryID, item.OrderNo, item.Type, item.Remark, item.Items, item.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+func (r *Repository) UpdateInboundLog(ctx context.Context, req *UpdateInboundLogReq) (*InboundLog, error) {
+	log, err := r.GetInboundLog(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if req.Type != nil {
+		log.Type = *req.Type
+	}
+	if req.Remark != nil {
+		log.Remark = req.Remark
+	}
+	if req.Items != nil {
+		itemsJSON, _ := json.Marshal(req.Items)
+		log.Items = itemsJSON
+	}
+	_, err = r.db.ExecContext(ctx,
+		`UPDATE `+tableInboundLogs+` SET type = ?, remark = ?, items = ? WHERE id = ?`,
+		log.Type, log.Remark, log.Items, log.ID)
+	if err != nil {
+		return nil, err
+	}
+	return log, nil
+}
+
+func (r *Repository) DeleteInboundLog(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM `+tableInboundLogs+` WHERE id = ?`, id)
+	return err
+}
+
 // --- Product Mutations ---
 
 func (r *Repository) UpdateProduct(ctx context.Context, req *UpdateProductReq) (*Product, error) {
@@ -374,6 +438,42 @@ func (r *Repository) ListTags(ctx context.Context) ([]Tag, error) {
 	return items, rows.Err()
 }
 
+func (r *Repository) GetTag(ctx context.Context, id string) (*Tag, error) {
+	var item Tag
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, name, color, created_at FROM `+tableTags+` WHERE id = ?`, id).
+		Scan(&item.ID, &item.Name, &item.Color, &item.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+func (r *Repository) UpdateTag(ctx context.Context, req *UpdateTagReq) (*Tag, error) {
+	tag, err := r.GetTag(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if req.Name != nil {
+		tag.Name = *req.Name
+	}
+	if req.Color != nil {
+		tag.Color = *req.Color
+	}
+	_, err = r.db.ExecContext(ctx,
+		`UPDATE `+tableTags+` SET name = ?, color = ? WHERE id = ?`,
+		tag.Name, tag.Color, tag.ID)
+	if err != nil {
+		return nil, err
+	}
+	return tag, nil
+}
+
+func (r *Repository) DeleteTag(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM `+tableTags+` WHERE id = ?`, id)
+	return err
+}
+
 func (r *Repository) CreateTag(ctx context.Context, req *CreateTagReq) (*Tag, error) {
 	now := time.Now()
 	color := "#1890ff"
@@ -396,6 +496,57 @@ func (r *Repository) CreateTag(ctx context.Context, req *CreateTagReq) (*Tag, er
 }
 
 // --- Status Codes ---
+
+func (r *Repository) GetStatusCode(ctx context.Context, id string) (*StatusCode, error) {
+	var item StatusCode
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, code, label, is_system, created_at FROM `+tableStatusCodes+` WHERE id = ?`, id).
+		Scan(&item.ID, &item.Code, &item.Label, &item.IsSystem, &item.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+func (r *Repository) CreateStatusCode(ctx context.Context, req *AddStatusCodeReq) (*StatusCode, error) {
+	now := time.Now()
+	item := &StatusCode{
+		ID:        uuid.New().String(),
+		Code:      req.Code,
+		Label:     req.Label,
+		IsSystem:  false,
+		CreatedAt: now,
+	}
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO `+tableStatusCodes+` (id, code, label, is_system, created_at) VALUES (?, ?, ?, ?, ?)`,
+		item.ID, item.Code, item.Label, item.IsSystem, item.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+func (r *Repository) UpdateStatusCode(ctx context.Context, req *UpdateStatusCodeReq) (*StatusCode, error) {
+	sc, err := r.GetStatusCode(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if req.Label != "" {
+		sc.Label = req.Label
+	}
+	_, err = r.db.ExecContext(ctx,
+		`UPDATE `+tableStatusCodes+` SET label = ? WHERE id = ?`,
+		sc.Label, sc.ID)
+	if err != nil {
+		return nil, err
+	}
+	return sc, nil
+}
+
+func (r *Repository) DeleteStatusCode(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM `+tableStatusCodes+` WHERE id = ?`, id)
+	return err
+}
 
 func (r *Repository) ListStatusCodes(ctx context.Context) ([]StatusCode, error) {
 	rows, err := r.db.QueryContext(ctx,
@@ -433,7 +584,7 @@ func (r *Repository) CreateProductTx(ctx context.Context, tx *sql.Tx, req *Creat
 	p := &Product{
 		ID:               uuid.New().String(),
 		InventoryID:      req.InventoryID,
-		Code:             fmt.Sprintf("%s-%s-%04d-%04d-%s", req.MainZone, req.SubZone, req.SeqNumber, qty, req.StatusCode),
+		Code:             fmt.Sprintf("%s-%s-%04d-%04d-%s", req.MainZone, req.SubZone, req.SeqNumber, 0, req.StatusCode),
 		MainZone:         req.MainZone,
 		SubZone:          req.SubZone,
 		SeqNumber:        req.SeqNumber,

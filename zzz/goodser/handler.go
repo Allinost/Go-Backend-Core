@@ -538,6 +538,174 @@ func (h *Handler) LoadStatusCodes(c *gin.Context) {
 	response.Success(c, items)
 }
 
+// UpdateProductLegacy 更新商品（Legacy POST）
+func (h *Handler) UpdateProductLegacy(c *gin.Context) {
+	var req UpdateProductReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	product, err := h.svc.UpdateProduct(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, product)
+}
+
+// UpdateTagLegacy 更新标签
+func (h *Handler) UpdateTagLegacy(c *gin.Context) {
+	var req UpdateTagReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	item, err := h.svc.UpdateTag(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, item)
+}
+
+// DeleteTagLegacy 删除标签
+func (h *Handler) DeleteTagLegacy(c *gin.Context) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	if err := h.svc.DeleteTag(c.Request.Context(), req.ID); err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, gin.H{})
+}
+
+// AddStatusCode 创建状态编码
+func (h *Handler) AddStatusCode(c *gin.Context) {
+	var req AddStatusCodeReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	item, err := h.svc.CreateStatusCode(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, item)
+}
+
+// UpdateStatusCode 更新状态编码
+func (h *Handler) UpdateStatusCode(c *gin.Context) {
+	var req UpdateStatusCodeReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	item, err := h.svc.UpdateStatusCode(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, item)
+}
+
+// RemoveStatusCode 删除状态编码
+func (h *Handler) RemoveStatusCode(c *gin.Context) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	if err := h.svc.DeleteStatusCode(c.Request.Context(), req.ID); err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, gin.H{})
+}
+
+// CreateInboundLogHandler 创建入库日志
+func (h *Handler) CreateInboundLogHandler(c *gin.Context) {
+	var req CreateInboundLogReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	item, err := h.svc.CreateInboundLog(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, item)
+}
+
+// UpdateInboundLogHandler 更新入库日志
+func (h *Handler) UpdateInboundLogHandler(c *gin.Context) {
+	var req UpdateInboundLogReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	item, err := h.svc.UpdateInboundLog(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, item)
+}
+
+// DeleteInboundLogHandler 删除入库日志
+func (h *Handler) DeleteInboundLogHandler(c *gin.Context) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	if err := h.svc.DeleteInboundLog(c.Request.Context(), req.ID); err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, gin.H{})
+}
+
+// CancelReserveHandler 取消预留单
+func (h *Handler) CancelReserveHandler(c *gin.Context) {
+	var req CancelReserveReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	order, err := h.svc.CancelReserve(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, order)
+}
+
+// ReserveToOutboundHandler 预留单转出库单
+func (h *Handler) ReserveToOutboundHandler(c *gin.Context) {
+	var req ReserveToOutboundReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	order, err := h.svc.ReserveToOutbound(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, order)
+}
+
 // UploadImage 上传图片
 // @Summary      上传图片
 // @Description  上传图片到对象存储，返回可访问的 URL

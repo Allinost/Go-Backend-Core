@@ -433,10 +433,189 @@ func (s *Service) CreateTag(ctx context.Context, req *CreateTagReq) (*Tag, error
 	return s.repo.CreateTag(ctx, req)
 }
 
+// UpdateTag 更新标签
+func (s *Service) UpdateTag(ctx context.Context, req *UpdateTagReq) (*Tag, error) {
+	item, err := s.repo.UpdateTag(ctx, req)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewGoodserError(ErrTagNotFound)
+		}
+		return nil, err
+	}
+	return item, nil
+}
+
+// DeleteTag 删除标签
+func (s *Service) DeleteTag(ctx context.Context, id string) error {
+	if err := s.repo.DeleteTag(ctx, id); err != nil {
+		return err
+	}
+	return nil
+}
+
 // ListStatusCodes 获取状态编码列表
 func (s *Service) ListStatusCodes(ctx context.Context) ([]StatusCode, error) {
 	return s.repo.ListStatusCodes(ctx)
 }
+
+// CreateStatusCode 创建状态码
+func (s *Service) CreateStatusCode(ctx context.Context, req *AddStatusCodeReq) (*StatusCode, error) {
+	return s.repo.CreateStatusCode(ctx, req)
+}
+
+// UpdateStatusCode 更新状态码
+func (s *Service) UpdateStatusCode(ctx context.Context, req *UpdateStatusCodeReq) (*StatusCode, error) {
+	item, err := s.repo.UpdateStatusCode(ctx, req)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewGoodserError(ErrStatusCodeNotFound)
+		}
+		return nil, err
+	}
+	return item, nil
+}
+
+// DeleteStatusCode 删除状态码
+func (s *Service) DeleteStatusCode(ctx context.Context, id string) error {
+	if err := s.repo.DeleteStatusCode(ctx, id); err != nil {
+		return err
+	}
+	return nil
+}
+
+// CreateInboundLog 创建入库日志
+func (s *Service) CreateInboundLog(ctx context.Context, req *CreateInboundLogReq) (*InboundLog, error) {
+	return s.repo.CreateInboundLog(ctx, req)
+}
+
+// UpdateInboundLog 更新入库日志
+func (s *Service) UpdateInboundLog(ctx context.Context, req *UpdateInboundLogReq) (*InboundLog, error) {
+	item, err := s.repo.UpdateInboundLog(ctx, req)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, NewGoodserError(ErrInboundLogNotFound)
+		}
+		return nil, err
+	}
+	return item, nil
+}
+
+// DeleteInboundLog 删除入库日志
+func (s *Service) DeleteInboundLog(ctx context.Context, id string) error {
+	if err := s.repo.DeleteInboundLog(ctx, id); err != nil {
+		return err
+	}
+	return nil
+}
+
+// CancelReserve 取消预留单
+func (s *Service) CancelReserve(ctx context.Context, req *CancelReserveReq) (*OutboundOrder, error) {
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	order, err := s.repo.GetOutboundOrderForUpdateTx(ctx, tx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if order.Type != string(OrderTypeReserve) {
+		return nil, NewGoodserError(ErrInvalidOrderStatus)
+	}
+	if order.Status != string(OrderStatusPending) && order.Status != string(OrderStatusReserved) {
+		return nil, NewGoodserError(ErrInvalidOrderStatus)
+	}
+
+	var orderItems []OrderItem
+	if err := json.Unmarshal(order.Items, &orderItems); err != nil {
+		return nil, err
+	}
+
+	for _, item := range orderItems {
+		if err := s.repo.UpdateProductReservedTx(ctx, tx, item.ProductID, 0, -item.Quantity); err != nil {
+			return nil, err
+		}
+	}
+
+	now := time.Now()
+	if err := s.repo.UpdateOutboundOrderStatusTx(ctx, tx, order.ID, string(OrderStatusCancelled), nil, &now); err != nil {
+		return nil, err
+	}
+
+	tx.Commit()
+	order.Status = string(OrderStatusCancelled)
+	return order, nil
+}
+
+// ReserveToOutbound 预留单转出库单
+func (s *Service) ReserveToOutbound(ctx context.Context, req *ReserveToOutboundReq) (*OutboundOrder, error) {
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	order, err := s.repo.GetOutboundOrderForUpdateTx(ctx, tx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if order.Type != string(OrderTypeReserve) {
+		return nil, NewGoodserError(ErrInvalidOrderStatus)
+	}
+	if order.Status != string(OrderStatusPending) && order.Status != string(OrderStatusReserved) {
+		return nil, NewGoodserError(ErrInvalidOrderStatus)
+	}
+
+	// 释放原预留的库存，确认预留单
+	var orderItems []OrderItem
+	if err := json.Unmarshal(order.Items, &orderItems); err != nil {
+		return nil, err
+	}
+	for _, item := range orderItems {
+		if err := s.repo.UpdateProductReservedTx(ctx, tx, item.ProductID, 0, -item.Quantity); err != nil {
+			return nil, err
+		}
+	}
+	now := time.Now()
+	if err := s.repo.UpdateOutboundOrderStatusTx(ctx, tx, order.ID, string(OrderStatusConfirmed), &now, nil); err != nil {
+		return nil, err
+	}
+
+	// 创建新出库单
+	newOrder, err := s.repo.CreateOutboundOrderTx(ctx, tx, &CreateOutboundReq{
+		InventoryID:     req.InventoryID,
+		OrderNo:         req.OrderNo,
+		Type:            strPtr(string(OrderTypeOutbound)),
+		Status:          strPtr(string(OrderStatusPending)),
+		OrderInfo:       req.OrderInfo,
+		Remark:          req.Remark,
+		Items:           req.Items,
+		SourceReserveID: strPtr(req.ID),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// 锁定新出库单的库存
+	for _, item := range req.Items {
+		product, err := s.repo.GetProductForUpdateTx(ctx, tx, item.ProductID)
+		if err != nil {
+			return nil, err
+		}
+		if product.Quantity-product.ReservedQuantity < item.Quantity {
+			return nil, NewGoodserError(ErrInsufficientStock)
+		}
+		if err := s.repo.UpdateProductReservedTx(ctx, tx, item.ProductID, 0, item.Quantity); err != nil {
+			return nil, err
+		}
+	}
+
+	tx.Commit()
+	return newOrder, nil
+}
+
+func strPtr(s string) *string { return &s }
 
 // timeNowFunc 便于测试注入
 type timeNowFunc func() time.Time

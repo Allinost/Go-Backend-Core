@@ -8,7 +8,8 @@ ENV GOPROXY=https://goproxy.cn,direct
 
 # 提前复制依赖文件以利用 Docker 缓存
 COPY go.mod go.sum ./
-RUN go mod download -x
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    go mod download -x
 
 # 编译
 COPY . .
@@ -17,7 +18,9 @@ COPY . .
 RUN go install github.com/swaggo/swag/cmd/swag@latest && \
     swag init -g cmd/server/docs.go -o api/swagger --parseDependency --parseInternal
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server ./cmd/server/
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server ./cmd/server/
 
 # ===== 运行阶段 =====
 FROM alpine:3.21

@@ -271,6 +271,21 @@ type ReserveToOutboundReq struct {
 	Remark      *string     `json:"remark"`
 }
 
+type CreateInboundLogReq struct {
+	InventoryID string      `json:"inventory_id"`
+	OrderNo     *string     `json:"order_no"`
+	Type        string      `json:"type"`
+	Remark      *string     `json:"remark"`
+	Items       []OrderItem `json:"items"`
+}
+
+type UpdateInboundLogReq struct {
+	ID     string      `json:"id"`
+	Type   *string     `json:"type"`
+	Remark *string     `json:"remark"`
+	Items  []OrderItem `json:"items"`
+}
+
 type CreateTagReq struct {
 	Name  string  `json:"name"`
 	Color *string `json:"color"`
