@@ -14,9 +14,9 @@ import (
 )
 
 type Module struct {
-	adapter     svc.DBAdapter
-	migrator    *svc.SchemaMigrator
-	migrateDir  string
+	adapter    svc.DBAdapter
+	migrator   *svc.SchemaMigrator
+	migrateDir string
 }
 
 func (m *Module) Name() string {
@@ -72,6 +72,14 @@ func (m *Module) getAdapter(c *gin.Context) (svc.DBAdapter, bool) {
 	return m.adapter, true
 }
 
+// listTables 获取表列表
+// @Summary      获取数据库表列表
+// @Description  返回当前数据库中的所有表名
+// @Tags         migrate
+// @Produce      json
+// @Success      200  {object}  response.Response
+// @Failure      500  {object}  response.Response
+// @Router       /migrate/tables [get]
 func (m *Module) listTables(c *gin.Context) {
 	adapter, ok := m.getAdapter(c)
 	if !ok {
@@ -85,6 +93,15 @@ func (m *Module) listTables(c *gin.Context) {
 	response.Success(c, gin.H{"tables": tables})
 }
 
+// tableSchema 获取表结构
+// @Summary      获取指定表结构
+// @Description  返回指定表的字段定义和索引信息
+// @Tags         migrate
+// @Produce      json
+// @Param        name  path  string  true  "表名"
+// @Success      200   {object}  response.Response
+// @Failure      404   {object}  response.Response
+// @Router       /migrate/tables/{name}/schema [get]
 func (m *Module) tableSchema(c *gin.Context) {
 	adapter, ok := m.getAdapter(c)
 	if !ok {
@@ -98,6 +115,16 @@ func (m *Module) tableSchema(c *gin.Context) {
 	response.Success(c, schema)
 }
 
+// dump 数据导出
+// @Summary      导出数据库数据
+// @Description  按指定格式导出表数据，支持 JSON/SQL/CSV 格式
+// @Tags         migrate
+// @Accept       json
+// @Produce      application/octet-stream
+// @Param        body  body  object{tables=[]string,format=string,where=object,batch_size=int,schema_only=bool}  true  "导出选项"
+// @Success      200  {file}  binary
+// @Failure      500  {object}  response.Response
+// @Router       /migrate/dump [post]
 func (m *Module) dump(c *gin.Context) {
 	adapter, ok := m.getAdapter(c)
 	if !ok {
@@ -138,6 +165,18 @@ func (m *Module) dump(c *gin.Context) {
 	c.Data(200, "application/octet-stream", result.Data)
 }
 
+// restore 数据导入
+// @Summary      导入数据库数据
+// @Description  通过上传文件导入数据到数据库
+// @Tags         migrate
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file     formData  file    true  "数据文件"
+// @Param        format   formData  string  false  "文件格式"
+// @Param        truncate formData  string  false  "是否先清空表"
+// @Success      200  {object}  response.Response
+// @Failure      500  {object}  response.Response
+// @Router       /migrate/restore [post]
 func (m *Module) restore(c *gin.Context) {
 	adapter, ok := m.getAdapter(c)
 	if !ok {
@@ -178,6 +217,16 @@ func (m *Module) restore(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// transfer 跨库迁移
+// @Summary      跨数据库迁移数据
+// @Description  将数据从当前数据库迁移到另一个数据库
+// @Tags         migrate
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{target_db_type=string,target_name=string,tables=[]string,create_table=bool}  true  "迁移选项"
+// @Success      200  {object}  response.Response
+// @Failure      500  {object}  response.Response
+// @Router       /migrate/transfer [post]
 func (m *Module) transfer(c *gin.Context) {
 	adapter, ok := m.getAdapter(c)
 	if !ok {
@@ -221,6 +270,16 @@ func (m *Module) transfer(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// createBackup 创建备份
+// @Summary      创建数据库备份
+// @Description  将数据库表数据备份到文件，支持压缩和加密
+// @Tags         migrate
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{tables=[]string,compress_algo=string,encrypt_key=string,output_dir=string}  true  "备份选项"
+// @Success      200  {object}  response.Response
+// @Failure      500  {object}  response.Response
+// @Router       /migrate/backup [post]
 func (m *Module) createBackup(c *gin.Context) {
 	adapter, ok := m.getAdapter(c)
 	if !ok {
@@ -252,6 +311,16 @@ func (m *Module) createBackup(c *gin.Context) {
 	response.Success(c, meta)
 }
 
+// restoreBackup 从备份恢复
+// @Summary      从备份文件恢复数据
+// @Description  从指定的备份文件中恢复数据库数据
+// @Tags         migrate
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{path=string,password=string}  true  "恢复选项"
+// @Success      200  {object}  response.Response
+// @Failure      500  {object}  response.Response
+// @Router       /migrate/backup/restore [post]
 func (m *Module) restoreBackup(c *gin.Context) {
 	adapter, ok := m.getAdapter(c)
 	if !ok {
@@ -281,6 +350,15 @@ func (m *Module) restoreBackup(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// listBackups 备份列表
+// @Summary      列出备份文件
+// @Description      列出指定目录下的所有备份文件
+// @Tags         migrate
+// @Produce      json
+// @Param        dir  query  string  false  "备份目录路径（默认当前目录）"
+// @Success      200  {object}  response.Response
+// @Failure      500  {object}  response.Response
+// @Router       /migrate/backups [get]
 func (m *Module) listBackups(c *gin.Context) {
 	dir := c.Query("dir")
 	if dir == "" {
@@ -296,6 +374,16 @@ func (m *Module) listBackups(c *gin.Context) {
 	response.Success(c, gin.H{"backups": backups})
 }
 
+// deleteBackup 删除备份
+// @Summary      删除备份文件
+// @Description  删除指定名称的备份文件
+// @Tags         migrate
+// @Produce      json
+// @Param        name  path   string  true  "备份文件名"
+// @Param        dir   query  string  false  "备份目录路径"
+// @Success      200  {object}  response.Response
+// @Failure      500  {object}  response.Response
+// @Router       /migrate/backups/{name} [delete]
 func (m *Module) deleteBackup(c *gin.Context) {
 	dir := c.Query("dir")
 	if dir == "" {
@@ -310,6 +398,14 @@ func (m *Module) deleteBackup(c *gin.Context) {
 	response.Success(c, gin.H{"message": "备份已删除"})
 }
 
+// migrationStatus 迁移状态
+// @Summary      查看迁移状态
+// @Description  查看所有数据库迁移脚本的应用状态
+// @Tags         migrate
+// @Produce      json
+// @Success      200  {object}  response.Response
+// @Failure      500  {object}  response.Response
+// @Router       /migrate/schema/migrations [get]
 func (m *Module) migrationStatus(c *gin.Context) {
 	if m.migrator == nil {
 		response.Fail(c, appErrors.New(appErrors.CodeSystemErr, "迁移工具未初始化"))
@@ -325,6 +421,14 @@ func (m *Module) migrationStatus(c *gin.Context) {
 	response.Success(c, status)
 }
 
+// applyMigrations 执行迁移
+// @Summary      执行未应用的迁移
+// @Description  自动应用所有未执行的数据库迁移脚本
+// @Tags         migrate
+// @Produce      json
+// @Success      200  {object}  response.Response
+// @Failure      500  {object}  response.Response
+// @Router       /migrate/schema/migrate [post]
 func (m *Module) applyMigrations(c *gin.Context) {
 	if m.migrator == nil {
 		response.Fail(c, appErrors.New(appErrors.CodeSystemErr, "迁移工具未初始化"))
@@ -343,6 +447,16 @@ func (m *Module) applyMigrations(c *gin.Context) {
 	})
 }
 
+// createMigration 创建迁移文件
+// @Summary      创建新的迁移文件
+// @Description  创建一个新的数据库迁移 SQL 文件
+// @Tags         migrate
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{name=string}  true  "迁移名称"
+// @Success      200  {object}  response.Response
+// @Failure      500  {object}  response.Response
+// @Router       /migrate/schema/create [post]
 func (m *Module) createMigration(c *gin.Context) {
 	if m.migrator == nil {
 		response.Fail(c, appErrors.New(appErrors.CodeSystemErr, "迁移工具未初始化"))
@@ -366,6 +480,14 @@ func (m *Module) createMigration(c *gin.Context) {
 	response.Success(c, gin.H{"file": filepath})
 }
 
+// schemaDump 导出表结构
+// @Summary      导出数据库表结构
+// @Description  以 JSON 格式导出所有表的 DDL 结构定义
+// @Tags         migrate
+// @Produce      json
+// @Success      200  {string}  string
+// @Failure      500  {object}  response.Response
+// @Router       /migrate/schema/dump [get]
 func (m *Module) schemaDump(c *gin.Context) {
 	adapter, ok := m.getAdapter(c)
 	if !ok {

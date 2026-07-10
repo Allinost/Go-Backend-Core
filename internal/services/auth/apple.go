@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+// AppleProvider Apple 第三方登录提供商
 type AppleProvider struct {
 	clientID   string
 	teamID     string
@@ -20,6 +21,7 @@ type AppleProvider struct {
 	httpClient *http.Client
 }
 
+// NewAppleProvider 创建 Apple 登录提供商实例
 func NewAppleProvider(clientID, teamID, keyID, privateKey, redirect string) *AppleProvider {
 	return &AppleProvider{
 		clientID:   clientID,
@@ -31,10 +33,12 @@ func NewAppleProvider(clientID, teamID, keyID, privateKey, redirect string) *App
 	}
 }
 
+// Name 返回提供商名称
 func (p *AppleProvider) Name() string {
 	return "apple"
 }
 
+// AuthURL 生成 Apple 登录授权 URL
 func (p *AppleProvider) AuthURL(state string) string {
 	return fmt.Sprintf(
 		"https://appleid.apple.com/auth/authorize?response_type=code&client_id=%s&redirect_uri=%s&state=%s&scope=name+email&response_mode=form_post",
@@ -42,6 +46,7 @@ func (p *AppleProvider) AuthURL(state string) string {
 	)
 }
 
+// Exchange 使用授权码交换 Apple ID Token
 func (p *AppleProvider) Exchange(ctx context.Context, code string) (string, error) {
 	data := url.Values{
 		"client_id":     {p.clientID},
@@ -82,6 +87,7 @@ func (p *AppleProvider) Exchange(ctx context.Context, code string) (string, erro
 	return result.IDToken, nil
 }
 
+// GetUserInfo 从 Apple ID Token 中解析用户信息
 func (p *AppleProvider) GetUserInfo(ctx context.Context, idToken string) (*SocialUser, error) {
 	claims, err := p.decodeIDToken(idToken)
 	if err != nil {
@@ -95,6 +101,7 @@ func (p *AppleProvider) GetUserInfo(ctx context.Context, idToken string) (*Socia
 	}, nil
 }
 
+// appleIDTokenClaims Apple ID Token 的 JWT 声明结构
 type appleIDTokenClaims struct {
 	Sub           string `json:"sub"`
 	Email         string `json:"email"`
@@ -106,6 +113,7 @@ type appleIDTokenClaims struct {
 	} `json:"name"`
 }
 
+// DisplayName 拼接 Apple 用户的名和姓作为显示名称
 func (c *appleIDTokenClaims) DisplayName() string {
 	if c.Name.FirstName != "" || c.Name.LastName != "" {
 		return strings.TrimSpace(c.Name.FirstName + " " + c.Name.LastName)
@@ -113,6 +121,7 @@ func (c *appleIDTokenClaims) DisplayName() string {
 	return "AppleUser"
 }
 
+// decodeIDToken 解码并解析 Apple ID Token 的 JWT 载荷
 func (p *AppleProvider) decodeIDToken(tokenStr string) (*appleIDTokenClaims, error) {
 	parts := strings.Split(tokenStr, ".")
 	if len(parts) != 3 {
@@ -142,6 +151,7 @@ func (p *AppleProvider) decodeIDToken(tokenStr string) (*appleIDTokenClaims, err
 	return &claims, nil
 }
 
+// clientSecret 返回 Apple 客户端密钥（暂为 privateKey 占位）
 func (p *AppleProvider) clientSecret() string {
 	return p.privateKey
 }

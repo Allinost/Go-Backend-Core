@@ -7,12 +7,14 @@ import (
 	"time"
 )
 
+// UDPConfig UDP 连接配置
 type UDPConfig struct {
 	ConnectTimeout time.Duration
 	ReadTimeout    time.Duration
 	ProbeData      []byte
 }
 
+// DefaultUDPConfig 返回默认 UDP 配置（连接 5s，读取 3s，探测数据 0x00）
 func DefaultUDPConfig() UDPConfig {
 	return UDPConfig{
 		ConnectTimeout: 5 * time.Second,
@@ -21,12 +23,14 @@ func DefaultUDPConfig() UDPConfig {
 	}
 }
 
+// UDPConn UDP 连接封装
 type UDPConn struct {
 	conn   *net.UDPConn
 	addr   *net.UDPAddr
 	config UDPConfig
 }
 
+// DialUDP 建立 UDP 连接
 func DialUDP(ctx context.Context, addr string, cfg UDPConfig) (*UDPConn, error) {
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
@@ -39,6 +43,7 @@ func DialUDP(ctx context.Context, addr string, cfg UDPConfig) (*UDPConn, error) 
 	return &UDPConn{conn: conn, addr: udpAddr, config: cfg}, nil
 }
 
+// Send 发送 UDP 数据并读取响应
 func (c *UDPConn) Send(data []byte) ([]byte, error) {
 	if err := c.conn.SetWriteDeadline(time.Now().Add(c.config.ConnectTimeout)); err != nil {
 		return nil, fmt.Errorf("net: 设置写超时失败: %w", err)
@@ -58,10 +63,12 @@ func (c *UDPConn) Send(data []byte) ([]byte, error) {
 	return buf[:n], nil
 }
 
+// Close 关闭 UDP 连接
 func (c *UDPConn) Close() error {
 	return c.conn.Close()
 }
 
+// CheckUDP 检查 UDP 服务是否可达，发送探测数据并等待响应
 func CheckUDP(ctx context.Context, addr string) error {
 	dialer := net.Dialer{Timeout: 5 * time.Second}
 	conn, err := dialer.DialContext(ctx, "udp", addr)

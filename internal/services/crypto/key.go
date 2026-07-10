@@ -14,12 +14,14 @@ import (
 	"time"
 )
 
+// KeyManager 管理多版本加密密钥，支持密钥轮换
 type KeyManager struct {
 	current    *AESGCM
 	versions   map[int]*AESGCM
 	currentVer int
 }
 
+// NewKeyManager 创建密钥管理器，currentHex 为当前密钥，oldKeys 为历史版本密钥
 func NewKeyManager(currentHex string, oldKeys map[int]string) (*KeyManager, error) {
 	if currentHex == "" {
 		return nil, fmt.Errorf("crypto: current master key 不能为空")
@@ -186,6 +188,7 @@ func GenerateRSAKeyPair(bits int) (privatePEM, publicPEM string, err error) {
 	if err != nil {
 		return "", "", fmt.Errorf("crypto: 公钥序列化失败: %w", err)
 	}
+
 	pubBlock := &pem.Block{
 		Type:  "PUBLIC KEY",
 		Bytes: pubBytes,

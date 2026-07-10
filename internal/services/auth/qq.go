@@ -9,6 +9,7 @@ import (
 	"net/url"
 )
 
+// QQProvider QQ 第三方登录提供商
 type QQProvider struct {
 	appID      string
 	appKey     string
@@ -16,6 +17,7 @@ type QQProvider struct {
 	httpClient *http.Client
 }
 
+// NewQQProvider 创建 QQ 登录提供商实例
 func NewQQProvider(appID, appKey, redirect string) *QQProvider {
 	return &QQProvider{
 		appID:      appID,
@@ -25,10 +27,12 @@ func NewQQProvider(appID, appKey, redirect string) *QQProvider {
 	}
 }
 
+// Name 返回提供商名称
 func (p *QQProvider) Name() string {
 	return "qq"
 }
 
+// AuthURL 生成 QQ OAuth 授权 URL
 func (p *QQProvider) AuthURL(state string) string {
 	return fmt.Sprintf(
 		"https://graph.qq.com/oauth2.0/authorize?response_type=code&client_id=%s&redirect_uri=%s&state=%s&scope=get_user_info",
@@ -36,6 +40,7 @@ func (p *QQProvider) AuthURL(state string) string {
 	)
 }
 
+// Exchange 使用授权码交换 QQ access_token
 func (p *QQProvider) Exchange(ctx context.Context, code string) (string, error) {
 	u := fmt.Sprintf(
 		"https://graph.qq.com/oauth2.0/token?grant_type=authorization_code&client_id=%s&client_secret=%s&code=%s&redirect_uri=%s&fmt=json",
@@ -68,6 +73,7 @@ func (p *QQProvider) Exchange(ctx context.Context, code string) (string, error) 
 	return result.AccessToken, nil
 }
 
+// GetUserInfo 使用 access_token 获取 QQ 用户信息
 func (p *QQProvider) GetUserInfo(ctx context.Context, accessToken string) (*SocialUser, error) {
 	openID, err := p.getOpenID(ctx, accessToken)
 	if err != nil {

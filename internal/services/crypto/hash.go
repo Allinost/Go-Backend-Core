@@ -14,11 +14,21 @@ import (
 	"lukechampine.com/blake3"
 )
 
+type HashAlgo string
+
+const (
+	HashSHA256 HashAlgo = "sha256"
+	HashSHA512 HashAlgo = "sha512"
+	HashBLAKE3 HashAlgo = "blake3"
+)
+
+// SHA256Hash 计算数据的 SHA-256 哈希值，返回十六进制字符串
 func SHA256Hash(data []byte) string {
 	h := sha256.Sum256(data)
 	return hex.EncodeToString(h[:])
 }
 
+// SHA512Hash 计算数据的 SHA-512 哈希值，返回十六进制字符串
 func SHA512Hash(data []byte) string {
 	h := sha512.Sum512(data)
 	return hex.EncodeToString(h[:])
@@ -29,14 +39,6 @@ func BLAKE3Hash(data []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
-type HashAlgo string
-
-const (
-	HashSHA256 HashAlgo = "sha256"
-	HashSHA512 HashAlgo = "sha512"
-	HashBLAKE3 HashAlgo = "blake3"
-)
-
 func Hash(data []byte, algo HashAlgo) (string, error) {
 	switch algo {
 	case HashSHA256:
@@ -45,9 +47,8 @@ func Hash(data []byte, algo HashAlgo) (string, error) {
 		return SHA512Hash(data), nil
 	case HashBLAKE3:
 		return BLAKE3Hash(data), nil
-	default:
-		return "", fmt.Errorf("crypto: 不支持的哈希算法 %s", algo)
 	}
+	return "", fmt.Errorf("crypto: 不支持的哈希算法: %s", algo)
 }
 
 type Argon2Params struct {

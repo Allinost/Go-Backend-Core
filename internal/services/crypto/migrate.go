@@ -7,12 +7,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// FieldMeta 描述需要加密的数据库字段
 type FieldMeta struct {
-	Table     string
-	FieldName string
-	Column    string
+	Table     string // 数据库表名
+	FieldName string // 结构体字段名称
+	Column    string // 数据库列名
 }
 
+// EncryptedModel 接口定义需要加密的模型
 type EncryptedModel interface {
 	EncryptedFields() []FieldMeta
 }

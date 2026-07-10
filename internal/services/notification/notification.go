@@ -10,54 +10,54 @@ import (
 type Channel string
 
 const (
-	ChannelEmail   Channel = "email"
-	ChannelSMS     Channel = "sms"
-	ChannelPush    Channel = "push"
-	ChannelWebhook Channel = "webhook"
+	ChannelEmail   Channel = "email"   // 邮件
+	ChannelSMS     Channel = "sms"     // 短信
+	ChannelPush    Channel = "push"    // 推送
+	ChannelWebhook Channel = "webhook" // Webhook
 )
 
 // Priority 通知优先级
 type Priority int
 
 const (
-	PriorityLow    Priority = 0
-	PriorityNormal Priority = 1
-	PriorityHigh   Priority = 2
-	PriorityUrgent Priority = 3
+	PriorityLow    Priority = 0 // 低
+	PriorityNormal Priority = 1 // 普通
+	PriorityHigh   Priority = 2 // 高
+	PriorityUrgent Priority = 3 // 紧急
 )
 
 // Message 通知消息体
 type Message struct {
-	ID       string            `json:"id"`
-	Channel  Channel           `json:"channel"`
-	To       []string          `json:"to"`
-	Subject  string            `json:"subject,omitempty"`
-	Body     string            `json:"body"`
-	HTMLBody string            `json:"html_body,omitempty"`
-	Priority Priority          `json:"priority"`
-	Metadata map[string]string `json:"metadata,omitempty"`
+	ID       string            `json:"id"`                  // 消息唯一标识
+	Channel  Channel           `json:"channel"`             // 通知渠道
+	To       []string          `json:"to"`                  // 接收人列表
+	Subject  string            `json:"subject,omitempty"`   // 主题
+	Body     string            `json:"body"`                // 消息正文（纯文本）
+	HTMLBody string            `json:"html_body,omitempty"` // HTML 正文
+	Priority Priority          `json:"priority"`            // 优先级
+	Metadata map[string]string `json:"metadata,omitempty"`  // 附加元数据
 }
 
 // Result 通知发送结果
 type Result struct {
-	MessageID string  `json:"message_id"`
-	Channel   Channel `json:"channel"`
-	Success   bool    `json:"success"`
-	Error     string  `json:"error,omitempty"`
+	MessageID string  `json:"message_id"`      // 消息 ID
+	Channel   Channel `json:"channel"`         // 发送渠道
+	Success   bool    `json:"success"`         // 是否成功
+	Error     string  `json:"error,omitempty"` // 错误信息
 }
 
 // Sender 通知发送器接口，每种渠道独立实现
 type Sender interface {
-	Name() string
-	Channel() Channel
-	Send(ctx context.Context, msg Message) (*Result, error)
-	Close() error
+	Name() string                                           // 发送器名称
+	Channel() Channel                                       // 通知渠道
+	Send(ctx context.Context, msg Message) (*Result, error) // 发送消息
+	Close() error                                           // 关闭发送器
 }
 
 // Service 通知服务，支持多发送器注册和回退机制
 type Service struct {
 	mu      sync.RWMutex
-	senders map[Channel][]Sender
+	senders map[Channel][]Sender // 渠道到发送器列表的映射
 }
 
 func NewService() *Service {
@@ -140,7 +140,7 @@ func (s *Service) Close() {
 
 // LogSender 日志发送器，仅记录不真实发送，用于开发和测试
 type LogSender struct {
-	name string
+	name string // 发送器名称
 }
 
 func NewLogSender(name string) *LogSender {

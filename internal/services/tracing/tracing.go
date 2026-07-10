@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	_ = rand.Reader
+	_ = rand.Reader // 确保 crypto/rand 初始化
 }
 
 // SpanStatus Span 状态类型
@@ -31,13 +31,13 @@ type SpanContext struct {
 
 // Span 追踪跨度
 type Span struct {
-	SpanContext                        // 嵌入的 Span 上下文
-	Name       string                  // Span 名称
-	Status     SpanStatus              // Span 状态
-	Attributes map[string]string        // 属性键值对
-	Events     []SpanEvent             // 事件列表
-	StartTime  int64                   // 开始时间（毫秒时间戳）
-	EndTime    int64                   // 结束时间（毫秒时间戳）
+	SpanContext                   // 嵌入的 Span 上下文
+	Name        string            // Span 名称
+	Status      SpanStatus        // Span 状态
+	Attributes  map[string]string // 属性键值对
+	Events      []SpanEvent       // 事件列表
+	StartTime   int64             // 开始时间（毫秒时间戳）
+	EndTime     int64             // 结束时间（毫秒时间戳）
 }
 
 // SpanEvent Span 事件
@@ -48,10 +48,10 @@ type SpanEvent struct {
 
 // Tracer 追踪器接口
 type Tracer interface {
-	Start(ctx context.Context, name string, opts ...StartOption) (context.Context, *Span)   // 启动 Span
-	End(span *Span, opts ...EndOption)                                                         // 结束 Span
-	Inject(ctx context.Context) SpanContext                                                    // 从上下文中提取 SpanContext
-	Extract(ctx context.Context, sc SpanContext) context.Context                               // 将 SpanContext 注入上下文
+	Start(ctx context.Context, name string, opts ...StartOption) (context.Context, *Span) // 启动 Span
+	End(span *Span, opts ...EndOption)                                                    // 结束 Span
+	Inject(ctx context.Context) SpanContext                                               // 从上下文中提取 SpanContext
+	Extract(ctx context.Context, sc SpanContext) context.Context                          // 将 SpanContext 注入上下文
 }
 
 // StartOption Span 启动选项函数

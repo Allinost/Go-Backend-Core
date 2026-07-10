@@ -5,10 +5,12 @@ import (
 	"reflect"
 )
 
+// FieldEncryptor 通过反射和 KeyManager 加密/解密结构体中带有 `encrypt` tag 的字段
 type FieldEncryptor struct {
 	km *KeyManager
 }
 
+// NewFieldEncryptor 创建字段加密器，使用 KeyManager 管理密钥
 func NewFieldEncryptor(km *KeyManager) *FieldEncryptor {
 	return &FieldEncryptor{km: km}
 }

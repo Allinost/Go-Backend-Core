@@ -7,17 +7,18 @@ import (
 
 // Flag 表示一个特性开关
 type Flag struct {
-	Name        string `json:"name"`
-	Enabled     bool   `json:"enabled"`
-	Description string `json:"description,omitempty"`
+	Name        string `json:"name"`                  // 开关名称
+	Enabled     bool   `json:"enabled"`               // 是否启用
+	Description string `json:"description,omitempty"` // 开关描述
 }
 
 // Manager 管理内存中的特性开关，所有操作都是协程安全的
 type Manager struct {
 	mu    sync.RWMutex
-	flags map[string]Flag
+	flags map[string]Flag // 开关名称到 Flag 的映射
 }
 
+// NewManager 创建特性管理器实例
 func NewManager() *Manager {
 	return &Manager{flags: make(map[string]Flag)}
 }

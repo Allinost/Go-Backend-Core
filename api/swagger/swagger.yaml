@@ -17,6 +17,18 @@ definitions:
         description: 请求追踪 ID
         type: string
     type: object
+  github_com_Allinost_go-backend-core_internal_services_auth.ChangePasswordRequest:
+    properties:
+      new_password:
+        maxLength: 128
+        minLength: 6
+        type: string
+      old_password:
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
   github_com_Allinost_go-backend-core_internal_services_auth.LoginRequest:
     properties:
       password:
@@ -56,6 +68,289 @@ definitions:
       username:
         type: string
     type: object
+  github_com_Allinost_go-backend-core_internal_services_auth.UpdateUserRequest:
+    properties:
+      avatar_url:
+        type: string
+      email:
+        type: string
+      nickname:
+        type: string
+      phone:
+        type: string
+    type: object
+  http.Header:
+    additionalProperties:
+      items:
+        type: string
+      type: array
+    type: object
+  internal_services_crypto.compressReq:
+    properties:
+      data:
+        type: string
+      level:
+        type: integer
+      method:
+        type: string
+      password:
+        type: string
+    required:
+    - data
+    type: object
+  internal_services_crypto.compressResp:
+    properties:
+      method:
+        type: string
+      raw:
+        type: string
+      result:
+        type: string
+    type: object
+  internal_services_crypto.cryptoResp:
+    properties:
+      algo:
+        type: string
+      result:
+        type: string
+    type: object
+  internal_services_crypto.decompressReq:
+    properties:
+      data:
+        type: string
+      password:
+        type: string
+    required:
+    - data
+    type: object
+  internal_services_crypto.decryptReq:
+    properties:
+      algo:
+        type: string
+      data:
+        type: string
+      key_hex:
+        type: string
+    required:
+    - data
+    type: object
+  internal_services_crypto.encryptReq:
+    properties:
+      algo:
+        type: string
+      data:
+        type: string
+      key_hex:
+        type: string
+    required:
+    - data
+    type: object
+  internal_services_crypto.hashReq:
+    properties:
+      algo:
+        type: string
+      data:
+        type: string
+    required:
+    - data
+    type: object
+  internal_services_net.dnsLookupReq:
+    properties:
+      hostname:
+        description: 目标主机名
+        type: string
+    required:
+    - hostname
+    type: object
+  internal_services_net.dnsLookupResp:
+    properties:
+      addresses:
+        description: 解析出的 IP 地址列表
+        items:
+          type: string
+        type: array
+      hostname:
+        description: 原始主机名
+        type: string
+    type: object
+  internal_services_net.httpCheckReq:
+    properties:
+      timeout:
+        description: 超时秒数
+        type: integer
+      url:
+        description: 目标 URL
+        type: string
+    required:
+    - url
+    type: object
+  internal_services_net.httpCheckResp:
+    properties:
+      latency:
+        description: 响应延迟
+        type: string
+      reachable:
+        description: 是否可达
+        type: boolean
+      status_code:
+        description: HTTP 状态码
+        type: integer
+    type: object
+  internal_services_net.httpRequestReq:
+    properties:
+      body:
+        description: 请求体
+        type: string
+      headers:
+        additionalProperties:
+          type: string
+        description: 请求头
+        type: object
+      method:
+        description: HTTP 方法（默认 GET）
+        type: string
+      timeout:
+        description: 超时秒数
+        type: integer
+      url:
+        description: 目标 URL
+        type: string
+    required:
+    - url
+    type: object
+  internal_services_net.httpRequestResp:
+    properties:
+      body:
+        description: 响应体
+        type: string
+      headers:
+        allOf:
+        - $ref: '#/definitions/http.Header'
+        description: 响应头
+      status_code:
+        description: HTTP 状态码
+        type: integer
+    type: object
+  internal_services_net.proxyResp:
+    properties:
+      http:
+        description: HTTP 代理地址
+        type: string
+      https:
+        description: HTTPS 代理地址
+        type: string
+      socks5:
+        description: SOCKS5 代理地址
+        type: string
+    type: object
+  internal_services_net.proxyUpdateReq:
+    properties:
+      http:
+        description: HTTP 代理地址
+        type: string
+      https:
+        description: HTTPS 代理地址
+        type: string
+      socks5:
+        description: SOCKS5 代理地址
+        type: string
+    type: object
+  internal_services_net.tcpCheckReq:
+    properties:
+      host:
+        description: 目标主机
+        type: string
+      port:
+        description: 目标端口
+        type: integer
+      timeout:
+        description: 超时秒数
+        type: integer
+    required:
+    - host
+    - port
+    type: object
+  internal_services_net.tcpCheckResp:
+    properties:
+      latency:
+        description: 连接延迟
+        type: string
+      reachable:
+        description: 是否可达
+        type: boolean
+    type: object
+  internal_services_scheduler.Task:
+    properties:
+      created_at:
+        type: string
+      expression:
+        description: cron 表达式或时间间隔
+        type: string
+      handler:
+        description: 注册的处理器名称
+        type: string
+      id:
+        type: integer
+      last_run_at:
+        description: 上次执行时间
+        type: string
+      max_retries:
+        type: integer
+      name:
+        type: string
+      next_run_at:
+        description: 下次执行时间
+        type: string
+      payload:
+        description: 任务自定义参数
+        items:
+          type: integer
+        type: array
+      status:
+        $ref: '#/definitions/internal_services_scheduler.TaskStatus'
+      timeout:
+        type: integer
+      type:
+        $ref: '#/definitions/internal_services_scheduler.TaskType'
+      updated_at:
+        type: string
+    type: object
+  internal_services_scheduler.TaskStatus:
+    enum:
+    - active
+    - paused
+    - finished
+    type: string
+    x-enum-comments:
+      TaskStatusActive: 活跃状态
+      TaskStatusFinished: 已完成
+      TaskStatusPaused: 已暂停
+    x-enum-descriptions:
+    - 活跃状态
+    - 已暂停
+    - 已完成
+    x-enum-varnames:
+    - TaskStatusActive
+    - TaskStatusPaused
+    - TaskStatusFinished
+  internal_services_scheduler.TaskType:
+    enum:
+    - cron
+    - once
+    - interval
+    type: string
+    x-enum-comments:
+      TaskTypeCron: cron 表达式定时任务
+      TaskTypeInterval: 固定间隔执行任务
+      TaskTypeOnce: 一次性执行任务
+    x-enum-descriptions:
+    - cron 表达式定时任务
+    - 一次性执行任务
+    - 固定间隔执行任务
+    x-enum-varnames:
+    - TaskTypeCron
+    - TaskTypeOnce
+    - TaskTypeInterval
 host: localhost:29090
 info:
   contact:
@@ -69,6 +364,46 @@ info:
   title: Go Backend Core API
   version: 0.1.0
 paths:
+  /auth/{provider}/bind:
+    post:
+      consumes:
+      - application/json
+      description: 将当前登录用户与第三方社交账号绑定
+      parameters:
+      - description: '平台名称: wechat/feishu/qq/apple/huawei/honor'
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: 授权码
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            code:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 绑定第三方社交账号
+      tags:
+      - auth-社交登录
   /auth/{provider}/callback:
     post:
       description: 第三方登录授权回调处理，自动注册或登录
@@ -102,6 +437,31 @@ paths:
       summary: OAuth 登录回调
       tags:
       - auth-社交登录
+  /auth/{provider}/unbind:
+    post:
+      description: 当前登录用户解绑已绑定的第三方社交账号
+      parameters:
+      - description: 平台名称
+        in: path
+        name: provider
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 解绑社交账号
+      tags:
+      - auth-社交登录
   /auth/{provider}/url:
     get:
       description: 获取指定第三方登录平台的授权跳转 URL
@@ -133,6 +493,171 @@ paths:
       summary: 获取 OAuth 授权 URL
       tags:
       - auth-社交登录
+  /auth/accounts:
+    get:
+      description: 返回当前用户已绑定的全部第三方社交账号
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取绑定的社交账号列表
+      tags:
+      - auth-社交登录
+  /auth/api-keys:
+    get:
+      description: 获取当前用户的所有 API 密钥（管理员可查看全部）
+      parameters:
+      - description: 页码（默认1）
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量（默认20）
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取 API 密钥列表
+      tags:
+      - auth-API密钥
+    post:
+      consumes:
+      - application/json
+      description: 为当前用户创建一个新的 API 访问密钥
+      parameters:
+      - description: 密钥信息
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            expires_in:
+              type: string
+            name:
+              type: string
+            scopes:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建 API 密钥
+      tags:
+      - auth-API密钥
+  /auth/api-keys/{id}:
+    delete:
+      description: 删除指定 ID 的 API 密钥
+      parameters:
+      - description: 密钥 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除 API 密钥
+      tags:
+      - auth-API密钥
+    put:
+      consumes:
+      - application/json
+      description: 更新指定 API 密钥的名称、权限范围或状态
+      parameters:
+      - description: 密钥 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新内容
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            name:
+              type: string
+            scopes:
+              type: string
+            status:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新 API 密钥
+      tags:
+      - auth-API密钥
   /auth/login:
     post:
       consumes:
@@ -206,6 +731,70 @@ paths:
       summary: 获取当前用户信息
       tags:
       - auth-用户
+  /auth/password:
+    put:
+      consumes:
+      - application/json
+      description: 当前登录用户修改自己的密码
+      parameters:
+      - description: 旧密码和新密码
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 修改密码
+      tags:
+      - auth-用户
+  /auth/profile:
+    put:
+      consumes:
+      - application/json
+      description: 更新当前登录用户的昵称、邮箱、头像、手机号等
+      parameters:
+      - description: 用户信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新个人信息
+      tags:
+      - auth-用户
   /auth/refresh:
     post:
       consumes:
@@ -275,6 +864,882 @@ paths:
       summary: 用户注册
       tags:
       - auth-认证
+  /auth/roles/assign:
+    post:
+      consumes:
+      - application/json
+      description: 管理员为指定用户分配角色（admin 或 user）
+      parameters:
+      - description: 用户 ID 和角色
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            role:
+              type: string
+            user_id:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 分配用户角色
+      tags:
+      - auth-管理
+  /auth/users:
+    get:
+      description: 管理员分页查询所有用户
+      parameters:
+      - description: 页码（默认1）
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量（默认20）
+        in: query
+        name: page_size
+        type: integer
+      - description: 搜索关键词
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取用户列表
+      tags:
+      - auth-管理
+  /auth/users/{id}:
+    delete:
+      description: 管理员根据 ID 删除指定用户
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 管理员删除用户
+      tags:
+      - auth-管理
+    get:
+      description: 管理员根据 ID 查询用户详细信息
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取指定用户详情
+      tags:
+      - auth-管理
+    put:
+      consumes:
+      - application/json
+      description: 管理员修改指定用户的资料
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 用户信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 管理员更新用户信息
+      tags:
+      - auth-管理
+  /crypto/compress:
+    post:
+      consumes:
+      - application/json
+      description: 使用 gzip/zlib/zstd/zip 算法压缩数据，结果返回 hex 编码
+      parameters:
+      - description: 压缩请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_services_crypto.compressReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_services_crypto.compressResp'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: 数据压缩
+      tags:
+      - crypto
+  /crypto/decompress:
+    post:
+      consumes:
+      - application/json
+      description: 自动检测压缩算法并解压 hex 编码的压缩数据
+      parameters:
+      - description: 解压请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_services_crypto.decompressReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_services_crypto.compressResp'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: 数据解压
+      tags:
+      - crypto
+  /crypto/decrypt:
+    post:
+      consumes:
+      - application/json
+      description: 使用指定算法解密已加密的数据
+      parameters:
+      - description: 解密请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_services_crypto.decryptReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_services_crypto.cryptoResp'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: 数据解密
+      tags:
+      - crypto
+  /crypto/encrypt:
+    post:
+      consumes:
+      - application/json
+      description: 使用指定算法（aes-gcm / chacha20-poly1305）加密数据
+      parameters:
+      - description: 加密请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_services_crypto.encryptReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_services_crypto.cryptoResp'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: 数据加密
+      tags:
+      - crypto
+  /crypto/hash:
+    post:
+      consumes:
+      - application/json
+      description: 使用 sha256 / sha512 / blake3 算法计算数据哈希值
+      parameters:
+      - description: 哈希请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_services_crypto.hashReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_services_crypto.cryptoResp'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: 哈希计算
+      tags:
+      - crypto
+  /migrate/backup:
+    post:
+      consumes:
+      - application/json
+      description: 将数据库表数据备份到文件，支持压缩和加密
+      parameters:
+      - description: 备份选项
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            compress_algo:
+              type: string
+            encrypt_key:
+              type: string
+            output_dir:
+              type: string
+            tables:
+              items:
+                type: string
+              type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 创建数据库备份
+      tags:
+      - migrate
+  /migrate/backup/restore:
+    post:
+      consumes:
+      - application/json
+      description: 从指定的备份文件中恢复数据库数据
+      parameters:
+      - description: 恢复选项
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            password:
+              type: string
+            path:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 从备份文件恢复数据
+      tags:
+      - migrate
+  /migrate/backups:
+    get:
+      description: 列出指定目录下的所有备份文件
+      parameters:
+      - description: 备份目录路径（默认当前目录）
+        in: query
+        name: dir
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 列出备份文件
+      tags:
+      - migrate
+  /migrate/backups/{name}:
+    delete:
+      description: 删除指定名称的备份文件
+      parameters:
+      - description: 备份文件名
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 备份目录路径
+        in: query
+        name: dir
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除备份文件
+      tags:
+      - migrate
+  /migrate/dump:
+    post:
+      consumes:
+      - application/json
+      description: 按指定格式导出表数据，支持 JSON/SQL/CSV 格式
+      parameters:
+      - description: 导出选项
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            batch_size:
+              type: integer
+            format:
+              type: string
+            schema_only:
+              type: boolean
+            tables:
+              items:
+                type: string
+              type: array
+            where:
+              type: object
+          type: object
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 导出数据库数据
+      tags:
+      - migrate
+  /migrate/restore:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 通过上传文件导入数据到数据库
+      parameters:
+      - description: 数据文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: 文件格式
+        in: formData
+        name: format
+        type: string
+      - description: 是否先清空表
+        in: formData
+        name: truncate
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 导入数据库数据
+      tags:
+      - migrate
+  /migrate/schema/create:
+    post:
+      consumes:
+      - application/json
+      description: 创建一个新的数据库迁移 SQL 文件
+      parameters:
+      - description: 迁移名称
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 创建新的迁移文件
+      tags:
+      - migrate
+  /migrate/schema/dump:
+    get:
+      description: 以 JSON 格式导出所有表的 DDL 结构定义
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 导出数据库表结构
+      tags:
+      - migrate
+  /migrate/schema/migrate:
+    post:
+      description: 自动应用所有未执行的数据库迁移脚本
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 执行未应用的迁移
+      tags:
+      - migrate
+  /migrate/schema/migrations:
+    get:
+      description: 查看所有数据库迁移脚本的应用状态
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 查看迁移状态
+      tags:
+      - migrate
+  /migrate/tables:
+    get:
+      description: 返回当前数据库中的所有表名
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 获取数据库表列表
+      tags:
+      - migrate
+  /migrate/tables/{name}/schema:
+    get:
+      description: 返回指定表的字段定义和索引信息
+      parameters:
+      - description: 表名
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 获取指定表结构
+      tags:
+      - migrate
+  /migrate/transfer:
+    post:
+      consumes:
+      - application/json
+      description: 将数据从当前数据库迁移到另一个数据库
+      parameters:
+      - description: 迁移选项
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            create_table:
+              type: boolean
+            tables:
+              items:
+                type: string
+              type: array
+            target_db_type:
+              type: string
+            target_name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 跨数据库迁移数据
+      tags:
+      - migrate
+  /net/dns/lookup:
+    post:
+      consumes:
+      - application/json
+      description: 查询指定主机名的 DNS 解析结果
+      parameters:
+      - description: DNS 查询参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_services_net.dnsLookupReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_services_net.dnsLookupResp'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: DNS 域名解析
+      tags:
+      - net-DNS
+  /net/http/check:
+    post:
+      consumes:
+      - application/json
+      description: 检查指定 URL 的 HTTP 可达性，返回状态码和延迟
+      parameters:
+      - description: 检查参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_services_net.httpCheckReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_services_net.httpCheckResp'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: HTTP 可达性检查
+      tags:
+      - net-HTTP
+  /net/http/request:
+    post:
+      consumes:
+      - application/json
+      description: 向指定 URL 发送 HTTP 请求并返回响应状态码、头部和正文
+      parameters:
+      - description: HTTP 请求参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_services_net.httpRequestReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_services_net.httpRequestResp'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: 发送 HTTP 请求
+      tags:
+      - net-HTTP
+  /net/proxy:
+    get:
+      description: 返回当前 HTTP/HTTPS/SOCKS5 代理配置
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_services_net.proxyResp'
+      summary: 获取当前代理配置
+      tags:
+      - net-代理
+    put:
+      consumes:
+      - application/json
+      description: 更新 HTTP/HTTPS/SOCKS5 代理设置
+      parameters:
+      - description: 代理配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_services_net.proxyUpdateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_services_net.proxyResp'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: 更新代理配置
+      tags:
+      - net-代理
+  /net/tcp/check:
+    post:
+      consumes:
+      - application/json
+      description: 检查指定主机和端口的 TCP 连接可达性
+      parameters:
+      - description: 检查参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_services_net.tcpCheckReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_services_net.tcpCheckResp'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: TCP 端口可达性检查
+      tags:
+      - net-TCP
   /s0/echo:
     get:
       description: 返回请求的详细信息，包括方法、路径、查询参数、请求头和客户端 IP
@@ -423,6 +1888,354 @@ paths:
       summary: 存活检查
       tags:
       - s0-调试
+  /s1/ping:
+    get:
+      description: 返回 pong 表示 s1 模块运行正常
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    module:
+                      type: string
+                  type: object
+              type: object
+      summary: s1 存活检查
+      tags:
+      - s1-调试
+  /s1/status:
+    get:
+      description: 返回 s1 模块运行时长和健康状态
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    alive:
+                      type: boolean
+                    module:
+                      type: string
+                    uptime:
+                      type: string
+                  type: object
+              type: object
+      summary: s1 运行状态
+      tags:
+      - s1-调试
+  /s1/version:
+    get:
+      description: 返回 s1 模块版本号
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    module:
+                      type: string
+                    version:
+                      type: string
+                  type: object
+              type: object
+      summary: s1 版本信息
+      tags:
+      - s1-调试
+  /s2/ping:
+    get:
+      description: 返回 pong 表示 s2 模块运行正常
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    module:
+                      type: string
+                  type: object
+              type: object
+      summary: s2 存活检查
+      tags:
+      - s2-调试
+  /s2/status:
+    get:
+      description: 返回 s2 模块运行时长和健康状态
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    alive:
+                      type: boolean
+                    module:
+                      type: string
+                    uptime:
+                      type: string
+                  type: object
+              type: object
+      summary: s2 运行状态
+      tags:
+      - s2-调试
+  /s2/version:
+    get:
+      description: 返回 s2 模块版本号
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    module:
+                      type: string
+                    version:
+                      type: string
+                  type: object
+              type: object
+      summary: s2 版本信息
+      tags:
+      - s2-调试
+  /scheduler/handlers:
+    get:
+      description: 返回所有已注册的任务处理器名称列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 获取已注册的处理器列表
+      tags:
+      - scheduler
+  /scheduler/tasks:
+    get:
+      description: 返回所有已注册的定时任务列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 获取所有定时任务
+      tags:
+      - scheduler
+    post:
+      consumes:
+      - application/json
+      description: 创建一个新的定时任务，需指定名称和处理器
+      parameters:
+      - description: 任务信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_services_scheduler.Task'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 创建定时任务
+      tags:
+      - scheduler
+  /scheduler/tasks/{id}:
+    delete:
+      description: 删除指定 ID 的定时任务
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除定时任务
+      tags:
+      - scheduler
+    get:
+      description: 根据任务 ID 获取任务详细信息
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 获取指定任务详情
+      tags:
+      - scheduler
+    put:
+      consumes:
+      - application/json
+      description: 更新指定 ID 的定时任务配置
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_services_scheduler.Task'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 更新定时任务
+      tags:
+      - scheduler
+  /scheduler/tasks/{id}/logs:
+    get:
+      description: 获取指定任务的执行历史日志
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 获取任务执行日志
+      tags:
+      - scheduler
+  /scheduler/tasks/{id}/pause:
+    post:
+      description: 暂停指定 ID 的定时任务调度
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 暂停定时任务
+      tags:
+      - scheduler
+  /scheduler/tasks/{id}/resume:
+    post:
+      description: 恢复指定 ID 的暂停任务调度
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 恢复定时任务
+      tags:
+      - scheduler
+  /scheduler/tasks/{id}/run:
+    post:
+      description: 立即触发执行指定 ID 的任务，不受调度计划约束
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 立即执行任务
+      tags:
+      - scheduler
 securityDefinitions:
   BearerAuth:
     description: 'JWT Bearer token, 格式: "Bearer {token}"'

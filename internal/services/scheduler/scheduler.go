@@ -11,6 +11,7 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
+// Scheduler 任务调度器，基于 cron 表达式和 asynq 队列管理定时任务
 type Scheduler struct {
 	mu         sync.RWMutex
 	store      Store
@@ -26,6 +27,7 @@ type Scheduler struct {
 	asynqServer *asynq.Server
 }
 
+// New 创建调度器实例，配置默认超时和重试次数
 func New(store Store, cfg SchedulerConfig, asynqClient *asynq.Client, asynqServer *asynq.Server) *Scheduler {
 	timeout := cfg.DefaultTimeout
 	if timeout <= 0 {
@@ -48,20 +50,23 @@ func New(store Store, cfg SchedulerConfig, asynqClient *asynq.Client, asynqServe
 	}
 }
 
+// SetMetrics 设置监控指标收集器
 func (s *Scheduler) SetMetrics(m Metrics) {
 	if m != nil {
 		s.metrics = m
 	}
 }
 
+// SchedulerConfig 调度器配置
 type SchedulerConfig struct {
-	Enabled           bool
-	WorkerConcurrency int
-	DefaultTimeout    int
-	DefaultMaxRetries int
-	LogRetentionDays  int
+	Enabled           bool // 是否启用调度器
+	WorkerConcurrency int  // 工作协程并发数
+	DefaultTimeout    int  // 任务默认超时秒数
+	DefaultMaxRetries int  // 任务默认最大重试次数
+	LogRetentionDays  int  // 任务日志保留天数
 }
 
+// Start 启动调度器，启动 asynq 服务器和 cron 调度，加载所有活跃任务
 func (s *Scheduler) Start() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -92,6 +97,7 @@ func (s *Scheduler) Start() error {
 	return nil
 }
 
+// Stop 停止调度器，关闭 cron 调度器、asynq 服务器和客户端
 func (s *Scheduler) Stop() {
 	s.closeOnce.Do(func() {
 		close(s.close)
@@ -111,6 +117,7 @@ func (s *Scheduler) Stop() {
 	s.mu.Unlock()
 }
 
+// AddTask 添加新任务到存储，并立即调度（如果 cron 运行中且任务为活跃状态）
 func (s *Scheduler) AddTask(t *Task) error {
 	if err := s.store.CreateTask(t); err != nil {
 		return err
@@ -128,6 +135,7 @@ func (s *Scheduler) AddTask(t *Task) error {
 	return nil
 }
 
+// UpdateTask 更新已有任务，移除旧 cron 条目后按新配置重新调度
 func (s *Scheduler) UpdateTask(t *Task) error {
 	existing, err := s.store.GetTask(t.ID)
 	if err != nil {
@@ -184,6 +192,7 @@ func (s *Scheduler) UpdateTask(t *Task) error {
 	return nil
 }
 
+// DeleteTask 删除指定任务并从 cron 中移除对应条目
 func (s *Scheduler) DeleteTask(id uint) error {
 	if err := s.store.DeleteTask(id); err != nil {
 		return err
@@ -202,14 +211,17 @@ func (s *Scheduler) DeleteTask(id uint) error {
 	return nil
 }
 
+// GetTask 根据 ID 获取单个任务
 func (s *Scheduler) GetTask(id uint) (*Task, error) {
 	return s.store.GetTask(id)
 }
 
+// ListTasks 获取所有任务列表
 func (s *Scheduler) ListTasks() ([]Task, error) {
 	return s.store.ListTasks()
 }
 
+// PauseTask 暂停任务，将状态设置为已暂停
 func (s *Scheduler) PauseTask(id uint) error {
 	t, err := s.store.GetTask(id)
 	if err != nil {
@@ -219,6 +231,7 @@ func (s *Scheduler) PauseTask(id uint) error {
 	return s.store.UpdateTask(t)
 }
 
+// ResumeTask 恢复已暂停的任务，将其重新加入 cron 调度
 func (s *Scheduler) ResumeTask(id uint) error {
 	t, err := s.store.GetTask(id)
 	if err != nil {
@@ -241,6 +254,7 @@ func (s *Scheduler) ResumeTask(id uint) error {
 	return nil
 }
 
+// RunTaskNow 立即执行指定任务，支持 asynq 队列或直接在 goroutine 中运行
 func (s *Scheduler) RunTaskNow(id uint) error {
 	t, err := s.store.GetTask(id)
 	if err != nil {
@@ -284,10 +298,12 @@ func (s *Scheduler) RunTaskNow(id uint) error {
 	return nil
 }
 
+// TaskLogs 查询指定任务的执行日志
 func (s *Scheduler) TaskLogs(taskID uint) ([]TaskLog, error) {
 	return s.store.TaskLogs(taskID)
 }
 
+// scheduleTask 根据任务类型（cron/interval/once）将任务加入调度队列
 func (s *Scheduler) scheduleTask(t *Task) error {
 	handler := GetHandler(t.Handler)
 	if handler == nil {
@@ -339,6 +355,7 @@ func (s *Scheduler) scheduleTask(t *Task) error {
 	return nil
 }
 
+// executeTask 执行任务逻辑：通过 asynq 入队或直接调用处理器，并记录任务日志
 func (s *Scheduler) executeTask(t *Task) {
 	if s.asynqClient != nil {
 		if err := enqueueTask(s.asynqClient, t, t.Timeout); err != nil {
@@ -377,11 +394,13 @@ func (s *Scheduler) executeTask(t *Task) {
 	_ = s.store.UpdateTaskLog(logEntry)
 }
 
+// nextTime 计算 cron 表达式的下次执行时间（当前简化实现为 1 分钟后）
 func nextTime(expr string) *time.Time {
 	t := time.Now().Add(time.Minute)
 	return &t
 }
 
+// parseOnceDelay 解析一次性任务的延迟时间（支持 RFC3339 格式）
 func parseOnceDelay(expr string) time.Duration {
 	t, err := time.Parse(time.RFC3339, expr)
 	if err == nil {

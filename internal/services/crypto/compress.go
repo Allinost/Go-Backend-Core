@@ -11,15 +11,18 @@ import (
 	"strings"
 )
 
+// Compression 定义数据压缩/解压接口，支持多种压缩算法实现
 type Compression interface {
 	Compress(data []byte) ([]byte, error)
 	Decompress(data []byte) ([]byte, error)
 }
 
+// GzipCompression 使用 gzip 算法进行数据压缩/解压
 type GzipCompression struct {
 	level int
 }
 
+// NewGzipCompression 创建 gzip 压缩器，level 超出范围时使用默认级别
 func NewGzipCompression(level int) *GzipCompression {
 	if level < gzip.HuffmanOnly || level > gzip.BestCompression {
 		level = gzip.DefaultCompression
@@ -27,6 +30,7 @@ func NewGzipCompression(level int) *GzipCompression {
 	return &GzipCompression{level: level}
 }
 
+// Compress 使用 gzip 压缩数据
 func (c *GzipCompression) Compress(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	w, err := gzip.NewWriterLevel(&buf, c.level)
@@ -42,6 +46,7 @@ func (c *GzipCompression) Compress(data []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Decompress 解压 gzip 格式的数据
 func (c *GzipCompression) Decompress(data []byte) ([]byte, error) {
 	r, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
@@ -55,10 +60,12 @@ func (c *GzipCompression) Decompress(data []byte) ([]byte, error) {
 	return result, nil
 }
 
+// ZlibCompression 使用 zlib 算法进行数据压缩/解压
 type ZlibCompression struct {
 	level int
 }
 
+// NewZlibCompression 创建 zlib 压缩器，level 超出范围时使用默认级别
 func NewZlibCompression(level int) *ZlibCompression {
 	if level < zlib.HuffmanOnly || level > zlib.BestCompression {
 		level = zlib.DefaultCompression
@@ -66,6 +73,7 @@ func NewZlibCompression(level int) *ZlibCompression {
 	return &ZlibCompression{level: level}
 }
 
+// Compress 使用 zlib 压缩数据
 func (c *ZlibCompression) Compress(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	w, err := zlib.NewWriterLevel(&buf, c.level)
@@ -81,6 +89,7 @@ func (c *ZlibCompression) Compress(data []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Decompress 解压 zlib 格式的数据
 func (c *ZlibCompression) Decompress(data []byte) ([]byte, error) {
 	r, err := zlib.NewReader(bytes.NewReader(data))
 	if err != nil {
@@ -94,14 +103,17 @@ func (c *ZlibCompression) Decompress(data []byte) ([]byte, error) {
 	return result, nil
 }
 
+// ZipCompression 使用 zip 格式进行数据压缩/解压，可选密码加密
 type ZipCompression struct {
 	password string
 }
 
+// NewZipCompression 创建 zip 压缩器，password 非空时对 zip 数据额外加密
 func NewZipCompression(password string) *ZipCompression {
 	return &ZipCompression{password: password}
 }
 
+// Compress 将数据打包为 zip 格式，若设置了密码则对 zip 数据加密
 func (c *ZipCompression) Compress(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	w := zip.NewWriter(&buf)
@@ -128,6 +140,7 @@ func (c *ZipCompression) Compress(data []byte) ([]byte, error) {
 	return result, nil
 }
 
+// Decompress 解压 zip 数据，若设置了密码则先解密再解压
 func (c *ZipCompression) Decompress(data []byte) ([]byte, error) {
 	raw := data
 	if c.password != "" {
@@ -159,20 +172,23 @@ func (c *ZipCompression) Decompress(data []byte) ([]byte, error) {
 	return result, nil
 }
 
+// ShardMeta 分片压缩的元数据，记录版本、总大小、分片大小、分片ID列表及是否有密码
 type ShardMeta struct {
-	Version   int      `json:"version"`
-	TotalSize int64    `json:"total_size"`
-	ShardSize int64    `json:"shard_size"`
-	ShardIDs  []string `json:"shard_ids"`
-	Password  bool     `json:"password,omitempty"`
+	Version   int      `json:"version"`            // 分片格式版本号
+	TotalSize int64    `json:"total_size"`         // 加密后数据总大小
+	ShardSize int64    `json:"shard_size"`         // 每个分片的大小
+	ShardIDs  []string `json:"shard_ids"`          // 分片 ID 有序列表
+	Password  bool     `json:"password,omitempty"` // 是否使用密码加密
 }
 
+// SplitCompression 将数据分片压缩/加密，支持按大小切分为多个分片
 type SplitCompression struct {
 	shardSize int64
 	password  string
 	prefix    string
 }
 
+// NewSplitCompression 创建分片压缩器，shardSize 默认为 10MB，prefix 默认为 "shard"
 func NewSplitCompression(shardSize int64, password, prefix string) *SplitCompression {
 	if shardSize <= 0 {
 		shardSize = 10 * 1024 * 1024 // 10MB default
@@ -187,11 +203,13 @@ func NewSplitCompression(shardSize int64, password, prefix string) *SplitCompres
 	}
 }
 
+// ShardSet 包含分片元数据及所有分片数据
 type ShardSet struct {
 	Meta   ShardMeta
 	Shards map[string][]byte
 }
 
+// Compress 将数据加密（若设置密码）后按 shardSize 切分为多个分片
 func (c *SplitCompression) Compress(data []byte) (*ShardSet, error) {
 	encrypted := data
 	if c.password != "" {
@@ -232,6 +250,7 @@ func (c *SplitCompression) Compress(data []byte) (*ShardSet, error) {
 	return &ShardSet{Meta: meta, Shards: shards}, nil
 }
 
+// Decompress 按分片 ID 顺序合并数据，若设置密码则解密后返回
 func (c *SplitCompression) Decompress(set *ShardSet) ([]byte, error) {
 	if len(set.Meta.ShardIDs) == 0 {
 		return nil, fmt.Errorf("crypto: 分片清单为空")
@@ -253,6 +272,7 @@ func (c *SplitCompression) Decompress(set *ShardSet) ([]byte, error) {
 	return encrypted, nil
 }
 
+// Serialize 将 ShardSet 序列化为 JSON 格式
 func (c *SplitCompression) Serialize(set *ShardSet) ([]byte, error) {
 	metaJSON, _ := json.Marshal(set.Meta)
 
@@ -268,6 +288,7 @@ func (c *SplitCompression) Serialize(set *ShardSet) ([]byte, error) {
 	return json.Marshal(container)
 }
 
+// Deserialize 从 JSON 数据反序列化为 ShardSet
 func (c *SplitCompression) Deserialize(data []byte) (*ShardSet, error) {
 	var container struct {
 		Meta   string            `json:"meta"`
@@ -310,6 +331,7 @@ func decryptBytes(data []byte, password string) ([]byte, error) {
 
 var fixedSalt = []byte("GBk_CrypT0_Z!p_S@lt_2024")
 
+// EncryptCompress 先压缩再加密，组合压缩与加密操作
 func EncryptCompress(cipher Cipher, comp Compression, plaintext []byte) ([]byte, error) {
 	compressed, err := comp.Compress(plaintext)
 	if err != nil {
@@ -318,6 +340,7 @@ func EncryptCompress(cipher Cipher, comp Compression, plaintext []byte) ([]byte,
 	return cipher.Encrypt(compressed)
 }
 
+// DecryptDecompress 先解密再解压，组合解密与解压操作
 func DecryptDecompress(cipher Cipher, comp Compression, ciphertext []byte) ([]byte, error) {
 	decrypted, err := cipher.Decrypt(ciphertext)
 	if err != nil {
@@ -326,6 +349,7 @@ func DecryptDecompress(cipher Cipher, comp Compression, ciphertext []byte) ([]by
 	return comp.Decompress(decrypted)
 }
 
+// DetectCompression 通过文件头魔数检测数据使用的压缩格式 (gzip/zlib/zip/shard)
 func DetectCompression(data []byte) string {
 	if len(data) < 2 {
 		return "unknown"
@@ -345,6 +369,7 @@ func DetectCompression(data []byte) string {
 	return "unknown"
 }
 
+// CompressAuto 根据指定的 method 自动选择压缩算法并压缩数据
 func CompressAuto(data []byte, method string, level int, password string) ([]byte, error) {
 	switch strings.ToLower(method) {
 	case "gzip":
@@ -361,6 +386,7 @@ func CompressAuto(data []byte, method string, level int, password string) ([]byt
 	}
 }
 
+// DecompressAuto 自动检测数据压缩格式并选用对应算法解压
 func DecompressAuto(data []byte, password string) ([]byte, error) {
 	method := DetectCompression(data)
 	switch method {

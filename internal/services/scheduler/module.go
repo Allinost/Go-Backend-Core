@@ -87,6 +87,14 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/handlers", m.listHandlers)
 }
 
+// listTasks 任务列表
+// @Summary      获取所有定时任务
+// @Description  返回所有已注册的定时任务列表
+// @Tags         scheduler
+// @Produce      json
+// @Success      200  {object}  response.Response
+// @Failure      500  {object}  response.Response
+// @Router       /scheduler/tasks [get]
 func (m *Module) listTasks(c *gin.Context) {
 	tasks, err := m.scheduler.ListTasks()
 	if err != nil {
@@ -96,6 +104,17 @@ func (m *Module) listTasks(c *gin.Context) {
 	response.Success(c, tasks)
 }
 
+// createTask 创建任务
+// @Summary      创建定时任务
+// @Description  创建一个新的定时任务，需指定名称和处理器
+// @Tags         scheduler
+// @Accept       json
+// @Produce      json
+// @Param        body  body  Task  true  "任务信息"
+// @Success      200   {object}  response.Response
+// @Failure      400   {object}  response.Response
+// @Failure      409   {object}  response.Response
+// @Router       /scheduler/tasks [post]
 func (m *Module) createTask(c *gin.Context) {
 	var t Task
 	if err := c.ShouldBindJSON(&t); err != nil {
@@ -124,6 +143,15 @@ func (m *Module) createTask(c *gin.Context) {
 	response.Success(c, created)
 }
 
+// getTask 获取任务详情
+// @Summary      获取指定任务详情
+// @Description  根据任务 ID 获取任务详细信息
+// @Tags         scheduler
+// @Produce      json
+// @Param        id  path  int  true  "任务 ID"
+// @Success      200  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Router       /scheduler/tasks/{id} [get]
 func (m *Module) getTask(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -138,6 +166,17 @@ func (m *Module) getTask(c *gin.Context) {
 	response.Success(c, t)
 }
 
+// updateTask 更新任务
+// @Summary      更新定时任务
+// @Description  更新指定 ID 的定时任务配置
+// @Tags         scheduler
+// @Accept       json
+// @Produce      json
+// @Param        id    path  int   true  "任务 ID"
+// @Param        body  body  Task  true  "任务信息"
+// @Success      200   {object}  response.Response
+// @Failure      404   {object}  response.Response
+// @Router       /scheduler/tasks/{id} [put]
 func (m *Module) updateTask(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -161,6 +200,15 @@ func (m *Module) updateTask(c *gin.Context) {
 	response.Success(c, updated)
 }
 
+// deleteTask 删除任务
+// @Summary      删除定时任务
+// @Description  删除指定 ID 的定时任务
+// @Tags         scheduler
+// @Produce      json
+// @Param        id  path  int  true  "任务 ID"
+// @Success      200  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Router       /scheduler/tasks/{id} [delete]
 func (m *Module) deleteTask(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -174,6 +222,15 @@ func (m *Module) deleteTask(c *gin.Context) {
 	response.Success(c, gin.H{"deleted": true})
 }
 
+// pauseTask 暂停任务
+// @Summary      暂停定时任务
+// @Description  暂停指定 ID 的定时任务调度
+// @Tags         scheduler
+// @Produce      json
+// @Param        id  path  int  true  "任务 ID"
+// @Success      200  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Router       /scheduler/tasks/{id}/pause [post]
 func (m *Module) pauseTask(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -188,6 +245,15 @@ func (m *Module) pauseTask(c *gin.Context) {
 	response.Success(c, updated)
 }
 
+// resumeTask 恢复任务
+// @Summary      恢复定时任务
+// @Description  恢复指定 ID 的暂停任务调度
+// @Tags         scheduler
+// @Produce      json
+// @Param        id  path  int  true  "任务 ID"
+// @Success      200  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Router       /scheduler/tasks/{id}/resume [post]
 func (m *Module) resumeTask(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -202,6 +268,15 @@ func (m *Module) resumeTask(c *gin.Context) {
 	response.Success(c, updated)
 }
 
+// runTaskNow 立即执行任务
+// @Summary      立即执行任务
+// @Description  立即触发执行指定 ID 的任务，不受调度计划约束
+// @Tags         scheduler
+// @Produce      json
+// @Param        id  path  int  true  "任务 ID"
+// @Success      200  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Router       /scheduler/tasks/{id}/run [post]
 func (m *Module) runTaskNow(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -215,6 +290,14 @@ func (m *Module) runTaskNow(c *gin.Context) {
 	response.Success(c, gin.H{"message": "任务已触发"})
 }
 
+// taskLogs 任务日志
+// @Summary      获取任务执行日志
+// @Description  获取指定任务的执行历史日志
+// @Tags         scheduler
+// @Produce      json
+// @Param        id  path  int  true  "任务 ID"
+// @Success      200  {object}  response.Response
+// @Router       /scheduler/tasks/{id}/logs [get]
 func (m *Module) taskLogs(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
@@ -228,6 +311,13 @@ func (m *Module) taskLogs(c *gin.Context) {
 	response.Success(c, logs)
 }
 
+// listHandlers 处理器列表
+// @Summary      获取已注册的处理器列表
+// @Description  返回所有已注册的任务处理器名称列表
+// @Tags         scheduler
+// @Produce      json
+// @Success      200  {object}  response.Response
+// @Router       /scheduler/handlers [get]
 func (m *Module) listHandlers(c *gin.Context) {
 	response.Success(c, ListHandlers())
 }

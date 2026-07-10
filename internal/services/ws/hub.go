@@ -12,29 +12,29 @@ import (
 
 // Client WebSocket 客户端连接，包含用户标识、房间和发送通道
 type Client struct {
-	ID     string
-	UserID string
-	Rooms  map[string]bool
-	Send   chan []byte
-	Close  func() error
+	ID     string          // 客户端唯一标识
+	UserID string          // 用户 ID
+	Rooms  map[string]bool // 已加入的房间集合
+	Send   chan []byte     // 消息发送缓冲通道（容量 256）
+	Close  func() error    // 关闭连接的函数
 }
 
 // Message WebSocket 消息结构
 type Message struct {
-	Room    string `json:"room"`
-	UserID  string `json:"user_id,omitempty"`
-	Type    string `json:"type"`
-	Payload []byte `json:"payload"`
+	Room    string `json:"room"`              // 目标房间
+	UserID  string `json:"user_id,omitempty"` // 发送者用户 ID
+	Type    string `json:"type"`              // 消息类型
+	Payload []byte `json:"payload"`           // 消息载荷
 }
 
 // Hub 客户端管理中心，管理注册、房间、广播和消息处理
 type Hub struct {
 	mu        sync.RWMutex
-	clients   map[string]*Client
-	rooms     map[string]map[string]*Client
-	handlers  map[string]MessageHandler
-	history   []Message
-	historyMu sync.RWMutex
+	clients   map[string]*Client            // 所有在线客户端（ID -> Client）
+	rooms     map[string]map[string]*Client // 房间 -> 成员（ClientID -> Client）
+	handlers  map[string]MessageHandler     // 消息类型 -> 处理函数
+	history   []Message                     // 历史消息记录
+	historyMu sync.RWMutex                  // 历史消息锁
 }
 
 // MessageHandler 消息处理函数类型
@@ -241,6 +241,7 @@ func SSETick(w io.Writer, interval time.Duration, ctx context.Context, dataFunc 
 	}
 }
 
+// Logger 返回全局日志实例
 func Logger() *logger.Logger {
 	return logger.L
 }

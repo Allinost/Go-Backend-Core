@@ -10,26 +10,30 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// DeadLetterEntry 死信队列条目，记录失败事件及相关信息
 type DeadLetterEntry struct {
-	Event       Event     `json:"event"`
-	Reason      string    `json:"reason"`
-	Retries     int       `json:"retries"`
-	LastAttempt time.Time `json:"last_attempt"`
+	Event       Event     `json:"event"`        // 原始事件
+	Reason      string    `json:"reason"`       // 失败原因
+	Retries     int       `json:"retries"`      // 已重试次数
+	LastAttempt time.Time `json:"last_attempt"` // 最后尝试时间
 }
 
+// DeadLetterStore 死信存储接口，支持推送、列出、重放和长度查询
 type DeadLetterStore interface {
-	Push(event Event, reason string, retries int) error
-	List() ([]DeadLetterEntry, error)
-	Replay(ctx context.Context, handler EventHandler) []error
-	Len() (int, error)
+	Push(event Event, reason string, retries int) error       // 推送死信
+	List() ([]DeadLetterEntry, error)                         // 列出所有死信
+	Replay(ctx context.Context, handler EventHandler) []error // 重放死信
+	Len() (int, error)                                        // 死信数量
 }
 
+// DeadLetterQueue 内存死信队列，固定容量，超出时丢弃最旧条目
 type DeadLetterQueue struct {
 	mu      sync.RWMutex
-	entries []DeadLetterEntry
-	maxSize int
+	entries []DeadLetterEntry // 死信条目列表
+	maxSize int               // 最大容量
 }
 
+// NewDeadLetterQueue 创建内存死信队列，默认最大 1000
 func NewDeadLetterQueue(maxSize int) *DeadLetterQueue {
 	if maxSize <= 0 {
 		maxSize = 1000
@@ -37,6 +41,7 @@ func NewDeadLetterQueue(maxSize int) *DeadLetterQueue {
 	return &DeadLetterQueue{maxSize: maxSize}
 }
 
+// Push 向死信队列添加条目，超出容量时丢弃最早条目
 func (dlq *DeadLetterQueue) Push(event Event, reason string, retries int) error {
 	dlq.mu.Lock()
 	defer dlq.mu.Unlock()
@@ -54,6 +59,7 @@ func (dlq *DeadLetterQueue) Push(event Event, reason string, retries int) error 
 	return nil
 }
 
+// List 返回所有死信条目副本
 func (dlq *DeadLetterQueue) List() ([]DeadLetterEntry, error) {
 	dlq.mu.RLock()
 	defer dlq.mu.RUnlock()
@@ -63,6 +69,7 @@ func (dlq *DeadLetterQueue) List() ([]DeadLetterEntry, error) {
 	return result, nil
 }
 
+// Replay 重放所有死信，成功条目被清除，失败条目重新入队
 func (dlq *DeadLetterQueue) Replay(ctx context.Context, handler EventHandler) []error {
 	dlq.mu.Lock()
 	entries := dlq.entries
@@ -79,6 +86,7 @@ func (dlq *DeadLetterQueue) Replay(ctx context.Context, handler EventHandler) []
 	return errs
 }
 
+// Len 返回当前死信数量
 func (dlq *DeadLetterQueue) Len() (int, error) {
 	dlq.mu.RLock()
 	defer dlq.mu.RUnlock()
@@ -92,6 +100,7 @@ type RedisDeadLetterQueue struct {
 	maxSize int64
 }
 
+// NewRedisDeadLetterQueue 创建 Redis 持久化死信队列，默认最大 1000
 func NewRedisDeadLetterQueue(client redis.UniversalClient, prefix string, maxSize int) *RedisDeadLetterQueue {
 	if maxSize <= 0 {
 		maxSize = 1000
@@ -103,6 +112,7 @@ func NewRedisDeadLetterQueue(client redis.UniversalClient, prefix string, maxSiz
 	}
 }
 
+// Push 将死信入队到 Redis Stream，使用管道批量操作
 func (r *RedisDeadLetterQueue) Push(event Event, reason string, retries int) error {
 	entry := DeadLetterEntry{
 		Event:       event,
@@ -127,6 +137,7 @@ func (r *RedisDeadLetterQueue) Push(event Event, reason string, retries int) err
 	return err
 }
 
+// List 从 Redis Stream 读取所有死信条目
 func (r *RedisDeadLetterQueue) List() ([]DeadLetterEntry, error) {
 	ctx := context.Background()
 	msgs, err := r.client.XRange(ctx, r.prefix, "-", "+").Result()
@@ -149,6 +160,7 @@ func (r *RedisDeadLetterQueue) List() ([]DeadLetterEntry, error) {
 	return entries, nil
 }
 
+// Replay 重放所有 Redis 死信，成功后清空 Stream
 func (r *RedisDeadLetterQueue) Replay(ctx context.Context, handler EventHandler) []error {
 	entries, err := r.List()
 	if err != nil {
@@ -167,6 +179,7 @@ func (r *RedisDeadLetterQueue) Replay(ctx context.Context, handler EventHandler)
 	return errs
 }
 
+// Len 返回 Redis Stream 中的死信数量
 func (r *RedisDeadLetterQueue) Len() (int, error) {
 	ctx := context.Background()
 	len, err := r.client.XLen(ctx, r.prefix).Result()

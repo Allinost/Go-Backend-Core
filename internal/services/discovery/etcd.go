@@ -6,12 +6,12 @@ import (
 	"time"
 )
 
-// EtcdRegistry Etcd 服务注册中心实现
+// EtcdRegistry Etcd 服务注册中心实现（当前委托给 MemoryRegistry，预留 Etcd 接入点）
 type EtcdRegistry struct {
 	inner *MemoryRegistry // 内部委托的内存注册中心
 }
 
-// NewEtcdRegistry 创建 Etcd 注册中心
+// NewEtcdRegistry 创建 Etcd 注册中心实例
 func NewEtcdRegistry() *EtcdRegistry {
 	return &EtcdRegistry{inner: NewMemoryRegistry()}
 }

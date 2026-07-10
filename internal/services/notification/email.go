@@ -9,16 +9,18 @@ import (
 )
 
 // EmailSender SMTP 邮件发送器，支持明文和 HTML 邮件
+// EmailSender SMTP 邮件发送器，支持明文和 HTML 邮件
 type EmailSender struct {
-	name     string
-	host     string
-	port     int
-	username string
-	password string
-	from     string
-	mu       sync.RWMutex
+	name     string       // 发送器名称
+	host     string       // SMTP 服务器地址
+	port     int          // SMTP 服务器端口
+	username string       // SMTP 用户名
+	password string       // SMTP 密码
+	from     string       // 发件人地址
+	mu       sync.RWMutex // 读写锁
 }
 
+// NewEmailSender 创建 SMTP 邮件发送器
 func NewEmailSender(name, host string, port int, username, password, from string) *EmailSender {
 	return &EmailSender{
 		name:     name,
@@ -30,8 +32,10 @@ func NewEmailSender(name, host string, port int, username, password, from string
 	}
 }
 
+// Name 返回发送器名称
 func (e *EmailSender) Name() string { return e.name }
 
+// Channel 返回邮件渠道标识
 func (e *EmailSender) Channel() Channel { return ChannelEmail }
 
 // Send 发送邮件，msg.Body 为纯文本，msg.HTMLBody 不为空时自动切换为 HTML
@@ -82,4 +86,5 @@ func (e *EmailSender) Send(ctx context.Context, msg Message) (*Result, error) {
 	}, nil
 }
 
+// Close 关闭邮件发送器（空操作）
 func (e *EmailSender) Close() error { return nil }

@@ -9,6 +9,7 @@ import (
 	"net/http"
 )
 
+// FeishuProvider 飞书第三方登录提供商
 type FeishuProvider struct {
 	appID      string
 	appSecret  string
@@ -16,6 +17,7 @@ type FeishuProvider struct {
 	httpClient *http.Client
 }
 
+// NewFeishuProvider 创建飞书登录提供商实例
 func NewFeishuProvider(appID, appSecret, redirect string) *FeishuProvider {
 	return &FeishuProvider{
 		appID:      appID,
@@ -25,10 +27,12 @@ func NewFeishuProvider(appID, appSecret, redirect string) *FeishuProvider {
 	}
 }
 
+// Name 返回提供商名称
 func (p *FeishuProvider) Name() string {
 	return "feishu"
 }
 
+// AuthURL 生成飞书 OAuth 授权 URL
 func (p *FeishuProvider) AuthURL(state string) string {
 	return fmt.Sprintf(
 		"https://open.feishu.cn/open-apis/authen/v1/index?app_id=%s&redirect_uri=%s&state=%s",
@@ -36,6 +40,7 @@ func (p *FeishuProvider) AuthURL(state string) string {
 	)
 }
 
+// Exchange 使用授权码交换飞书 access_token
 func (p *FeishuProvider) Exchange(ctx context.Context, code string) (string, error) {
 	body := map[string]string{
 		"grant_type":   "authorization_code",
@@ -80,6 +85,7 @@ func (p *FeishuProvider) Exchange(ctx context.Context, code string) (string, err
 	return result.Data.AccessToken, nil
 }
 
+// GetUserInfo 使用 access_token 获取飞书用户信息
 func (p *FeishuProvider) GetUserInfo(ctx context.Context, accessToken string) (*SocialUser, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		"https://open.feishu.cn/open-apis/authen/v1/user_info", nil,

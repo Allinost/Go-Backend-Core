@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// GRPCConfig gRPC 客户端配置
 type GRPCConfig struct {
 	Address    string
 	Timeout    time.Duration
@@ -16,6 +17,7 @@ type GRPCConfig struct {
 	Insecure   bool
 }
 
+// DefaultGRPCConfig 返回默认 gRPC 配置（30s 超时，2 次重试，不安全连接）
 func DefaultGRPCConfig(addr string) GRPCConfig {
 	return GRPCConfig{
 		Address:    addr,
@@ -25,11 +27,13 @@ func DefaultGRPCConfig(addr string) GRPCConfig {
 	}
 }
 
+// GRPCClient gRPC 客户端封装
 type GRPCClient struct {
 	conn   *grpc.ClientConn
 	config GRPCConfig
 }
 
+// NewGRPCClient 根据配置创建 gRPC 连接
 func NewGRPCClient(cfg GRPCConfig) (*GRPCClient, error) {
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
@@ -49,10 +53,12 @@ func NewGRPCClient(cfg GRPCConfig) (*GRPCClient, error) {
 	return &GRPCClient{conn: conn, config: cfg}, nil
 }
 
+// Conn 返回底层的 gRPC 连接
 func (c *GRPCClient) Conn() *grpc.ClientConn {
 	return c.conn
 }
 
+// Close 关闭 gRPC 连接
 func (c *GRPCClient) Close() error {
 	return c.conn.Close()
 }

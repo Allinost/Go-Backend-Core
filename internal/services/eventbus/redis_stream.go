@@ -12,17 +12,19 @@ import (
 )
 
 const (
-	maxRetries  = 5
-	baseBackoff = 500 * time.Millisecond
-	maxBackoff  = 30 * time.Second
+	maxRetries  = 5                      // 最大重连次数
+	baseBackoff = 500 * time.Millisecond // 初始退避时间
+	maxBackoff  = 30 * time.Second       // 最大退避时间
 )
 
+// RedisStreamBus 基于 Redis Stream 的事件总线实现，支持消费组和断线重连
 type RedisStreamBus struct {
-	client    redis.UniversalClient
-	groupName string
-	consumer  string
+	client    redis.UniversalClient // Redis 客户端
+	groupName string                // 消费组名称
+	consumer  string                // 消费者名称
 }
 
+// NewRedisStream 创建 Redis Stream 事件总线实例
 func NewRedisStream(client redis.UniversalClient, groupName, consumer string) *RedisStreamBus {
 	return &RedisStreamBus{
 		client:    client,
@@ -31,6 +33,7 @@ func NewRedisStream(client redis.UniversalClient, groupName, consumer string) *R
 	}
 }
 
+// Publish 向指定主题写入事件到 Redis Stream，自动填充时间戳
 func (b *RedisStreamBus) Publish(ctx context.Context, topic string, event Event) error {
 	event.Topic = topic
 	if event.Timestamp.IsZero() {
@@ -53,6 +56,7 @@ func (b *RedisStreamBus) Publish(ctx context.Context, topic string, event Event)
 	}).Err()
 }
 
+// PublishAsync 异步发布事件，返回携带发布结果的通道
 func (b *RedisStreamBus) PublishAsync(ctx context.Context, topic string, event Event) <-chan error {
 	ch := make(chan error, 1)
 	go func() {
@@ -62,14 +66,17 @@ func (b *RedisStreamBus) PublishAsync(ctx context.Context, topic string, event E
 	return ch
 }
 
+// Subscribe RedisStreamBus 不支持直接订阅，请使用 ConsumeGroup
 func (b *RedisStreamBus) Subscribe(topic string, handler EventHandler) (Subscription, error) {
 	return Subscription{}, fmt.Errorf("Subscribe is not supported directly on RedisStreamBus; use ConsumeGroup")
 }
 
+// Unsubscribe RedisStreamBus 不支持直接取消订阅
 func (b *RedisStreamBus) Unsubscribe(sub Subscription) error {
 	return fmt.Errorf("Unsubscribe is not supported directly on RedisStreamBus; manage consumer lifecycle externally")
 }
 
+// EnsureGroup 确保指定主题的消费组存在，不存在时自动创建
 func (b *RedisStreamBus) EnsureGroup(ctx context.Context, topics ...string) error {
 	for _, topic := range topics {
 		err := b.client.XGroupCreateMkStream(ctx, topic, b.groupName, "0").Err()
@@ -80,6 +87,7 @@ func (b *RedisStreamBus) EnsureGroup(ctx context.Context, topics ...string) erro
 	return nil
 }
 
+// GroupInfo 查询指定主题的消费组信息
 func (b *RedisStreamBus) GroupInfo(ctx context.Context, topic string) (*redis.XInfoGroup, error) {
 	groups, err := b.client.XInfoGroups(ctx, topic).Result()
 	if err != nil {
@@ -93,6 +101,7 @@ func (b *RedisStreamBus) GroupInfo(ctx context.Context, topic string) (*redis.XI
 	return nil, fmt.Errorf("group %s not found on %s", b.groupName, topic)
 }
 
+// PendingCount 获取指定主题的待确认消息数量
 func (b *RedisStreamBus) PendingCount(ctx context.Context, topic string) (int64, error) {
 	pending, err := b.client.XPending(ctx, topic, b.groupName).Result()
 	if err != nil {
@@ -101,6 +110,7 @@ func (b *RedisStreamBus) PendingCount(ctx context.Context, topic string) (int64,
 	return pending.Count, nil
 }
 
+// ConsumeFromID 从指定 ID 开始消费（用于历史消息回溯），首次使用 startID，后续自动切换为 ">"
 func (b *RedisStreamBus) ConsumeFromID(ctx context.Context, topics []string, startID string, handler EventHandler) error {
 	for {
 		select {
@@ -143,6 +153,7 @@ func (b *RedisStreamBus) ConsumeFromID(ctx context.Context, topics []string, sta
 	}
 }
 
+// Consume 持续消费消息，支持断线重连与指数退避，处理成功自动 ACK
 func (b *RedisStreamBus) Consume(ctx context.Context, topics []string, handler EventHandler) error {
 	var retries int
 
@@ -201,6 +212,7 @@ func (b *RedisStreamBus) Consume(ctx context.Context, topics []string, handler E
 	}
 }
 
+// decodeEvent 从 Redis XMessage 中解析 Event
 func decodeEvent(msg redis.XMessage) (Event, error) {
 	var event Event
 	dataStr, ok := msg.Values["data"].(string)

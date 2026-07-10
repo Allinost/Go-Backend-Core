@@ -11,6 +11,7 @@ import (
 	gorilla "github.com/gorilla/websocket"
 )
 
+// upgrader WebSocket 升级器，允许所有来源
 var upgrader = gorilla.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -19,12 +20,14 @@ var upgrader = gorilla.Upgrader{
 	},
 }
 
+// WSHandler WebSocket 请求处理器，管理升级、认证和连接生命周期
 type WSHandler struct {
-	Hub     *Hub
-	GenID   func() string
-	Auth    func(c *gin.Context) (userID string, ok bool)
+	Hub   *Hub                                          // Hub 实例
+	GenID func() string                                 // 生成客户端 ID 的函数
+	Auth  func(c *gin.Context) (userID string, ok bool) // 认证函数
 }
 
+// NewWSHandler 创建 WebSocket 处理器，设置默认 ID 生成和放行认证
 func NewWSHandler(hub *Hub) *WSHandler {
 	return &WSHandler{
 		Hub: hub,
@@ -37,6 +40,7 @@ func NewWSHandler(hub *Hub) *WSHandler {
 	}
 }
 
+// Upgrade 将 HTTP 连接升级为 WebSocket，创建 Client 并启动读写协程
 func (h *WSHandler) Upgrade(c *gin.Context) {
 	userID, ok := h.Auth(c)
 	if !ok {
@@ -63,6 +67,7 @@ func (h *WSHandler) Upgrade(c *gin.Context) {
 	go h.readPump(client, conn)
 }
 
+// writePump 从 client.Send 通道读取消息并写入 WebSocket 连接，每隔 30s 发送 Ping
 func (h *WSHandler) writePump(client *Client, conn *gorilla.Conn) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
@@ -89,6 +94,7 @@ func (h *WSHandler) writePump(client *Client, conn *gorilla.Conn) {
 	}
 }
 
+// readPump 从 WebSocket 连接读取消息，限制 4096 字节，交由 Hub.OnMessage 处理
 func (h *WSHandler) readPump(client *Client, conn *gorilla.Conn) {
 	defer func() {
 		h.Hub.Unregister(client)
@@ -112,6 +118,7 @@ func (h *WSHandler) readPump(client *Client, conn *gorilla.Conn) {
 	}
 }
 
+// SSEHandler 创建 SSE（Server-Sent Events）处理函数，用于实时推送
 func SSEHandler(hub *Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Content-Type", "text/event-stream")

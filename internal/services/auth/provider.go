@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// SocialUser 第三方登录用户信息
 type SocialUser struct {
 	OpenID    string `json:"open_id"`
 	UnionID   string `json:"union_id,omitempty"`
@@ -17,6 +18,7 @@ type SocialUser struct {
 	Phone     string `json:"phone,omitempty"`
 }
 
+// SocialProvider 第三方登录提供商统一接口
 type SocialProvider interface {
 	Name() string
 	AuthURL(state string) string
@@ -24,6 +26,7 @@ type SocialProvider interface {
 	GetUserInfo(ctx context.Context, accessToken string) (*SocialUser, error)
 }
 
+// SocialAccount 用户绑定的第三方账号记录
 type SocialAccount struct {
 	ID        uint      `json:"id" gorm:"primaryKey;autoIncrement"`
 	UserID    uint      `json:"user_id" gorm:"index"`
@@ -35,6 +38,7 @@ type SocialAccount struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// SocialStore 第三方账号绑定存储接口
 type SocialStore interface {
 	Bind(ctx context.Context, userID uint, provider string, info *SocialUser) error
 	Unbind(ctx context.Context, userID uint, provider string) error
@@ -42,16 +46,19 @@ type SocialStore interface {
 	ListByUser(userID uint) ([]SocialAccount, error)
 }
 
+// InMemorySocialStore 基于内存的第三方账号存储实现
 type InMemorySocialStore struct {
 	mu       sync.RWMutex
 	accounts []SocialAccount
 	seq      uint
 }
 
+// NewInMemorySocialStore 创建内存社交账号存储实例
 func NewInMemorySocialStore() *InMemorySocialStore {
 	return &InMemorySocialStore{}
 }
 
+// Bind 为用户绑定第三方账号，已绑定则返回错误
 func (s *InMemorySocialStore) Bind(_ context.Context, userID uint, provider string, info *SocialUser) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -76,6 +83,7 @@ func (s *InMemorySocialStore) Bind(_ context.Context, userID uint, provider stri
 	return nil
 }
 
+// Unbind 解绑用户的第三方账号
 func (s *InMemorySocialStore) Unbind(_ context.Context, userID uint, provider string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -89,6 +97,7 @@ func (s *InMemorySocialStore) Unbind(_ context.Context, userID uint, provider st
 	return fmt.Errorf("auth: 未绑定 %s 账号", provider)
 }
 
+// FindByProvider 根据提供商和 OpenID 查找绑定的账号
 func (s *InMemorySocialStore) FindByProvider(provider, openID string) (*SocialAccount, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -101,6 +110,7 @@ func (s *InMemorySocialStore) FindByProvider(provider, openID string) (*SocialAc
 	return nil, fmt.Errorf("auth: 未找到 %s 账号", provider)
 }
 
+// ListByUser 列出用户绑定的所有第三方账号
 func (s *InMemorySocialStore) ListByUser(userID uint) ([]SocialAccount, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

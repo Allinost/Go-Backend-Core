@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Prometheus 指标定义
 var (
 	httpRequestsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -59,6 +60,7 @@ var (
 	)
 )
 
+// init 注册所有 Prometheus 指标
 func init() {
 	prometheus.MustRegister(httpRequestsTotal)
 	prometheus.MustRegister(httpRequestDuration)
@@ -68,15 +70,18 @@ func init() {
 	prometheus.MustRegister(httpCircuitBreakerState)
 }
 
+// metricsRoundTripper 包装 http.RoundTripper，自动收集指标
 type metricsRoundTripper struct {
 	next    http.RoundTripper
 	metrics *clientMetrics
 }
 
+// clientMetrics 客户端内部指标状态
 type clientMetrics struct {
-	breaker *CircuitBreaker
+	breaker *CircuitBreaker // 关联的断路器
 }
 
+// newMetricsRoundTripper 创建带指标收集的 RoundTripper 包装
 func newMetricsRoundTripper(next http.RoundTripper, breaker *CircuitBreaker) http.RoundTripper {
 	return &metricsRoundTripper{
 		next: next,
@@ -86,6 +91,7 @@ func newMetricsRoundTripper(next http.RoundTripper, breaker *CircuitBreaker) htt
 	}
 }
 
+// RoundTrip 执行 HTTP 请求并记录请求数、持续时间、活跃连接数和断路器状态
 func (rt *metricsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	httpActiveRequests.Inc()
 	defer httpActiveRequests.Dec()
@@ -114,10 +120,12 @@ func (rt *metricsRoundTripper) RoundTrip(req *http.Request) (*http.Response, err
 	return resp, err
 }
 
+// recordRetry 记录重试次数指标
 func recordRetry(method, host string) {
 	httpRetriesTotal.WithLabelValues(method, host).Inc()
 }
 
+// MetricsHandler 返回 Prometheus HTTP Handler，用于暴露指标
 func MetricsHandler() http.Handler {
 	return promhttp.Handler()
 }

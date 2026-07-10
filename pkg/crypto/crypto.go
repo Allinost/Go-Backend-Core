@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
+// Cipher 加密解密接口，支持字节数组和字符串操作
 type Cipher interface {
 	Encrypt(plaintext []byte) ([]byte, error)
 	Decrypt(ciphertext []byte) ([]byte, error)
@@ -20,10 +21,12 @@ type Cipher interface {
 	DecryptString(ciphertext string) (string, error)
 }
 
+// AESGCM AES-GCM 加密实现
 type AESGCM struct {
-	key []byte
+	key []byte // AES 密钥（16/24/32 字节）
 }
 
+// NewAESGCM 根据字节密钥创建 AES-GCM 加密器
 func NewAESGCM(key []byte) (*AESGCM, error) {
 	if len(key) != 16 && len(key) != 24 && len(key) != 32 {
 		return nil, fmt.Errorf("crypto: AES 密钥长度必须为 16/24/32 字节, 当前 %d", len(key))
@@ -31,6 +34,7 @@ func NewAESGCM(key []byte) (*AESGCM, error) {
 	return &AESGCM{key: key}, nil
 }
 
+// NewAESGCMFromHex 根据 hex 编码的密钥字符串创建 AES-GCM 加密器
 func NewAESGCMFromHex(hexKey string) (*AESGCM, error) {
 	key, err := hex.DecodeString(hexKey)
 	if err != nil {
@@ -39,6 +43,7 @@ func NewAESGCMFromHex(hexKey string) (*AESGCM, error) {
 	return NewAESGCM(key)
 }
 
+// Encrypt 使用 AES-GCM 加密明文，返回 nonce+密文
 func (c *AESGCM) Encrypt(plaintext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(c.key)
 	if err != nil {
@@ -56,6 +61,7 @@ func (c *AESGCM) Encrypt(plaintext []byte) ([]byte, error) {
 	return append(nonce, ciphertext...), nil
 }
 
+// Decrypt 使用 AES-GCM 解密密文（前 nonceSize 字节为 nonce）
 func (c *AESGCM) Decrypt(ciphertext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(c.key)
 	if err != nil {
@@ -77,6 +83,7 @@ func (c *AESGCM) Decrypt(ciphertext []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
+// EncryptString 加密字符串并返回 hex 编码结果
 func (c *AESGCM) EncryptString(plaintext string) (string, error) {
 	enc, err := c.Encrypt([]byte(plaintext))
 	if err != nil {
@@ -85,6 +92,7 @@ func (c *AESGCM) EncryptString(plaintext string) (string, error) {
 	return hex.EncodeToString(enc), nil
 }
 
+// DecryptString 解密 hex 编码的密文并返回原始字符串
 func (c *AESGCM) DecryptString(ciphertext string) (string, error) {
 	data, err := hex.DecodeString(ciphertext)
 	if err != nil {
@@ -97,10 +105,12 @@ func (c *AESGCM) DecryptString(ciphertext string) (string, error) {
 	return string(dec), nil
 }
 
+// ChaCha20 ChaCha20-Poly1305 加密实现
 type ChaCha20 struct {
-	key []byte
+	key []byte // 密钥（固定 32 字节）
 }
 
+// NewChaCha20 根据字节密钥创建 ChaCha20-Poly1305 加密器
 func NewChaCha20(key []byte) (*ChaCha20, error) {
 	if len(key) != chacha20poly1305.KeySize {
 		return nil, fmt.Errorf("crypto: ChaCha20-Poly1305 密钥长度必须为 %d 字节, 当前 %d", chacha20poly1305.KeySize, len(key))
@@ -108,6 +118,7 @@ func NewChaCha20(key []byte) (*ChaCha20, error) {
 	return &ChaCha20{key: key}, nil
 }
 
+// Encrypt 使用 ChaCha20-Poly1305 加密明文，返回 nonce+密文
 func (c *ChaCha20) Encrypt(plaintext []byte) ([]byte, error) {
 	aead, err := chacha20poly1305.New(c.key)
 	if err != nil {
@@ -121,6 +132,7 @@ func (c *ChaCha20) Encrypt(plaintext []byte) ([]byte, error) {
 	return append(nonce, ciphertext...), nil
 }
 
+// Decrypt 使用 ChaCha20-Poly1305 解密密文（前 nonceSize 字节为 nonce）
 func (c *ChaCha20) Decrypt(ciphertext []byte) ([]byte, error) {
 	aead, err := chacha20poly1305.New(c.key)
 	if err != nil {
@@ -138,6 +150,7 @@ func (c *ChaCha20) Decrypt(ciphertext []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
+// EncryptString 加密字符串并返回 hex 编码结果
 func (c *ChaCha20) EncryptString(plaintext string) (string, error) {
 	enc, err := c.Encrypt([]byte(plaintext))
 	if err != nil {
@@ -146,6 +159,7 @@ func (c *ChaCha20) EncryptString(plaintext string) (string, error) {
 	return hex.EncodeToString(enc), nil
 }
 
+// DecryptString 解密 hex 编码的密文并返回原始字符串
 func (c *ChaCha20) DecryptString(ciphertext string) (string, error) {
 	data, err := hex.DecodeString(ciphertext)
 	if err != nil {
@@ -158,6 +172,7 @@ func (c *ChaCha20) DecryptString(ciphertext string) (string, error) {
 	return string(dec), nil
 }
 
+// deriveKey 基于密码和盐值通过多次 SHA256 迭代派生指定长度的密钥
 func deriveKey(password string, salt []byte, keyLen int) []byte {
 	h := sha256.Sum256(append([]byte(password), salt...))
 	key := h[:]

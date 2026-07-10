@@ -13,6 +13,7 @@ import (
 	"os"
 )
 
+// 文件加密
 const (
 	fileBufSize     = 1 * 1024 * 1024
 	nonceBaseLen    = 8

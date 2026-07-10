@@ -7,16 +7,19 @@ import (
 	"time"
 )
 
+// State 断路器状态类型
 type State int32
 
 const (
-	StateClosed   State = 0
-	StateOpen     State = 1
-	StateHalfOpen State = 2
+	StateClosed   State = 0 // 关闭状态（正常）
+	StateOpen     State = 1 // 打开状态（熔断）
+	StateHalfOpen State = 2 // 半开状态（尝试恢复）
 )
 
+// ErrCircuitOpen 断路器打开时返回的错误
 var ErrCircuitOpen = errors.New("net: 断路器已打开，请求熔断")
 
+// CircuitBreaker 断路器，用于防止级联故障
 type CircuitBreaker struct {
 	state            atomic.Int32
 	failureCount     atomic.Int32
@@ -29,12 +32,14 @@ type CircuitBreaker struct {
 	halfOpenDone     chan struct{}
 }
 
+// CircuitBreakerConfig 断路器配置
 type CircuitBreakerConfig struct {
 	FailureThreshold int
 	SuccessThreshold int
 	Timeout          time.Duration
 }
 
+// DefaultCircuitBreakerConfig 返回默认断路器配置（失败阈值=5，成功阈值=2，超时=30s）
 func DefaultCircuitBreakerConfig() CircuitBreakerConfig {
 	return CircuitBreakerConfig{
 		FailureThreshold: 5,
@@ -43,6 +48,7 @@ func DefaultCircuitBreakerConfig() CircuitBreakerConfig {
 	}
 }
 
+// NewCircuitBreaker 根据配置创建断路器，初始状态为关闭
 func NewCircuitBreaker(cfg CircuitBreakerConfig) *CircuitBreaker {
 	cb := &CircuitBreaker{
 		failureThreshold: int32(cfg.FailureThreshold),
@@ -53,10 +59,12 @@ func NewCircuitBreaker(cfg CircuitBreakerConfig) *CircuitBreaker {
 	return cb
 }
 
+// State 返回当前断路器状态
 func (cb *CircuitBreaker) State() State {
 	return State(cb.state.Load())
 }
 
+// Allow 判断请求是否允许通过，半开状态下会尝试放行
 func (cb *CircuitBreaker) Allow() bool {
 	state := State(cb.state.Load())
 	switch state {
@@ -80,6 +88,7 @@ func (cb *CircuitBreaker) Allow() bool {
 	}
 }
 
+// Success 记录一次成功调用，半开状态下达到阈值则关闭断路器
 func (cb *CircuitBreaker) Success() {
 	state := State(cb.state.Load())
 	switch state {
@@ -101,6 +110,7 @@ func (cb *CircuitBreaker) Success() {
 	}
 }
 
+// Failure 记录一次失败调用，达到阈值时打开断路器
 func (cb *CircuitBreaker) Failure() {
 	count := cb.failureCount.Add(1)
 	state := State(cb.state.Load())
@@ -121,6 +131,7 @@ func (cb *CircuitBreaker) Failure() {
 	}
 }
 
+// Reset 手动重置断路器到关闭状态，清零计数器
 func (cb *CircuitBreaker) Reset() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()

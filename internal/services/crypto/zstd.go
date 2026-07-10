@@ -8,10 +8,12 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
+// ZstdCompression 使用 Zstandard 算法进行数据压缩/解压
 type ZstdCompression struct {
 	level zstd.EncoderLevel
 }
 
+// NewZstdCompression 创建 zstd 压缩器
 func NewZstdCompression(level int) *ZstdCompression {
 	zstdLevel := zstd.EncoderLevel(level)
 	if zstdLevel < zstd.SpeedFastest || zstdLevel > zstd.SpeedBestCompression {

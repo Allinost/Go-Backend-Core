@@ -14,6 +14,7 @@ import (
 	"io"
 )
 
+// Cipher 定义加密/解密接口
 type Cipher interface {
 	Encrypt(plaintext []byte) ([]byte, error)
 	Decrypt(ciphertext []byte) ([]byte, error)
@@ -21,6 +22,7 @@ type Cipher interface {
 	DecryptString(ciphertext string) (string, error)
 }
 
+// AESGCM 封装 AES-GCM 加密，密钥长度支持 16/24/32 字节
 type AESGCM struct {
 	key []byte
 }

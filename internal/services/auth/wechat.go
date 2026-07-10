@@ -9,6 +9,7 @@ import (
 	"net/url"
 )
 
+// WechatProvider 微信第三方登录提供商
 type WechatProvider struct {
 	appID      string
 	appSecret  string
@@ -16,6 +17,7 @@ type WechatProvider struct {
 	httpClient *http.Client
 }
 
+// NewWechatProvider 创建微信登录提供商实例
 func NewWechatProvider(appID, appSecret, redirect string) *WechatProvider {
 	return &WechatProvider{
 		appID:      appID,
@@ -25,10 +27,12 @@ func NewWechatProvider(appID, appSecret, redirect string) *WechatProvider {
 	}
 }
 
+// Name 返回提供商名称
 func (p *WechatProvider) Name() string {
 	return "wechat"
 }
 
+// AuthURL 生成微信扫码登录授权 URL
 func (p *WechatProvider) AuthURL(state string) string {
 	return fmt.Sprintf(
 		"https://open.weixin.qq.com/connect/qrconnect?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_login&state=%s#wechat_redirect",
@@ -36,6 +40,7 @@ func (p *WechatProvider) AuthURL(state string) string {
 	)
 }
 
+// Exchange 使用授权码交换微信 access_token
 func (p *WechatProvider) Exchange(ctx context.Context, code string) (string, error) {
 	u := fmt.Sprintf(
 		"https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code",
@@ -71,6 +76,7 @@ func (p *WechatProvider) Exchange(ctx context.Context, code string) (string, err
 	return result.AccessToken, nil
 }
 
+// GetUserInfo 使用 access_token 获取微信用户信息
 func (p *WechatProvider) GetUserInfo(ctx context.Context, accessToken string) (*SocialUser, error) {
 	u := fmt.Sprintf(
 		"https://api.weixin.qq.com/sns/userinfo?access_token=%s&openid=%s",

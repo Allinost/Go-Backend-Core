@@ -49,7 +49,7 @@ func (m *Module) RegisterRoutes(rg *gin.RouterGroup) {
 type encryptReq struct {
 	Data   string `json:"data" binding:"required"`
 	KeyHex string `json:"key_hex,omitempty"`
-	Algo   string `json:"algo"` // aes-gcm / chacha20-poly1305
+	Algo   string `json:"algo"`
 }
 
 type cryptoResp struct {
@@ -57,6 +57,17 @@ type cryptoResp struct {
 	Algo   string `json:"algo"`
 }
 
+// handleEncrypt 数据加密
+// @Summary      数据加密
+// @Description  使用指定算法（aes-gcm / chacha20-poly1305）加密数据
+// @Tags         crypto
+// @Accept       json
+// @Produce      json
+// @Param        body  body  encryptReq  true  "加密请求"
+// @Success      200   {object}  cryptoResp
+// @Failure      400   {object}  object{error=string}
+// @Failure      500   {object}  object{error=string}
+// @Router       /crypto/encrypt [post]
 func (m *Module) handleEncrypt(c *gin.Context) {
 	var req encryptReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -124,6 +135,17 @@ type decryptReq struct {
 	Algo   string `json:"algo"`
 }
 
+// handleDecrypt 数据解密
+// @Summary      数据解密
+// @Description  使用指定算法解密已加密的数据
+// @Tags         crypto
+// @Accept       json
+// @Produce      json
+// @Param        body  body  decryptReq  true  "解密请求"
+// @Success      200   {object}  cryptoResp
+// @Failure      400   {object}  object{error=string}
+// @Failure      500   {object}  object{error=string}
+// @Router       /crypto/decrypt [post]
 func (m *Module) handleDecrypt(c *gin.Context) {
 	var req decryptReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -187,7 +209,7 @@ func (m *Module) handleDecrypt(c *gin.Context) {
 
 type compressReq struct {
 	Data     string `json:"data" binding:"required"`
-	Method   string `json:"method"` // gzip / zlib / zstd / zip
+	Method   string `json:"method"`
 	Level    int    `json:"level"`
 	Password string `json:"password,omitempty"`
 }
@@ -198,6 +220,17 @@ type compressResp struct {
 	Raw    string `json:"raw,omitempty"`
 }
 
+// handleCompress 数据压缩
+// @Summary      数据压缩
+// @Description  使用 gzip/zlib/zstd/zip 算法压缩数据，结果返回 hex 编码
+// @Tags         crypto
+// @Accept       json
+// @Produce      json
+// @Param        body  body  compressReq  true  "压缩请求"
+// @Success      200   {object}  compressResp
+// @Failure      400   {object}  object{error=string}
+// @Failure      500   {object}  object{error=string}
+// @Router       /crypto/compress [post]
 func (m *Module) handleCompress(c *gin.Context) {
 	var req compressReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -225,6 +258,17 @@ type decompressReq struct {
 	Password string `json:"password,omitempty"`
 }
 
+// handleDecompress 数据解压
+// @Summary      数据解压
+// @Description  自动检测压缩算法并解压 hex 编码的压缩数据
+// @Tags         crypto
+// @Accept       json
+// @Produce      json
+// @Param        body  body  decompressReq  true  "解压请求"
+// @Success      200   {object}  compressResp
+// @Failure      400   {object}  object{error=string}
+// @Failure      500   {object}  object{error=string}
+// @Router       /crypto/decompress [post]
 func (m *Module) handleDecompress(c *gin.Context) {
 	var req decompressReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -253,9 +297,19 @@ func (m *Module) handleDecompress(c *gin.Context) {
 
 type hashReq struct {
 	Data string `json:"data" binding:"required"`
-	Algo string `json:"algo"` // sha256 / sha512 / blake3
+	Algo string `json:"algo"`
 }
 
+// handleHash 哈希计算
+// @Summary      哈希计算
+// @Description  使用 sha256 / sha512 / blake3 算法计算数据哈希值
+// @Tags         crypto
+// @Accept       json
+// @Produce      json
+// @Param        body  body  hashReq  true  "哈希请求"
+// @Success      200   {object}  cryptoResp
+// @Failure      400   {object}  object{error=string}
+// @Router       /crypto/hash [post]
 func (m *Module) handleHash(c *gin.Context) {
 	var req hashReq
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -10,10 +10,12 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
+// ChaCha20Poly1305 封装 ChaCha20-Poly1305
 type ChaCha20Poly1305 struct {
 	key []byte
 }
 
+// NewChaCha20Poly1305 使用 32 字节密钥创建
 func NewChaCha20Poly1305(key []byte) (*ChaCha20Poly1305, error) {
 	if len(key) != chacha20poly1305.KeySize {
 		return nil, fmt.Errorf("crypto: ChaCha20-Poly1305 密钥长度必须为 %d 字节, 当前 %d", chacha20poly1305.KeySize, len(key))

@@ -8,20 +8,22 @@ import (
 	"time"
 )
 
+// Store 特性开关持久化存储接口
 type Store interface {
-	Load(ctx context.Context) ([]Flag, error)
-	Save(ctx context.Context, flag Flag) error
-	Delete(ctx context.Context, name string) error
-	Close() error
+	Load(ctx context.Context) ([]Flag, error)      // 加载所有开关
+	Save(ctx context.Context, flag Flag) error     // 保存单个开关
+	Delete(ctx context.Context, name string) error // 删除开关
+	Close() error                                  // 关闭存储
 }
 
 // MySQLStore 基于 MySQL 的特性开关持久化存储，需要先调用 Init 建表
 type MySQLStore struct {
-	db  *sql.DB
-	mu  sync.RWMutex
-	tbl string
+	db  *sql.DB      // 数据库连接
+	mu  sync.RWMutex // 读写锁
+	tbl string       // 表名
 }
 
+// NewMySQLStore 创建 MySQL 存储，默认表名为 feature_flags
 func NewMySQLStore(db *sql.DB, tableName string) *MySQLStore {
 	if tableName == "" {
 		tableName = "feature_flags"
@@ -29,6 +31,7 @@ func NewMySQLStore(db *sql.DB, tableName string) *MySQLStore {
 	return &MySQLStore{db: db, tbl: tableName}
 }
 
+// Init 创建特性开关表（如果不存在）
 func (s *MySQLStore) Init(ctx context.Context) error {
 	q := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
 		name VARCHAR(255) PRIMARY KEY,
@@ -40,6 +43,7 @@ func (s *MySQLStore) Init(ctx context.Context) error {
 	return err
 }
 
+// Load 从 MySQL 查询所有开关
 func (s *MySQLStore) Load(ctx context.Context) ([]Flag, error) {
 	q := fmt.Sprintf("SELECT name, enabled, COALESCE(description,'') FROM %s", s.tbl)
 	rows, err := s.db.QueryContext(ctx, q)
@@ -59,6 +63,7 @@ func (s *MySQLStore) Load(ctx context.Context) ([]Flag, error) {
 	return flags, rows.Err()
 }
 
+// Save 写入或替换开关到 MySQL
 func (s *MySQLStore) Save(ctx context.Context, flag Flag) error {
 	q := fmt.Sprintf("REPLACE INTO %s (name, enabled, description) VALUES (?,?,?)", s.tbl)
 	_, err := s.db.ExecContext(ctx, q, flag.Name, flag.Enabled, flag.Description)
@@ -68,6 +73,7 @@ func (s *MySQLStore) Save(ctx context.Context, flag Flag) error {
 	return nil
 }
 
+// Delete 从 MySQL 删除指定开关
 func (s *MySQLStore) Delete(ctx context.Context, name string) error {
 	q := fmt.Sprintf("DELETE FROM %s WHERE name=?", s.tbl)
 	_, err := s.db.ExecContext(ctx, q, name)
@@ -77,18 +83,21 @@ func (s *MySQLStore) Delete(ctx context.Context, name string) error {
 	return nil
 }
 
+// Close 关闭 MySQL 连接
 func (s *MySQLStore) Close() error {
 	return s.db.Close()
 }
 
 // syncManager 包装 Manager，所有变更操作自动持久化到 Store
+// syncManager 自动持久化的特性管理器，所有变更操作同步写入 Store
 type syncManager struct {
 	Manager
-	store Store
-	ctx   context.Context
-	done  chan struct{}
+	store Store           // 持久化存储
+	ctx   context.Context // 全局上下文
+	done  chan struct{}   // 停止信号通道
 }
 
+// NewSyncManager 创建自动持久化的特性管理器
 func NewSyncManager(store Store) *syncManager {
 	return &syncManager{
 		Manager: *NewManager(),
@@ -150,6 +159,7 @@ func (s *syncManager) Delete(name string) error {
 	return s.store.Delete(s.ctx, name)
 }
 
+// Stop 停止管理器，关闭存储连接
 func (s *syncManager) Stop() {
 	close(s.done)
 	_ = s.store.Close()

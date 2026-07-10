@@ -14,30 +14,30 @@ import (
 // Engine 模板引擎
 type Engine struct {
 	mu        sync.RWMutex
-	fsys      fs.FS                      // 文件系统
-	textCache map[string]*template.Template   // 文本模板缓存
-	htmlCache map[string]*htemplate.Template  // HTML 模板缓存
+	fsys      fs.FS                          // 文件系统
+	textCache map[string]*template.Template  // 文本模板缓存
+	htmlCache map[string]*htemplate.Template // HTML 模板缓存
 	funcs     template.FuncMap               // 模板函数映射
 }
 
 // NewEngineFS 基于文件系统创建模板引擎
 func NewEngineFS(fsys fs.FS) *Engine {
 	return &Engine{
-		fsys:     fsys,
+		fsys:      fsys,
 		textCache: make(map[string]*template.Template),
 		htmlCache: make(map[string]*htemplate.Template),
 		funcs:     make(template.FuncMap),
 	}
 }
 
-// AddFunc 注册全局模板函数
+// AddFunc 向引擎注册全局模板函数
 func (e *Engine) AddFunc(name string, fn any) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.funcs[name] = fn
 }
 
-// RenderText 渲染文本模板
+// RenderText 渲染文本模板（懒加载并缓存）
 func (e *Engine) RenderText(name string, data any) (string, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -57,7 +57,8 @@ func (e *Engine) RenderText(name string, data any) (string, error) {
 	return buf.String(), nil
 }
 
-// RenderHTML渲染 HTML 模板
+// RenderHTML 渲染 HTML 模板（自动转义，懒加载并缓存）
+// RenderHTML 渲染 HTML 模板（自动转义，懒加载并缓存）
 func (e *Engine) RenderHTML(name string, data any) (string, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -123,7 +124,7 @@ func (e *Engine) ClearCache() {
 	e.htmlCache = make(map[string]*htemplate.Template)
 }
 
-// RenderTextString 渲染内联文本模板字符串
+// RenderTextString 渲染内联文本模板字符串（不依赖文件系统）
 func (e *Engine) RenderTextString(tpl string, data any) (string, error) {
 	t, err := template.New("inline").Funcs(e.funcs).Parse(tpl)
 	if err != nil {
@@ -136,7 +137,7 @@ func (e *Engine) RenderTextString(tpl string, data any) (string, error) {
 	return buf.String(), nil
 }
 
-// RenderHTMLString 渲染内联 HTML 模板字符串
+// RenderHTMLString 渲染内联 HTML 模板字符串（不依赖文件系统）
 func (e *Engine) RenderHTMLString(tpl string, data any) (string, error) {
 	t, err := htemplate.New("inline").Funcs(e.funcs).Parse(tpl)
 	if err != nil {
@@ -158,7 +159,7 @@ func (e *Engine) Reset(fsys fs.FS) {
 	e.htmlCache = make(map[string]*htemplate.Template)
 }
 
-// AddFunc 注册全局模板函数
+// AddFunc 注册全局模板函数（包级函数）
 func AddFunc(name string, fn any) {
 	global.AddFunc(name, fn)
 }
@@ -183,6 +184,7 @@ func RenderHTMLString(tpl string, data any) (string, error) {
 	return global.RenderHTMLString(tpl, data)
 }
 
+// global 全局默认模板引擎
 var global *Engine
 
 // InitGlobal 初始化全局模板引擎

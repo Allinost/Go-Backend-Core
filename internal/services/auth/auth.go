@@ -7,13 +7,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// TokenType JWT token 类型
 type TokenType string
 
 const (
-	TokenTypeAccess  TokenType = "access"
-	TokenTypeRefresh TokenType = "refresh"
+	TokenTypeAccess  TokenType = "access"  // 访问令牌
+	TokenTypeRefresh TokenType = "refresh" // 刷新令牌
 )
 
+// Claims JWT 自定义声明，包含用户身份信息和 token 类型
 type Claims struct {
 	UserID    uint      `json:"user_id"`
 	Username  string    `json:"username"`
@@ -21,6 +23,7 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+// Service JWT token 签发与验证服务
 type Service struct {
 	secret        []byte
 	accessExpire  time.Duration
@@ -28,6 +31,7 @@ type Service struct {
 	issuer        string
 }
 
+// Config JWT 服务配置
 type Config struct {
 	Secret        string
 	AccessExpire  time.Duration
@@ -35,6 +39,7 @@ type Config struct {
 	Issuer        string
 }
 
+// TokenPair 访问令牌与刷新令牌对
 type TokenPair struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
@@ -43,6 +48,7 @@ type TokenPair struct {
 	Username     string `json:"username"`
 }
 
+// NewService 创建 JWT 服务实例，设置默认值
 func NewService(cfg Config) *Service {
 	if cfg.Issuer == "" {
 		cfg.Issuer = "go-backend-core"
@@ -61,6 +67,7 @@ func NewService(cfg Config) *Service {
 	}
 }
 
+// GenerateTokenPair 生成访问令牌和刷新令牌对
 func (s *Service) GenerateTokenPair(userID uint, username string) (*TokenPair, error) {
 	now := time.Now()
 
@@ -101,14 +108,17 @@ func (s *Service) generateToken(userID uint, username string, tokenType TokenTyp
 	return token.SignedString(s.secret)
 }
 
+// ValidateToken 验证 token 并返回声明（不检查 token 类型）
 func (s *Service) ValidateToken(tokenStr string) (*Claims, error) {
 	return s.parseToken(tokenStr, "")
 }
 
+// ValidateAccessToken 验证访问令牌
 func (s *Service) ValidateAccessToken(tokenStr string) (*Claims, error) {
 	return s.parseToken(tokenStr, TokenTypeAccess)
 }
 
+// ValidateRefreshToken 验证刷新令牌
 func (s *Service) ValidateRefreshToken(tokenStr string) (*Claims, error) {
 	return s.parseToken(tokenStr, TokenTypeRefresh)
 }
@@ -136,6 +146,7 @@ func (s *Service) parseToken(tokenStr string, expectedType TokenType) (*Claims, 
 	return claims, nil
 }
 
+// RefreshAccessToken 使用刷新令牌生成新的 token 对
 func (s *Service) RefreshAccessToken(refreshTokenStr string) (*TokenPair, error) {
 	claims, err := s.ValidateRefreshToken(refreshTokenStr)
 	if err != nil {

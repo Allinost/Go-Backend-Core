@@ -358,6 +358,19 @@ func (m *Module) callback(p auth.SocialProvider) gin.HandlerFunc {
 	}
 }
 
+// bind 绑定社交账号
+// @Summary      绑定第三方社交账号
+// @Description  将当前登录用户与第三方社交账号绑定
+// @Tags         auth-社交登录
+// @Accept       json
+// @Produce      json
+// @Param        provider  path  string  true  "平台名称: wechat/feishu/qq/apple/huawei/honor"
+// @Param        body      body  object{code=string}  true  "授权码"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Failure      409  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/{provider}/bind [post]
 func (m *Module) bind(name string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		p, ok := m.providers[name]
@@ -396,6 +409,16 @@ func (m *Module) bind(name string) gin.HandlerFunc {
 	}
 }
 
+// unbind 解绑社交账号
+// @Summary      解绑社交账号
+// @Description  当前登录用户解绑已绑定的第三方社交账号
+// @Tags         auth-社交登录
+// @Produce      json
+// @Param        provider  path  string  true  "平台名称"
+// @Success      200  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/{provider}/unbind [post]
 func (m *Module) unbind(name string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID := c.GetUint("user_id")
@@ -457,6 +480,18 @@ func (m *Module) me(c *gin.Context) {
 	})
 }
 
+// updateProfile 更新个人信息
+// @Summary      更新个人信息
+// @Description  更新当前登录用户的昵称、邮箱、头像、手机号等
+// @Tags         auth-用户
+// @Accept       json
+// @Produce      json
+// @Param        body  body  auth.UpdateUserRequest  true  "用户信息"
+// @Success      200   {object}  response.Response
+// @Failure      400   {object}  response.Response
+// @Failure      401   {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/profile [put]
 func (m *Module) updateProfile(c *gin.Context) {
 	userID := c.GetUint("user_id")
 
@@ -482,6 +517,18 @@ func (m *Module) updateProfile(c *gin.Context) {
 	})
 }
 
+// changePassword 修改密码
+// @Summary      修改密码
+// @Description  当前登录用户修改自己的密码
+// @Tags         auth-用户
+// @Accept       json
+// @Produce      json
+// @Param        body  body  auth.ChangePasswordRequest  true  "旧密码和新密码"
+// @Success      200   {object}  response.Response
+// @Failure      400   {object}  response.Response
+// @Failure      401   {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/password [put]
 func (m *Module) changePassword(c *gin.Context) {
 	userID := c.GetUint("user_id")
 
@@ -499,6 +546,19 @@ func (m *Module) changePassword(c *gin.Context) {
 	response.Success(c, gin.H{"message": "密码已修改"})
 }
 
+// listUsers 用户列表（管理员）
+// @Summary      获取用户列表
+// @Description  管理员分页查询所有用户
+// @Tags         auth-管理
+// @Produce      json
+// @Param        page      query  int     false  "页码（默认1）"
+// @Param        page_size query  int     false  "每页数量（默认20）"
+// @Param        search    query  string  false  "搜索关键词"
+// @Success      200  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/users [get]
 func (m *Module) listUsers(c *gin.Context) {
 	page := 1
 	pageSize := 20
@@ -524,6 +584,18 @@ func (m *Module) listUsers(c *gin.Context) {
 	})
 }
 
+// getUser 获取用户详情（管理员）
+// @Summary      获取指定用户详情
+// @Description  管理员根据 ID 查询用户详细信息
+// @Tags         auth-管理
+// @Produce      json
+// @Param        id    path  int  true  "用户 ID"
+// @Success      200  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/users/{id} [get]
 func (m *Module) getUser(c *gin.Context) {
 	id, err := parseUint(c.Param("id"))
 	if err != nil {
@@ -551,6 +623,21 @@ func (m *Module) getUser(c *gin.Context) {
 	})
 }
 
+// updateUser 更新用户（管理员）
+// @Summary      管理员更新用户信息
+// @Description  管理员修改指定用户的资料
+// @Tags         auth-管理
+// @Accept       json
+// @Produce      json
+// @Param        id    path  int                   true  "用户 ID"
+// @Param        body  body  auth.UpdateUserRequest  true  "用户信息"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/users/{id} [put]
 func (m *Module) updateUser(c *gin.Context) {
 	id, err := parseUint(c.Param("id"))
 	if err != nil {
@@ -581,6 +668,18 @@ func (m *Module) updateUser(c *gin.Context) {
 	})
 }
 
+// deleteUser 删除用户（管理员）
+// @Summary      管理员删除用户
+// @Description  管理员根据 ID 删除指定用户
+// @Tags         auth-管理
+// @Produce      json
+// @Param        id  path  int  true  "用户 ID"
+// @Success      200  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/users/{id} [delete]
 func (m *Module) deleteUser(c *gin.Context) {
 	id, err := parseUint(c.Param("id"))
 	if err != nil {
@@ -621,6 +720,17 @@ func parseUint(s string) (uint, error) {
 	return v, nil
 }
 
+// createAPIKey 创建 API 密钥
+// @Summary      创建 API 密钥
+// @Description  为当前用户创建一个新的 API 访问密钥
+// @Tags         auth-API密钥
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{name=string,scopes=string,expires_in=string}  true  "密钥信息"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/api-keys [post]
 func (m *Module) createAPIKey(c *gin.Context) {
 	userID := c.GetUint("user_id")
 
@@ -664,6 +774,17 @@ func (m *Module) createAPIKey(c *gin.Context) {
 	})
 }
 
+// listAPIKeys 获取 API 密钥列表
+// @Summary      获取 API 密钥列表
+// @Description  获取当前用户的所有 API 密钥（管理员可查看全部）
+// @Tags         auth-API密钥
+// @Produce      json
+// @Param        page      query  int     false  "页码（默认1）"
+// @Param        page_size query  int     false  "每页数量（默认20）"
+// @Success      200  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/api-keys [get]
 func (m *Module) listAPIKeys(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	isAdmin := m.rbac.HasPermission(userID, "user", "admin")
@@ -689,6 +810,21 @@ func (m *Module) listAPIKeys(c *gin.Context) {
 	response.Success(c, keys)
 }
 
+// updateAPIKey 更新 API 密钥
+// @Summary      更新 API 密钥
+// @Description  更新指定 API 密钥的名称、权限范围或状态
+// @Tags         auth-API密钥
+// @Accept       json
+// @Produce      json
+// @Param        id    path  int     true  "密钥 ID"
+// @Param        body  body  object{name=string,scopes=string,status=string}  true  "更新内容"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/api-keys/{id} [put]
 func (m *Module) updateAPIKey(c *gin.Context) {
 	id, err := parseUint(c.Param("id"))
 	if err != nil {
@@ -703,7 +839,10 @@ func (m *Module) updateAPIKey(c *gin.Context) {
 		keys, _ := m.apiKeys.ListByUser(userID)
 		owns := false
 		for _, k := range keys {
-			if k.ID == id { owns = true; break }
+			if k.ID == id {
+				owns = true
+				break
+			}
 		}
 		if !owns {
 			response.FailCode(c, appErrors.CodeForbidden)
@@ -722,9 +861,15 @@ func (m *Module) updateAPIKey(c *gin.Context) {
 	}
 
 	updates := map[string]any{}
-	if req.Name != nil { updates["name"] = *req.Name }
-	if req.Scopes != nil { updates["scopes"] = *req.Scopes }
-	if req.Status != nil { updates["status"] = *req.Status }
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Scopes != nil {
+		updates["scopes"] = *req.Scopes
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
 
 	if err := m.apiKeys.Update(id, updates); err != nil {
 		response.Fail(c, appErrors.New(appErrors.CodeNotFound, err.Error()))
@@ -734,6 +879,18 @@ func (m *Module) updateAPIKey(c *gin.Context) {
 	response.Success(c, gin.H{"message": "密钥已更新"})
 }
 
+// deleteAPIKey 删除 API 密钥
+// @Summary      删除 API 密钥
+// @Description  删除指定 ID 的 API 密钥
+// @Tags         auth-API密钥
+// @Produce      json
+// @Param        id  path  int  true  "密钥 ID"
+// @Success      200  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/api-keys/{id} [delete]
 func (m *Module) deleteAPIKey(c *gin.Context) {
 	id, err := parseUint(c.Param("id"))
 	if err != nil {
@@ -748,7 +905,10 @@ func (m *Module) deleteAPIKey(c *gin.Context) {
 		keys, _ := m.apiKeys.ListByUser(userID)
 		owns := false
 		for _, k := range keys {
-			if k.ID == id { owns = true; break }
+			if k.ID == id {
+				owns = true
+				break
+			}
 		}
 		if !owns {
 			response.FailCode(c, appErrors.CodeForbidden)
@@ -764,12 +924,34 @@ func (m *Module) deleteAPIKey(c *gin.Context) {
 	response.Success(c, gin.H{"message": "密钥已删除"})
 }
 
+// listAccounts 获取绑定的社交账号
+// @Summary      获取绑定的社交账号列表
+// @Description  返回当前用户已绑定的全部第三方社交账号
+// @Tags         auth-社交登录
+// @Produce      json
+// @Success      200  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/accounts [get]
 func (m *Module) listAccounts(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	accounts, _ := m.social.ListByUser(userID)
 	response.Success(c, accounts)
 }
 
+// assignRole 分配角色（管理员）
+// @Summary      分配用户角色
+// @Description  管理员为指定用户分配角色（admin 或 user）
+// @Tags         auth-管理
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{user_id=int,role=string}  true  "用户 ID 和角色"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/roles/assign [post]
 func (m *Module) assignRole(c *gin.Context) {
 	var req struct {
 		UserID uint   `json:"user_id" binding:"required"`

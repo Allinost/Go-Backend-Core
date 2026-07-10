@@ -10,6 +10,7 @@ import (
 	"net/url"
 )
 
+// HuaweiProvider 华为第三方登录提供商
 type HuaweiProvider struct {
 	clientID     string
 	clientSecret string
@@ -17,6 +18,7 @@ type HuaweiProvider struct {
 	httpClient   *http.Client
 }
 
+// NewHuaweiProvider 创建华为登录提供商实例
 func NewHuaweiProvider(clientID, clientSecret, redirect string) *HuaweiProvider {
 	return &HuaweiProvider{
 		clientID:     clientID,
@@ -26,10 +28,12 @@ func NewHuaweiProvider(clientID, clientSecret, redirect string) *HuaweiProvider 
 	}
 }
 
+// Name 返回提供商名称
 func (p *HuaweiProvider) Name() string {
 	return "huawei"
 }
 
+// AuthURL 生成华为 OAuth 授权 URL
 func (p *HuaweiProvider) AuthURL(state string) string {
 	return fmt.Sprintf(
 		"https://oauth-login.cloud.huawei.com/oauth2/v3/authorize?response_type=code&client_id=%s&redirect_uri=%s&state=%s&scope=openid+profile",
@@ -37,6 +41,7 @@ func (p *HuaweiProvider) AuthURL(state string) string {
 	)
 }
 
+// Exchange 使用授权码交换华为 access_token
 func (p *HuaweiProvider) Exchange(ctx context.Context, code string) (string, error) {
 	body := map[string]string{
 		"grant_type":    "authorization_code",
@@ -77,6 +82,7 @@ func (p *HuaweiProvider) Exchange(ctx context.Context, code string) (string, err
 	return result.AccessToken, nil
 }
 
+// GetUserInfo 使用 access_token 获取华为用户信息
 func (p *HuaweiProvider) GetUserInfo(ctx context.Context, accessToken string) (*SocialUser, error) {
 	u := fmt.Sprintf(
 		"https://api.cloud.huawei.com/rest/user/v1/userinfo?access_token=%s",

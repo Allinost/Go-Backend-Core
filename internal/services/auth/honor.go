@@ -10,6 +10,7 @@ import (
 	"net/url"
 )
 
+// HonorProvider 荣耀第三方登录提供商
 type HonorProvider struct {
 	clientID     string
 	clientSecret string
@@ -17,6 +18,7 @@ type HonorProvider struct {
 	httpClient   *http.Client
 }
 
+// NewHonorProvider 创建荣耀登录提供商实例
 func NewHonorProvider(clientID, clientSecret, redirect string) *HonorProvider {
 	return &HonorProvider{
 		clientID:     clientID,
@@ -26,10 +28,12 @@ func NewHonorProvider(clientID, clientSecret, redirect string) *HonorProvider {
 	}
 }
 
+// Name 返回提供商名称
 func (p *HonorProvider) Name() string {
 	return "honor"
 }
 
+// AuthURL 生成荣耀 OAuth 授权 URL
 func (p *HonorProvider) AuthURL(state string) string {
 	return fmt.Sprintf(
 		"https://login.honor.com/oauth2/v1/authorize?response_type=code&client_id=%s&redirect_uri=%s&state=%s&scope=openid+profile",
@@ -37,6 +41,7 @@ func (p *HonorProvider) AuthURL(state string) string {
 	)
 }
 
+// Exchange 使用授权码交换荣耀 access_token
 func (p *HonorProvider) Exchange(ctx context.Context, code string) (string, error) {
 	body := map[string]string{
 		"grant_type":    "authorization_code",
@@ -77,6 +82,7 @@ func (p *HonorProvider) Exchange(ctx context.Context, code string) (string, erro
 	return result.AccessToken, nil
 }
 
+// GetUserInfo 使用 access_token 获取荣耀用户信息
 func (p *HonorProvider) GetUserInfo(ctx context.Context, accessToken string) (*SocialUser, error) {
 	u := fmt.Sprintf(
 		"https://api.honor.com/rest/user/v1/userinfo?access_token=%s",
