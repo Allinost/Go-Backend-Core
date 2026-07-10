@@ -10,13 +10,11 @@ import (
 	"github.com/Allinost/go-backend-core/internal/config"
 )
 
-// Client 封装 *redis.Client，提供健康检查
 type Client struct {
 	*redis.Client
 }
 
-// NewClient 根据配置创建 Redis 客户端
-func NewClient(cfg config.RedisInstance) (*Client, error) {
+func NewClient(cfg config.RedisInstance, skipPing bool) (*Client, error) {
 	opts := &redis.Options{
 		Addr:         cfg.Addr,
 		Username:     cfg.Username,
@@ -35,12 +33,14 @@ func NewClient(cfg config.RedisInstance) (*Client, error) {
 
 	rdb := redis.NewClient(opts)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	if !skipPing {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	if err := rdb.Ping(ctx).Err(); err != nil {
-		rdb.Close()
-		return nil, fmt.Errorf("redis ping 失败 [%s]: %w", cfg.Addr, err)
+		if err := rdb.Ping(ctx).Err(); err != nil {
+			rdb.Close()
+			return nil, fmt.Errorf("redis ping 失败 [%s]: %w", cfg.Addr, err)
+		}
 	}
 
 	return &Client{rdb}, nil

@@ -16,7 +16,7 @@ type Pool struct {
 }
 
 // NewPool 根据配置创建 MySQL 连接池
-func NewPool(cfg config.MySQLConfig) (*Pool, error) {
+func NewPool(cfg config.MySQLConfig, skipPing bool) (*Pool, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName)
 
@@ -42,9 +42,11 @@ func NewPool(cfg config.MySQLConfig) (*Pool, error) {
 		}
 	}
 
-	if err := db.Ping(); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("mysql ping 失败 [%s:%d/%s]: %w", cfg.Host, cfg.Port, cfg.DBName, err)
+	if !skipPing {
+		if err := db.Ping(); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("mysql ping 失败 [%s:%d/%s]: %w", cfg.Host, cfg.Port, cfg.DBName, err)
+		}
 	}
 
 	return &Pool{DB: db}, nil
