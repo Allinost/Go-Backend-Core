@@ -17,6 +17,11 @@ type S3Store struct {
 	bucket string
 }
 
+// NewS3StoreFromClient 从已有的 minio 客户端创建 S3Store
+func NewS3StoreFromClient(client *minio.Client, bucket string) *S3Store {
+	return &S3Store{client: client, bucket: bucket}
+}
+
 // NewS3Store 创建 S3 存储客户端
 func NewS3Store(endpoint, accessKey, secretKey, bucket string, useSSL bool) (*S3Store, error) {
 	client, err := minio.New(endpoint, &minio.Options{
@@ -39,24 +44,20 @@ func (s *S3Store) Upload(ctx context.Context, filePath string, reader io.Reader,
 	if ct == "" {
 		ct = "application/octet-stream"
 	}
-	_, err := s.client.PutObject(ctx, s.bucket, filePath, reader, -1, minio.PutObjectOptions{
+	info, err := s.client.PutObject(ctx, s.bucket, filePath, reader, -1, minio.PutObjectOptions{
 		ContentType:  ct,
 		UserMetadata: o.Metadata,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("storage: s3 upload %s failed: %w", filePath, err)
 	}
-	obj, err := s.client.StatObject(ctx, s.bucket, filePath, minio.StatObjectOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("storage: s3 stat %s failed: %w", filePath, err)
-	}
 	return &FileInfo{
 		Name:         path.Base(filePath),
 		Path:         filePath,
-		Size:         obj.Size,
-		ContentType:  obj.ContentType,
-		LastModified: obj.LastModified,
-		ETag:         obj.ETag,
+		Size:         info.Size,
+		ContentType:  ct,
+		LastModified: info.LastModified,
+		ETag:         info.ETag,
 	}, nil
 }
 

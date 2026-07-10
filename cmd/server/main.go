@@ -22,6 +22,7 @@ import (
 	netmodule "github.com/Allinost/go-backend-core/internal/services/net"
 	"github.com/Allinost/go-backend-core/internal/services/scheduler"
 
+
 	_ "github.com/Allinost/go-backend-core/api/swagger"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -87,6 +88,7 @@ func main() {
 	modules.Register(netmodule.NewModule())
 	modules.Register(crypto.NewModule())
 	modules.Register(&migrate.Module{})
+	modules.Register(&goodser.Module{})
 
 	// 初始化所有模块（调用 Init，不挂载路由）
 	modules.InitAll(cfg)

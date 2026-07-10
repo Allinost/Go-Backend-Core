@@ -79,6 +79,421 @@ definitions:
       phone:
         type: string
     type: object
+  goodser.AllocateSeqReq:
+    properties:
+      inventory_id:
+        type: string
+      main_zone:
+        type: string
+      sub_zone:
+        type: string
+    type: object
+  goodser.AllocateSeqResp:
+    properties:
+      seq_number:
+        type: integer
+    type: object
+  goodser.CancelOutboundReq:
+    properties:
+      id:
+        type: string
+    type: object
+  goodser.ConfirmOutboundReq:
+    properties:
+      id:
+        type: string
+    type: object
+  goodser.CreateInventoryReq:
+    properties:
+      name:
+        type: string
+    type: object
+  goodser.CreateOutboundReq:
+    properties:
+      inventory_id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/goodser.OrderItem'
+        type: array
+      order_info:
+        type: string
+      order_no:
+        type: string
+      remark:
+        type: string
+      source_reserve_id:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+    type: object
+  goodser.CreateProductReq:
+    properties:
+      code:
+        type: string
+      expected_price:
+        type: number
+      image_url:
+        type: string
+      inventory_id:
+        type: string
+      main_zone:
+        type: string
+      market_price:
+        type: number
+      name:
+        type: string
+      original_price:
+        type: number
+      quantity:
+        type: integer
+      remark:
+        type: string
+      seq_number:
+        type: integer
+      status_code:
+        type: string
+      storage_location:
+        type: string
+      sub_zone:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  goodser.CreateTagReq:
+    properties:
+      color:
+        type: string
+      name:
+        type: string
+    type: object
+  goodser.DeleteInventoryReq:
+    properties:
+      id:
+        type: string
+    type: object
+  goodser.InboundBatchReq:
+    properties:
+      inventory_id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/goodser.InboundBatchReqItem'
+        type: array
+      order_no:
+        type: string
+      remark:
+        type: string
+    type: object
+  goodser.InboundBatchReqItem:
+    properties:
+      code:
+        type: string
+      expected_price:
+        type: number
+      image_url:
+        type: string
+      main_zone:
+        type: string
+      market_price:
+        type: number
+      name:
+        type: string
+      original_price:
+        type: number
+      quantity:
+        type: integer
+      remark:
+        type: string
+      seq_number:
+        type: integer
+      status_code:
+        type: string
+      storage_location:
+        type: string
+      sub_zone:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  goodser.InboundBatchResp:
+    properties:
+      count:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/goodser.Product'
+        type: array
+    type: object
+  goodser.InboundLog:
+    properties:
+      _id:
+        type: string
+      created_at:
+        type: string
+      inventory_id:
+        type: string
+      items:
+        items:
+          type: integer
+        type: array
+      order_no:
+        type: string
+      remark:
+        type: string
+      type:
+        type: string
+    type: object
+  goodser.InboundSearchImportReq:
+    properties:
+      inventory_id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/goodser.SearchImportReqItem'
+        type: array
+      order_no:
+        type: string
+      remark:
+        type: string
+    type: object
+  goodser.InboundSearchImportResp:
+    properties:
+      count:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/goodser.Product'
+        type: array
+    type: object
+  goodser.InboundSingleReq:
+    properties:
+      code:
+        type: string
+      expected_price:
+        type: number
+      image_url:
+        type: string
+      inventory_id:
+        type: string
+      main_zone:
+        type: string
+      market_price:
+        type: number
+      name:
+        type: string
+      order_no:
+        type: string
+      original_price:
+        type: number
+      quantity:
+        type: integer
+      remark:
+        type: string
+      seq_number:
+        type: integer
+      status_code:
+        type: string
+      storage_location:
+        type: string
+      sub_zone:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  goodser.Inventory:
+    properties:
+      _id:
+        type: string
+      created_at:
+        type: string
+      name:
+        type: string
+      sort_order:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  goodser.OrderItem:
+    properties:
+      image_url:
+        type: string
+      product_code:
+        type: string
+      product_id:
+        type: string
+      product_name:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  goodser.OutboundOrder:
+    properties:
+      _id:
+        type: string
+      cancelled_at:
+        type: string
+      confirmed_at:
+        type: string
+      created_at:
+        type: string
+      inventory_id:
+        type: string
+      items:
+        items:
+          type: integer
+        type: array
+      order_info:
+        type: string
+      order_no:
+        type: string
+      remark:
+        type: string
+      source_reserve_id:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  goodser.Product:
+    properties:
+      _id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      expected_price:
+        type: number
+      image_list:
+        items:
+          type: integer
+        type: array
+      image_url:
+        type: string
+      inventory_id:
+        type: string
+      main_zone:
+        type: string
+      market_price:
+        type: number
+      name:
+        type: string
+      original_price:
+        type: number
+      quantity:
+        type: integer
+      remark:
+        type: string
+      reserved_quantity:
+        type: integer
+      seq_number:
+        type: integer
+      status_code:
+        type: string
+      storage_location:
+        type: string
+      sub_zone:
+        type: string
+      tags:
+        items:
+          type: integer
+        type: array
+      updated_at:
+        type: string
+    type: object
+  goodser.SearchImportReqItem:
+    properties:
+      image_url:
+        type: string
+      product_code:
+        type: string
+      product_id:
+        type: string
+      product_name:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  goodser.StatusCode:
+    properties:
+      _id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      is_system:
+        type: boolean
+      label:
+        type: string
+    type: object
+  goodser.Tag:
+    properties:
+      _id:
+        type: string
+      color:
+        type: string
+      created_at:
+        type: string
+      name:
+        type: string
+    type: object
+  goodser.UpdateInventoryReq:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  goodser.UpdateProductReq:
+    properties:
+      code:
+        type: string
+      expected_price:
+        type: number
+      id:
+        type: string
+      image_url:
+        type: string
+      inventory_id:
+        type: string
+      main_zone:
+        type: string
+      market_price:
+        type: number
+      name:
+        type: string
+      original_price:
+        type: number
+      quantity:
+        type: integer
+      remark:
+        type: string
+      seq_number:
+        type: integer
+      status_code:
+        type: string
+      storage_location:
+        type: string
+      sub_zone:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
   http.Header:
     additionalProperties:
       items:
@@ -2236,6 +2651,779 @@ paths:
       summary: 立即执行任务
       tags:
       - scheduler
+  /zzz-goodser/inventories:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/goodser.Inventory'
+                  type: array
+              type: object
+      summary: 获取目录列表
+      tags:
+      - zzz-goodser
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 目录名
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.CreateInventoryReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.Inventory'
+              type: object
+      summary: 创建目录
+      tags:
+      - zzz-goodser
+  /zzz-goodser/inventories/{id}:
+    delete:
+      parameters:
+      - description: 目录 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除目录
+      tags:
+      - zzz-goodser
+    get:
+      parameters:
+      - description: 目录 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.Inventory'
+              type: object
+      summary: 获取目录
+      tags:
+      - zzz-goodser
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 目录 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.UpdateInventoryReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.Inventory'
+              type: object
+      summary: 更新目录
+      tags:
+      - zzz-goodser
+  /zzz-goodser/inventories/{id}/products:
+    get:
+      parameters:
+      - description: 库存目录 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/goodser.Product'
+                  type: array
+              type: object
+      summary: 获取商品列表
+      tags:
+      - zzz-goodser
+  /zzz-goodser/legacy/allocateSeq:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 分配参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.AllocateSeqReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.AllocateSeqResp'
+              type: object
+      summary: 分配序号
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/cancelOutbound:
+    post:
+      consumes:
+      - application/json
+      description: 释放已锁定的预留库存
+      parameters:
+      - description: 出库单 ID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.CancelOutboundReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.OutboundOrder'
+              type: object
+      summary: 取消出库
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/confirmOutbound:
+    post:
+      consumes:
+      - application/json
+      description: 确认后扣除库存、取消预留
+      parameters:
+      - description: 出库单 ID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.ConfirmOutboundReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.OutboundOrder'
+              type: object
+      summary: 确认出库
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/createInventory:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 目录信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.CreateInventoryReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.Inventory'
+              type: object
+      summary: 创建目录
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/createOutbound:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 出库信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.CreateOutboundReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.OutboundOrder'
+              type: object
+      summary: 创建出库单
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/createProduct:
+    post:
+      consumes:
+      - application/json
+      description: 直接创建一个新商品，需先通过 allocateSeq 获取序号
+      parameters:
+      - description: 商品信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.CreateProductReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.Product'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 创建商品
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/createTag:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 标签信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.CreateTagReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.Tag'
+              type: object
+      summary: 创建标签
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/deleteInventory:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 目录 ID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.DeleteInventoryReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除目录
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/deleteProduct:
+    post:
+      consumes:
+      - application/json
+      description: 删除指定商品并回收其序号
+      parameters:
+      - description: 商品 ID
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除商品
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/inboundBatch:
+    post:
+      consumes:
+      - application/json
+      description: 批量创建或增加商品库存，已存在的按 code 匹配叠加数量
+      parameters:
+      - description: 入库项列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.InboundBatchReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.InboundBatchResp'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 批量入库
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/inboundSearchImport:
+    post:
+      consumes:
+      - application/json
+      description: 将搜索结果中的商品批量导入（按 product_id 叠加库存）
+      parameters:
+      - description: 导入项列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.InboundSearchImportReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.InboundSearchImportResp'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 搜索导入入库
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/inboundSingle:
+    post:
+      consumes:
+      - application/json
+      description: 创 build 或叠加商品库存，写入库日志
+      parameters:
+      - description: 入库信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.InboundSingleReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.Product'
+              type: object
+      summary: 单品入库
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/loadInboundLogs:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 仓库 ID
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            inventory_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/goodser.InboundLog'
+                  type: array
+              type: object
+      summary: 获取入库日志
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/loadInventories:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/goodser.Inventory'
+                  type: array
+              type: object
+      summary: 获取目录列表
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/loadOutboundOrders:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 仓库 ID
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            inventory_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/goodser.OutboundOrder'
+                  type: array
+              type: object
+      summary: 获取出库单
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/loadProducts:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 仓库 ID
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            inventory_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/goodser.Product'
+                  type: array
+              type: object
+      summary: 获取商品列表
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/loadStatusCodes:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/goodser.StatusCode'
+                  type: array
+              type: object
+      summary: 获取状态编码
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/loadTags:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/goodser.Tag'
+                  type: array
+              type: object
+      summary: 获取标签
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/queryProducts:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 搜索参数
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            inventory_id:
+              type: string
+            keyword:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/goodser.Product'
+                  type: array
+              type: object
+      summary: 搜索商品
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/updateInventory:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.UpdateInventoryReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.Inventory'
+              type: object
+      summary: 更新目录
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/legacy/uploadImage:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传图片到对象存储，返回可访问的 URL
+      parameters:
+      - description: 图片文件
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    url:
+                      type: string
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 上传图片
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/products/{id}:
+    delete:
+      description: 删除指定商品并回收其序号
+      parameters:
+      - description: 商品 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除商品
+      tags:
+      - zzz-goodser
+    put:
+      consumes:
+      - application/json
+      description: 部分更新商品信息，仅传需要修改的字段
+      parameters:
+      - description: 商品 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/goodser.UpdateProductReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/goodser.Product'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 更新商品
+      tags:
+      - zzz-goodser
 securityDefinitions:
   BearerAuth:
     description: 'JWT Bearer token, 格式: "Bearer {token}"'

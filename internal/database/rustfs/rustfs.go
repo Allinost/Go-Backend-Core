@@ -3,6 +3,7 @@ package rustfs
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -27,15 +28,14 @@ func NewClient(cfg config.S3Config) (*Client, error) {
 		return nil, fmt.Errorf("rustfs 创建客户端失败 [%s]: %w", cfg.Endpoint, err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 32*time.Second)
 	defer cancel()
 
 	exists, err := client.BucketExists(ctx, cfg.Bucket)
 	if err != nil {
-		return nil, fmt.Errorf("rustfs 检查 bucket 失败 [%s/%s]: %w", cfg.Endpoint, cfg.Bucket, err)
-	}
-	if !exists {
-		return nil, fmt.Errorf("rustfs bucket 不存在 [%s/%s]", cfg.Endpoint, cfg.Bucket)
+		log.Printf("[rustfs] 检查 bucket 失败 [%s/%s] (降级为警告): %v", cfg.Endpoint, cfg.Bucket, err)
+	} else if !exists {
+		log.Printf("[rustfs] bucket 不存在 [%s/%s] (降级为警告)", cfg.Endpoint, cfg.Bucket)
 	}
 
 	return &Client{
