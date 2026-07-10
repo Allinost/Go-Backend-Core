@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Go 后端应用监控（通过 s0 模块暴露 /metrics）
+  - job_name: 'go-backend-core'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:29092']  # 宿主机访问调试端口
+        labels:
+          service: 'go-backend-core'
+          env: 'development'
+
+  # Node Exporter（如有部署）
+  # - job_name: 'node-exporter'
+  #   static_configs:
+  #     - targets: ['host.docker.internal:9100']

@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -35,6 +36,8 @@ var DB *DBManager
 
 // InitAll 根据配置初始化所有数据库连接
 func InitAll(cfg *config.Config) error {
+	skipPing := strings.HasPrefix(cfg.Server.Version, "release")
+
 	DB = &DBManager{
 		MySQL:    make(map[string]*mysql.Pool),
 		Postgres: make(map[string]*postgres.Pool),
@@ -44,20 +47,20 @@ func InitAll(cfg *config.Config) error {
 		breakers: make(map[string]*CircuitBreaker),
 	}
 
-	initMySQL(cfg)
-	initPostgres(cfg)
+	initMySQL(cfg, skipPing)
+	initPostgres(cfg, skipPing)
 	initS3(cfg)
-	initRedis(cfg)
+	initRedis(cfg, skipPing)
 
 	return nil
 }
 
-func initMySQL(cfg *config.Config) {
+func initMySQL(cfg *config.Config, skipPing bool) {
 	for name, dbCfg := range cfg.Database.MySQL {
 		if !dbCfg.Enabled {
 			continue
 		}
-		pool, err := mysql.NewPool(dbCfg)
+		pool, err := mysql.NewPool(dbCfg, skipPing)
 		if err != nil {
 			log.Printf("[database] MySQL[%s] 初始化失败: %v", name, err)
 			continue
@@ -67,12 +70,12 @@ func initMySQL(cfg *config.Config) {
 	}
 }
 
-func initPostgres(cfg *config.Config) {
+func initPostgres(cfg *config.Config, skipPing bool) {
 	for name, dbCfg := range cfg.Database.Postgres {
 		if !dbCfg.Enabled {
 			continue
 		}
-		pool, err := postgres.NewPool(dbCfg)
+		pool, err := postgres.NewPool(dbCfg, skipPing)
 		if err != nil {
 			log.Printf("[database] PostgreSQL[%s] 初始化失败: %v", name, err)
 			continue
@@ -110,10 +113,10 @@ func initS3(cfg *config.Config) {
 	}
 }
 
-func initRedis(cfg *config.Config) {
+func initRedis(cfg *config.Config, skipPing bool) {
 	mainCfg := cfg.Redis.Main
 	if mainCfg.Enabled && mainCfg.Addr != "" {
-		client, err := redis.NewClient(mainCfg)
+		client, err := redis.NewClient(mainCfg, skipPing)
 		if err != nil {
 			log.Printf("[database] Redis[main] 初始化失败: %v", err)
 		} else {
@@ -125,7 +128,7 @@ func initRedis(cfg *config.Config) {
 		if !rc.Enabled {
 			continue
 		}
-		client, err := redis.NewClient(rc)
+		client, err := redis.NewClient(rc, skipPing)
 		if err != nil {
 			log.Printf("[database] Redis[%s] 初始化失败: %v", name, err)
 			continue
@@ -152,10 +155,11 @@ func (m *DBManager) Reload(cfg *config.Config) error {
 	m.S3 = make(map[string]*minio.Client)
 	m.RustFS = make(map[string]*rustfs.Client)
 
-	initMySQL(cfg)
-	initPostgres(cfg)
+	skipPing := strings.HasPrefix(cfg.Server.Version, "release")
+	initMySQL(cfg, skipPing)
+	initPostgres(cfg, skipPing)
 	initS3(cfg)
-	initRedis(cfg)
+	initRedis(cfg, skipPing)
 
 	for _, pool := range oldMySQL {
 		pool.Close()

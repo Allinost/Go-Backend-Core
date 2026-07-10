@@ -6,8 +6,14 @@ services:
     ports:
       - "29090:29090"   # 业务 API（Nginx 对外暴露）
       - "29092:29092"   # 调试/监控/运维（仅内网）
-    volumes:
-      - ./config.yaml:/app/config.yaml
+    env_file:
+      - .env
     environment:
       - TZ=Asia/Shanghai
     restart: unless-stopped
+    networks:
+      - 1panel-network
+
+networks:
+  1panel-network:
+    external: true

@@ -14,7 +14,7 @@ type Pool struct {
 	*pgxpool.Pool
 }
 
-func NewPool(cfg config.PGConfig) (*Pool, error) {
+func NewPool(cfg config.PGConfig, skipPing bool) (*Pool, error) {
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName)
 
@@ -41,9 +41,11 @@ func NewPool(cfg config.PGConfig) (*Pool, error) {
 		return nil, fmt.Errorf("postgres 创建连接池失败 [%s:%d/%s]: %w", cfg.Host, cfg.Port, cfg.DBName, err)
 	}
 
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("postgres ping 失败 [%s:%d/%s]: %w", cfg.Host, cfg.Port, cfg.DBName, err)
+	if !skipPing {
+		if err := pool.Ping(ctx); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("postgres ping 失败 [%s:%d/%s]: %w", cfg.Host, cfg.Port, cfg.DBName, err)
+		}
 	}
 
 	return &Pool{pool}, nil
