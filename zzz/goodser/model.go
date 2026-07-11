@@ -319,6 +319,16 @@ type InboundSearchImportResp struct {
 	Count int       `json:"count"`
 }
 
+// SyncAllResp 全量同步响应
+type SyncAllResp struct {
+	Inventories    []Inventory              `json:"inventories"`
+	Products       map[string][]Product     `json:"products"`
+	OutboundOrders map[string][]OutboundOrder `json:"outbound_orders"`
+	InboundLogs    map[string][]InboundLog  `json:"inbound_logs"`
+	Tags           []Tag                    `json:"tags"`
+	StatusCodes    []StatusCode             `json:"status_codes"`
+}
+
 type InventoryStats struct {
 	TotalProducts int     `json:"total_products"`
 	TotalQuantity int     `json:"total_quantity"`

@@ -103,6 +103,9 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	legacy.POST("/reserveToOutbound", m.h.ReserveToOutboundHandler)
 	legacy.POST("/uploadImage", m.h.UploadImage)
 
+	// 全量同步
+	r.POST("/syncAll", m.h.SyncAll)
+
 	// === RESTful 端点 ===
 	r.GET("/inventories", m.h.ListInventoriesREST)
 	r.POST("/inventories", m.h.CreateInventoryREST)

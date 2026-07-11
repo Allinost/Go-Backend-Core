@@ -751,6 +751,23 @@ func (h *Handler) UploadImage(c *gin.Context) {
 	response.Success(c, gin.H{"url": signedURL})
 }
 
+// SyncAll 全量同步所有数据
+// @Summary      全量同步
+// @Description  一次性同步所有库存目录、商品、出库单、入库日志、标签和状态编码
+// @Tags         zzz-goodser
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  response.Response{data=SyncAllResp}
+// @Router       /zzz-goodser/syncAll [post]
+func (h *Handler) SyncAll(c *gin.Context) {
+	resp, err := h.svc.SyncAll(c.Request.Context())
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, resp)
+}
+
 // NotSupported 返回不支持的操作提示
 func (h *Handler) NotSupported(c *gin.Context) {
 	response.Fail(c, appErr.New(appErr.CodeSystemErr, "该操作不支持，请通过数据库直接管理"))

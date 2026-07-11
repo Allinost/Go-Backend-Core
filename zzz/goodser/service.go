@@ -617,5 +617,76 @@ func (s *Service) ReserveToOutbound(ctx context.Context, req *ReserveToOutboundR
 
 func strPtr(s string) *string { return &s }
 
+// SyncAll 全量同步所有数据
+func (s *Service) SyncAll(ctx context.Context) (*SyncAllResp, error) {
+	inventories, err := s.repo.ListInventories(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if inventories == nil {
+		inventories = []Inventory{}
+	}
+
+	products := make(map[string][]Product)
+	outboundOrders := make(map[string][]OutboundOrder)
+	inboundLogs := make(map[string][]InboundLog)
+
+	for _, inv := range inventories {
+		id := inv.ID
+
+		prods, err := s.repo.ListProducts(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if prods == nil {
+			prods = []Product{}
+		}
+		products[id] = prods
+
+		orders, err := s.repo.ListOutboundOrders(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if orders == nil {
+			orders = []OutboundOrder{}
+		}
+		outboundOrders[id] = orders
+
+		logs, err := s.repo.ListInboundLogs(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if logs == nil {
+			logs = []InboundLog{}
+		}
+		inboundLogs[id] = logs
+	}
+
+	tags, err := s.repo.ListTags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if tags == nil {
+		tags = []Tag{}
+	}
+
+	statusCodes, err := s.repo.ListStatusCodes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if statusCodes == nil {
+		statusCodes = []StatusCode{}
+	}
+
+	return &SyncAllResp{
+		Inventories:    inventories,
+		Products:       products,
+		OutboundOrders: outboundOrders,
+		InboundLogs:    inboundLogs,
+		Tags:           tags,
+		StatusCodes:    statusCodes,
+	}, nil
+}
+
 // timeNowFunc 便于测试注入
 type timeNowFunc func() time.Time
