@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: deploy/docker/Dockerfile
     ports:
-      - "29090:29090"   # 业务 API（Nginx 对外暴露）
+      - "80:29090"      # 业务 API（Nginx 对外暴露）
       - "29092:29092"   # 调试/监控/运维（仅内网）
     env_file:
       - .env

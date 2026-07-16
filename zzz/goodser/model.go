@@ -59,7 +59,7 @@ type Product struct {
 	Remark           string          `json:"remark,omitempty"`
 	StorageLocation  string          `json:"storage_location,omitempty"`
 	ImageURL         *string         `json:"image_url"`
-	ImageList        json.RawMessage `json:"image_list,omitempty"`
+	Images           json.RawMessage `json:"images,omitempty"`
 	Tags             json.RawMessage `json:"tags,omitempty"`
 	CreatedAt        time.Time       `json:"created_at"`
 	UpdatedAt        time.Time       `json:"updated_at"`
@@ -149,6 +149,7 @@ type CreateProductReq struct {
 	Remark          string    `json:"remark,omitempty"`
 	StorageLocation string    `json:"storage_location,omitempty"`
 	ImageURL        *string   `json:"image_url"`
+	Images          *[]string `json:"images"`
 	Tags            *[]string `json:"tags"`
 }
 
@@ -168,6 +169,7 @@ type UpdateProductReq struct {
 	Remark          *string   `json:"remark"`
 	StorageLocation *string   `json:"storage_location"`
 	ImageURL        *string   `json:"image_url"`
+	Images          *[]string `json:"images"`
 	Tags            *[]string `json:"tags"`
 }
 
@@ -197,6 +199,7 @@ type InboundSingleReq struct {
 	Remark          string    `json:"remark,omitempty"`
 	StorageLocation string    `json:"storage_location,omitempty"`
 	ImageURL        *string   `json:"image_url"`
+	Images          *[]string `json:"images"`
 	Tags            *[]string `json:"tags"`
 }
 
@@ -221,6 +224,7 @@ type InboundBatchReqItem struct {
 	Remark          string    `json:"remark,omitempty"`
 	StorageLocation string    `json:"storage_location,omitempty"`
 	ImageURL        *string   `json:"image_url"`
+	Images          *[]string `json:"images"`
 	Tags            *[]string `json:"tags"`
 }
 
@@ -280,10 +284,11 @@ type CreateInboundLogReq struct {
 }
 
 type UpdateInboundLogReq struct {
-	ID     string      `json:"id"`
-	Type   *string     `json:"type"`
-	Remark *string     `json:"remark"`
-	Items  []OrderItem `json:"items"`
+	ID      string      `json:"id"`
+	OrderNo *string     `json:"order_no"`
+	Type    *string     `json:"type"`
+	Remark  *string     `json:"remark"`
+	Items   []OrderItem `json:"items"`
 }
 
 type CreateTagReq struct {
@@ -327,6 +332,30 @@ type SyncAllResp struct {
 	InboundLogs    map[string][]InboundLog  `json:"inbound_logs"`
 	Tags           []Tag                    `json:"tags"`
 	StatusCodes    []StatusCode             `json:"status_codes"`
+}
+
+type PaginatedReq struct {
+	InventoryID string `json:"inventory_id"`
+	Page        int    `json:"page"`
+	PageSize    int    `json:"page_size"`
+}
+
+func (r *PaginatedReq) Normalize() {
+	if r.Page < 1 {
+		r.Page = 1
+	}
+	if r.PageSize < 1 || r.PageSize > 100 {
+		r.PageSize = 20
+	}
+}
+
+func (r *PaginatedReq) Offset() int {
+	return (r.Page - 1) * r.PageSize
+}
+
+type PaginatedResp[T any] struct {
+	Items   []T  `json:"items"`
+	HasMore bool `json:"has_more"`
 }
 
 type InventoryStats struct {

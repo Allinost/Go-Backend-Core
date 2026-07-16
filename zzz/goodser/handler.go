@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -54,18 +55,21 @@ func (h *Handler) LoadInventories(c *gin.Context) {
 // @Tags         zzz-goodser-legacy
 // @Accept       json
 // @Produce      json
-// @Param        body  body  object{inventory_id=string}  true  "仓库 ID"
-// @Success      200  {object}  response.Response{data=[]Product}
+// @Param        body  body  PaginatedReq  true  "分页参数"
+// @Success      200  {object}  response.Response{data=PaginatedResp[Product]}
 // @Router       /zzz-goodser/legacy/loadProducts [post]
 func (h *Handler) LoadProducts(c *gin.Context) {
-	var req struct {
-		InventoryID string `json:"inventory_id"`
-	}
+	var req PaginatedReq
 	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	if req.InventoryID == "" {
 		response.ParamErr(c, "缺少 inventory_id")
 		return
 	}
-	items, err := h.svc.ListProducts(c.Request.Context(), req.InventoryID)
+	req.Normalize()
+	items, hasMore, err := h.svc.ListProductsPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -73,11 +77,12 @@ func (h *Handler) LoadProducts(c *gin.Context) {
 	if items == nil {
 		items = []Product{}
 	}
-	response.Success(c, items)
+	response.Success(c, PaginatedResp[Product]{Items: items, HasMore: hasMore})
 }
 
-// QueryProducts 按关键词搜索商品
+// QueryProducts 按关键词搜索商品（匹配 name / code / remark）
 // @Summary      搜索商品
+// @Description  根据关键词搜索商品，匹配 name / code / remark 字段
 // @Tags         zzz-goodser-legacy
 // @Accept       json
 // @Produce      json
@@ -361,18 +366,21 @@ func (h *Handler) InboundSearchImport(c *gin.Context) {
 // @Tags         zzz-goodser-legacy
 // @Accept       json
 // @Produce      json
-// @Param        body  body  object{inventory_id=string}  true  "仓库 ID"
-// @Success      200  {object}  response.Response{data=[]OutboundOrder}
+// @Param        body  body  PaginatedReq  true  "分页参数"
+// @Success      200  {object}  response.Response{data=PaginatedResp[OutboundOrder]}
 // @Router       /zzz-goodser/legacy/loadOutboundOrders [post]
 func (h *Handler) LoadOutboundOrders(c *gin.Context) {
-	var req struct {
-		InventoryID string `json:"inventory_id"`
-	}
+	var req PaginatedReq
 	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	if req.InventoryID == "" {
 		response.ParamErr(c, "缺少 inventory_id")
 		return
 	}
-	items, err := h.svc.ListOutboundOrders(c.Request.Context(), req.InventoryID)
+	req.Normalize()
+	items, hasMore, err := h.svc.ListOutboundOrdersPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -380,7 +388,7 @@ func (h *Handler) LoadOutboundOrders(c *gin.Context) {
 	if items == nil {
 		items = []OutboundOrder{}
 	}
-	response.Success(c, items)
+	response.Success(c, PaginatedResp[OutboundOrder]{Items: items, HasMore: hasMore})
 }
 
 // CreateOutbound 创建出库单（同时锁定预留库存）
@@ -456,18 +464,21 @@ func (h *Handler) CancelOutboundLegacy(c *gin.Context) {
 // @Tags         zzz-goodser-legacy
 // @Accept       json
 // @Produce      json
-// @Param        body  body  object{inventory_id=string}  true  "仓库 ID"
-// @Success      200  {object}  response.Response{data=[]InboundLog}
+// @Param        body  body  PaginatedReq  true  "分页参数"
+// @Success      200  {object}  response.Response{data=PaginatedResp[InboundLog]}
 // @Router       /zzz-goodser/legacy/loadInboundLogs [post]
 func (h *Handler) LoadInboundLogs(c *gin.Context) {
-	var req struct {
-		InventoryID string `json:"inventory_id"`
-	}
+	var req PaginatedReq
 	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	if req.InventoryID == "" {
 		response.ParamErr(c, "缺少 inventory_id")
 		return
 	}
-	items, err := h.svc.ListInboundLogs(c.Request.Context(), req.InventoryID)
+	req.Normalize()
+	items, hasMore, err := h.svc.ListInboundLogsPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -475,7 +486,7 @@ func (h *Handler) LoadInboundLogs(c *gin.Context) {
 	if items == nil {
 		items = []InboundLog{}
 	}
-	response.Success(c, items)
+	response.Success(c, PaginatedResp[InboundLog]{Items: items, HasMore: hasMore})
 }
 
 // LoadTags 获取标签列表
@@ -539,6 +550,15 @@ func (h *Handler) LoadStatusCodes(c *gin.Context) {
 }
 
 // UpdateProductLegacy 更新商品（Legacy POST）
+// @Summary      更新商品
+// @Description  部分更新商品信息，仅传需要修改的字段
+// @Tags         zzz-goodser-legacy
+// @Accept       json
+// @Produce      json
+// @Param        body  body  UpdateProductReq  true  "更新字段"
+// @Success      200  {object}  response.Response{data=Product}
+// @Failure      400  {object}  response.Response
+// @Router       /zzz-goodser/legacy/updateProduct [post]
 func (h *Handler) UpdateProductLegacy(c *gin.Context) {
 	var req UpdateProductReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -554,6 +574,13 @@ func (h *Handler) UpdateProductLegacy(c *gin.Context) {
 }
 
 // UpdateTagLegacy 更新标签
+// @Summary      更新标签
+// @Tags         zzz-goodser-legacy
+// @Accept       json
+// @Produce      json
+// @Param        body  body  UpdateTagReq  true  "标签信息"
+// @Success      200  {object}  response.Response{data=Tag}
+// @Router       /zzz-goodser/legacy/updateTag [post]
 func (h *Handler) UpdateTagLegacy(c *gin.Context) {
 	var req UpdateTagReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -569,6 +596,13 @@ func (h *Handler) UpdateTagLegacy(c *gin.Context) {
 }
 
 // DeleteTagLegacy 删除标签
+// @Summary      删除标签
+// @Tags         zzz-goodser-legacy
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{id=string}  true  "标签 ID"
+// @Success      200  {object}  response.Response{data=object{success=bool}}
+// @Router       /zzz-goodser/legacy/deleteTag [post]
 func (h *Handler) DeleteTagLegacy(c *gin.Context) {
 	var req struct {
 		ID string `json:"id"`
@@ -581,10 +615,17 @@ func (h *Handler) DeleteTagLegacy(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
-	response.Success(c, gin.H{})
+	response.Success(c, gin.H{"success": true})
 }
 
 // AddStatusCode 创建状态编码
+// @Summary      新增状态编码
+// @Tags         zzz-goodser-legacy
+// @Accept       json
+// @Produce      json
+// @Param        body  body  AddStatusCodeReq  true  "状态编码信息"
+// @Success      200  {object}  response.Response{data=StatusCode}
+// @Router       /zzz-goodser/legacy/addStatusCode [post]
 func (h *Handler) AddStatusCode(c *gin.Context) {
 	var req AddStatusCodeReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -600,6 +641,13 @@ func (h *Handler) AddStatusCode(c *gin.Context) {
 }
 
 // UpdateStatusCode 更新状态编码
+// @Summary      更新状态编码
+// @Tags         zzz-goodser-legacy
+// @Accept       json
+// @Produce      json
+// @Param        body  body  UpdateStatusCodeReq  true  "更新信息"
+// @Success      200  {object}  response.Response{data=StatusCode}
+// @Router       /zzz-goodser/legacy/updateStatusCode [post]
 func (h *Handler) UpdateStatusCode(c *gin.Context) {
 	var req UpdateStatusCodeReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -615,6 +663,14 @@ func (h *Handler) UpdateStatusCode(c *gin.Context) {
 }
 
 // RemoveStatusCode 删除状态编码
+// @Summary      删除状态编码
+// @Description  删除前会检查是否有商品正在使用此编码，如有则返回错误
+// @Tags         zzz-goodser-legacy
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{id=string}  true  "状态编码 ID"
+// @Success      200  {object}  response.Response{data=object{success=bool}}
+// @Router       /zzz-goodser/legacy/removeStatusCode [post]
 func (h *Handler) RemoveStatusCode(c *gin.Context) {
 	var req struct {
 		ID string `json:"id"`
@@ -627,10 +683,17 @@ func (h *Handler) RemoveStatusCode(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
-	response.Success(c, gin.H{})
+	response.Success(c, gin.H{"success": true})
 }
 
 // CreateInboundLogHandler 创建入库日志
+// @Summary      创建入库日志
+// @Tags         zzz-goodser-legacy
+// @Accept       json
+// @Produce      json
+// @Param        body  body  CreateInboundLogReq  true  "入库日志"
+// @Success      200  {object}  response.Response{data=InboundLog}
+// @Router       /zzz-goodser/legacy/createInboundLog [post]
 func (h *Handler) CreateInboundLogHandler(c *gin.Context) {
 	var req CreateInboundLogReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -646,6 +709,13 @@ func (h *Handler) CreateInboundLogHandler(c *gin.Context) {
 }
 
 // UpdateInboundLogHandler 更新入库日志
+// @Summary      更新入库日志
+// @Tags         zzz-goodser-legacy
+// @Accept       json
+// @Produce      json
+// @Param        body  body  UpdateInboundLogReq  true  "更新信息"
+// @Success      200  {object}  response.Response{data=InboundLog}
+// @Router       /zzz-goodser/legacy/updateInboundLog [post]
 func (h *Handler) UpdateInboundLogHandler(c *gin.Context) {
 	var req UpdateInboundLogReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -661,6 +731,13 @@ func (h *Handler) UpdateInboundLogHandler(c *gin.Context) {
 }
 
 // DeleteInboundLogHandler 删除入库日志
+// @Summary      删除入库日志
+// @Tags         zzz-goodser-legacy
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{id=string}  true  "入库日志 ID"
+// @Success      200  {object}  response.Response{data=object{success=bool}}
+// @Router       /zzz-goodser/legacy/deleteInboundLog [post]
 func (h *Handler) DeleteInboundLogHandler(c *gin.Context) {
 	var req struct {
 		ID string `json:"id"`
@@ -673,10 +750,18 @@ func (h *Handler) DeleteInboundLogHandler(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
-	response.Success(c, gin.H{})
+	response.Success(c, gin.H{"success": true})
 }
 
 // CancelReserveHandler 取消预留单
+// @Summary      取消预约
+// @Description  取消指定预约单，释放已锁定的预留库存
+// @Tags         zzz-goodser-legacy
+// @Accept       json
+// @Produce      json
+// @Param        body  body  CancelReserveReq  true  "预约单 ID"
+// @Success      200  {object}  response.Response{data=OutboundOrder}
+// @Router       /zzz-goodser/legacy/cancelReserve [post]
 func (h *Handler) CancelReserveHandler(c *gin.Context) {
 	var req CancelReserveReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -692,6 +777,14 @@ func (h *Handler) CancelReserveHandler(c *gin.Context) {
 }
 
 // ReserveToOutboundHandler 预留单转出库单
+// @Summary      预约转出库
+// @Description  将预约单转为正式出库单，需重新指定出库信息
+// @Tags         zzz-goodser-legacy
+// @Accept       json
+// @Produce      json
+// @Param        body  body  ReserveToOutboundReq  true  "转出库信息"
+// @Success      200  {object}  response.Response{data=OutboundOrder}
+// @Router       /zzz-goodser/legacy/reserveToOutbound [post]
 func (h *Handler) ReserveToOutboundHandler(c *gin.Context) {
 	var req ReserveToOutboundReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -801,12 +894,20 @@ func (h *Handler) CreateInventoryREST(c *gin.Context) {
 // @Summary      获取商品列表
 // @Tags         zzz-goodser
 // @Produce      json
-// @Param        id  path  string  true  "库存目录 ID"
-// @Success      200  {object}  response.Response{data=[]Product}
+// @Param        id        path  int  true  "库存目录 ID"
+// @Param        page      query int  false "页码，默认 1"
+// @Param        page_size query int  false "每页条数，默认 20"
+// @Success      200  {object}  response.Response{data=PaginatedResp[Product]}
 // @Router       /zzz-goodser/inventories/{id}/products [get]
 func (h *Handler) ListProductsREST(c *gin.Context) {
 	inventoryID := c.Param("id")
-	items, err := h.svc.ListProducts(c.Request.Context(), inventoryID)
+	req := PaginatedReq{
+		InventoryID: inventoryID,
+		Page:        parseInt(c.Query("page"), 1),
+		PageSize:    parseInt(c.Query("page_size"), 20),
+	}
+	req.Normalize()
+	items, hasMore, err := h.svc.ListProductsPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -814,7 +915,7 @@ func (h *Handler) ListProductsREST(c *gin.Context) {
 	if items == nil {
 		items = []Product{}
 	}
-	response.Success(c, items)
+	response.Success(c, PaginatedResp[Product]{Items: items, HasMore: hasMore})
 }
 
 // GetInventoryREST 获取单个库存目录
@@ -875,11 +976,79 @@ func (h *Handler) DeleteInventoryREST(c *gin.Context) {
 	response.Success(c, gin.H{})
 }
 
+// ListOutboundOrdersREST 获取出库单列表（REST）
+// @Summary      获取出库单
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        id        path  string  true  "库存目录 ID"
+// @Param        page      query int     false "页码，默认 1"
+// @Param        page_size query int     false "每页条数，默认 20"
+// @Success      200  {object}  response.Response{data=PaginatedResp[OutboundOrder]}
+// @Router       /zzz-goodser/inventories/{id}/outbound-orders [get]
+func (h *Handler) ListOutboundOrdersREST(c *gin.Context) {
+	inventoryID := c.Param("id")
+	req := PaginatedReq{
+		InventoryID: inventoryID,
+		Page:        parseInt(c.Query("page"), 1),
+		PageSize:    parseInt(c.Query("page_size"), 20),
+	}
+	req.Normalize()
+	items, hasMore, err := h.svc.ListOutboundOrdersPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	if items == nil {
+		items = []OutboundOrder{}
+	}
+	response.Success(c, PaginatedResp[OutboundOrder]{Items: items, HasMore: hasMore})
+}
+
+// ListInboundLogsREST 获取入库日志列表（REST）
+// @Summary      获取入库日志
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        id        path  string  true  "库存目录 ID"
+// @Param        page      query int     false "页码，默认 1"
+// @Param        page_size query int     false "每页条数，默认 20"
+// @Success      200  {object}  response.Response{data=PaginatedResp[InboundLog]}
+// @Router       /zzz-goodser/inventories/{id}/inbound-logs [get]
+func (h *Handler) ListInboundLogsREST(c *gin.Context) {
+	inventoryID := c.Param("id")
+	req := PaginatedReq{
+		InventoryID: inventoryID,
+		Page:        parseInt(c.Query("page"), 1),
+		PageSize:    parseInt(c.Query("page_size"), 20),
+	}
+	req.Normalize()
+	items, hasMore, err := h.svc.ListInboundLogsPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	if items == nil {
+		items = []InboundLog{}
+	}
+	response.Success(c, PaginatedResp[InboundLog]{Items: items, HasMore: hasMore})
+}
+
+func parseInt(s string, defaultVal int) int {
+	if s == "" {
+		return defaultVal
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return defaultVal
+	}
+	return v
+}
+
 // --- 错误处理 ---
 
 func (h *Handler) handleError(c *gin.Context, err error) {
 	var gErr *GoodserError
 	if errors.As(err, &gErr) {
+		logger.Error().Err(err).Int("goodser_code", gErr.Code).Msg("goodser 业务错误")
 		response.Fail(c, appErr.New(gErr.Code, gErr.Message))
 		return
 	}
@@ -887,6 +1056,7 @@ func (h *Handler) handleError(c *gin.Context, err error) {
 		response.Fail(c, appErr.New(appErr.CodeNotFound, "资源不存在"))
 		return
 	}
+	logger.Error().Err(err).Msg("goodser 服务内部错误")
 	response.Fail(c, appErr.New(appErr.CodeSystemErr, "服务内部错误"))
 }
 

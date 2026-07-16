@@ -40,20 +40,20 @@ func (m *Module) Init(cfg *config.Config) error {
 		logger.Warn().Msg("goodser: 使用 main 数据库实例替代 zzz_goodser")
 	}
 
-	m.repo = NewRepository(pool.DB)
-	m.svc = NewService(m.repo)
-
-	// 自动建表
-	if err := initTables(pool.DB); err != nil {
-		return fmt.Errorf("goodser: 初始化数据表失败: %w", err)
-	}
-
-	// 初始化图片存储（优先使用 RustFS）
+	// 初始化图片存储（优先使用 RustFS）— must be before NewService
 	if client, ok := database.DB.RustFS["rustfs"]; ok {
 		m.store = storage.NewS3StoreFromClient(client.Client, client.Bucket)
 		logger.Info().Msg("goodser: 使用 RustFS 作为图片存储后端")
 	} else {
 		logger.Warn().Msg("goodser: RustFS 不可用，图片上传将不可用")
+	}
+
+	m.repo = NewRepository(pool.DB)
+	m.svc = NewService(m.repo, m.store)
+
+	// 自动建表
+	if err := initTables(pool.DB); err != nil {
+		return fmt.Errorf("goodser: 初始化数据表失败: %w", err)
 	}
 
 	m.h = NewHandler(m.svc, m.store)
@@ -121,8 +121,8 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	inv.POST("/inbound/batch", m.h.InboundBatch)
 	inv.POST("/inbound/search-import", m.h.InboundSearchImport)
 	inv.POST("/outbound-orders", m.h.CreateOutbound)
-	inv.GET("/outbound-orders", m.h.LoadOutboundOrders)
-	inv.GET("/inbound-logs", m.h.LoadInboundLogs)
+	inv.GET("/outbound-orders", m.h.ListOutboundOrdersREST)
+	inv.GET("/inbound-logs", m.h.ListInboundLogsREST)
 
 	// Products (standalone CRUD)
 	r.PUT("/products/:id", m.h.UpdateProductREST)
@@ -163,6 +163,7 @@ func initTables(db *sql.DB) error {
 			remark TEXT,
 			storage_location VARCHAR(255) DEFAULT '',
 			image_url VARCHAR(1024) DEFAULT '',
+			images JSON DEFAULT NULL,
 			tags JSON DEFAULT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -180,7 +181,7 @@ func initTables(db *sql.DB) error {
 			sub_zone VARCHAR(10) NOT NULL,
 			seq_number INT NOT NULL,
 			recycled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			INDEX idx_zone_seq (inventory_id, main_zone, sub_zone, seq_number)
+			UNIQUE INDEX idx_zone_seq (inventory_id, main_zone, sub_zone, seq_number)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
 		`CREATE TABLE IF NOT EXISTS zzz_goodser_seq_counters (

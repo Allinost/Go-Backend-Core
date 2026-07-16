@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	swaggerDocs "github.com/Allinost/go-backend-core/api/swagger"
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/Allinost/go-backend-core/internal/database"
 	"github.com/Allinost/go-backend-core/internal/middleware"
@@ -23,7 +24,6 @@ import (
 	netmodule "github.com/Allinost/go-backend-core/internal/services/net"
 	"github.com/Allinost/go-backend-core/internal/services/scheduler"
 
-	_ "github.com/Allinost/go-backend-core/api/swagger"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -108,8 +108,38 @@ func main() {
 	debugR.Use(middleware.CORS())
 	debugR.Use(gin.Recovery())
 
-	// Swagger UI
-	debugR.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger UI — 支持 ?backend=IP:PORT 查询参数自定义后端地址（cookie 持久化）
+	defaultBackend := "192.168.1.36:29090"
+	if cfg.Server.Swagger.BackendAddr != "" {
+		defaultBackend = cfg.Server.Swagger.BackendAddr
+	}
+	swaggerDocs.SwaggerInfo.Host = defaultBackend
+	swaggerUI := ginSwagger.WrapHandler(swaggerFiles.Handler)
+
+	debugR.GET("/swagger/*any", func(c *gin.Context) {
+		backend := ""
+
+		// 优先使用查询参数
+		if q := c.Query("backend"); q != "" {
+			backend = q
+			c.SetCookie("swagger_backend", backend, 86400*365, "/swagger", "", false, true)
+		}
+
+		// 其次使用 cookie
+		if backend == "" {
+			if cookie, err := c.Cookie("swagger_backend"); err == nil && cookie != "" {
+				backend = cookie
+			}
+		}
+
+		// 最后使用配置文件
+		if backend == "" {
+			backend = defaultBackend
+		}
+
+		swaggerDocs.SwaggerInfo.Host = backend
+		swaggerUI(c)
+	})
 	// 仅注册 s0 调试模块（ping / health / echo / metrics / info / modules）
 	modules.RegisterRoutesTo(debugR, "s0")
 

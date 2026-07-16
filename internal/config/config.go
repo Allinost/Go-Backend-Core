@@ -68,6 +68,12 @@ type ServerConfig struct {
 	Port      int    `mapstructure:"port"`       // 业务 API 监听端口（Nginx 对外暴露）
 	DebugPort int    `mapstructure:"debug_port"` // 调试/监控/运维端口（仅内网）
 	Mode      string `mapstructure:"mode"`       // Gin 运行模式
+
+	Swagger SwaggerConfig `mapstructure:"swagger"` // Swagger UI 配置
+}
+
+type SwaggerConfig struct {
+	BackendAddr string `mapstructure:"backend_addr"` // Swagger 调用的后端 API 地址，默认 192.168.1.36:29090
 }
 
 type LogConfig struct {

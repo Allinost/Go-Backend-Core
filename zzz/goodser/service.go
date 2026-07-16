@@ -5,17 +5,23 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
+
+	"github.com/Allinost/go-backend-core/internal/pkg/logger"
+	"github.com/Allinost/go-backend-core/internal/services/storage"
 )
 
 // Service 业务逻辑层
 type Service struct {
-	repo *Repository
+	repo  *Repository
+	store storage.Storage
 }
 
 // NewService 创建 Service
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, store storage.Storage) *Service {
+	return &Service{repo: repo, store: store}
 }
 
 // ListInventories 获取库存目录列表
@@ -65,6 +71,11 @@ func (s *Service) ListProducts(ctx context.Context, inventoryID string) ([]Produ
 	return s.repo.ListProducts(ctx, inventoryID)
 }
 
+// ListProductsPaginated 分页获取商品列表
+func (s *Service) ListProductsPaginated(ctx context.Context, inventoryID string, page, pageSize int) ([]Product, bool, error) {
+	return s.repo.ListProductsPaginated(ctx, inventoryID, pageSize, (page-1)*pageSize)
+}
+
 // SearchProducts 搜索商品
 func (s *Service) SearchProducts(ctx context.Context, inventoryID, keyword string) ([]Product, error) {
 	return s.repo.SearchProducts(ctx, inventoryID, keyword)
@@ -80,7 +91,9 @@ func (s *Service) AllocateSeq(ctx context.Context, req *AllocateSeqReq) (int, er
 
 	seq, err := s.repo.PopRecycledSeq(ctx, tx, req.InventoryID, req.MainZone, req.SubZone)
 	if err == nil {
-		tx.Commit()
+		if err := tx.Commit(); err != nil {
+			return 0, err
+		}
 		return seq, nil
 	}
 
@@ -89,7 +102,9 @@ func (s *Service) AllocateSeq(ctx context.Context, req *AllocateSeqReq) (int, er
 		return 0, err
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
 	return seq, nil
 }
 
@@ -101,12 +116,29 @@ func (s *Service) CreateProduct(ctx context.Context, req *CreateProductReq) (*Pr
 	}
 	defer tx.Rollback()
 
+	// 优先复用回收序号
+	seq, err := s.repo.PopRecycledSeq(ctx, tx, req.InventoryID, req.MainZone, req.SubZone)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	useSeq := req.SeqNumber
+	if err == nil {
+		useSeq = seq
+	}
+	req.SeqNumber = useSeq
+
 	result, err := s.repo.CreateProductTx(ctx, tx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	tx.Commit()
+	if err := s.repo.EnsureSeqCounter(ctx, tx, req.InventoryID, req.MainZone, req.SubZone, useSeq); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -122,7 +154,23 @@ func (s *Service) UpdateProduct(ctx context.Context, req *UpdateProductReq) (*Pr
 	return product, nil
 }
 
-// DeleteProduct 删除商品
+// imageKeyFromURL 从 S3 预签名 URL 中解析出对象存储 key
+func imageKeyFromURL(imageURL string) string {
+	if imageURL == "" {
+		return ""
+	}
+	u, err := url.Parse(imageURL)
+	if err != nil {
+		return ""
+	}
+	idx := strings.Index(u.Path, "goodser/images/")
+	if idx < 0 {
+		return ""
+	}
+	return u.Path[idx:]
+}
+
+// DeleteProduct 删除商品（含 RustFS 图片清理）
 func (s *Service) DeleteProduct(ctx context.Context, id string) error {
 	product, err := s.repo.GetProduct(ctx, id)
 	if err != nil {
@@ -131,6 +179,34 @@ func (s *Service) DeleteProduct(ctx context.Context, id string) error {
 		}
 		return err
 	}
+
+	if s.store != nil {
+		if product.ImageURL != nil && *product.ImageURL != "" {
+			key := imageKeyFromURL(*product.ImageURL)
+			if key != "" {
+				if err := s.store.Delete(ctx, key); err != nil {
+					logger.Error().Err(err).Str("key", key).Msg("删除商品图片失败")
+				}
+			}
+		}
+		if len(product.Images) > 0 {
+			var urls []string
+			if err := json.Unmarshal(product.Images, &urls); err == nil {
+				for _, u := range urls {
+					if u == "" {
+						continue
+					}
+					key := imageKeyFromURL(u)
+					if key != "" {
+						if err := s.store.Delete(ctx, key); err != nil {
+							logger.Error().Err(err).Str("key", key).Msg("删除商品多图失败")
+						}
+					}
+				}
+			}
+		}
+	}
+
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
 		return err
@@ -142,8 +218,7 @@ func (s *Service) DeleteProduct(ctx context.Context, id string) error {
 	if err := s.repo.AddRecycledSeqTx(ctx, tx, product.InventoryID, product.MainZone, product.SubZone, product.SeqNumber); err != nil {
 		return err
 	}
-	tx.Commit()
-	return nil
+	return tx.Commit()
 }
 
 // InboundSingle 单品入库
@@ -154,7 +229,17 @@ func (s *Service) InboundSingle(ctx context.Context, req *InboundSingleReq) (*Pr
 	}
 	defer tx.Rollback()
 
-	code := fmt.Sprintf("%s-%s-%04d-%04d-%s", req.MainZone, req.SubZone, req.SeqNumber, 0, req.StatusCode)
+	// 优先复用回收序号
+	seq, err := s.repo.PopRecycledSeq(ctx, tx, req.InventoryID, req.MainZone, req.SubZone)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	useSeq := req.SeqNumber
+	if err == nil {
+		useSeq = seq
+	}
+
+	code := fmt.Sprintf("%s-%s-%04d-%04d-%s", req.MainZone, req.SubZone, useSeq, 0, req.StatusCode)
 	product, err := s.repo.FindProductByCode(ctx, req.InventoryID, code)
 	var result *Product
 
@@ -168,7 +253,7 @@ func (s *Service) InboundSingle(ctx context.Context, req *InboundSingleReq) (*Pr
 			Code:            code,
 			MainZone:        req.MainZone,
 			SubZone:         req.SubZone,
-			SeqNumber:       req.SeqNumber,
+			SeqNumber:       useSeq,
 			Quantity:        &qty,
 			StatusCode:      req.StatusCode,
 			Name:            req.Name,
@@ -178,10 +263,14 @@ func (s *Service) InboundSingle(ctx context.Context, req *InboundSingleReq) (*Pr
 			Remark:          req.Remark,
 			StorageLocation: req.StorageLocation,
 			ImageURL:        req.ImageURL,
+			Images:          req.Images,
 			Tags:            req.Tags,
 		}
 		result, err = s.repo.CreateProductTx(ctx, tx, createReq)
 		if err != nil {
+			return nil, err
+		}
+		if err := s.repo.EnsureSeqCounter(ctx, tx, req.InventoryID, req.MainZone, req.SubZone, useSeq); err != nil {
 			return nil, err
 		}
 	} else if err != nil {
@@ -208,7 +297,9 @@ func (s *Service) InboundSingle(ctx context.Context, req *InboundSingleReq) (*Pr
 		return nil, err
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -222,7 +313,17 @@ func (s *Service) InboundBatch(ctx context.Context, req *InboundBatchReq) (*Inbo
 
 	var results []Product
 	for _, item := range req.Items {
-		code := fmt.Sprintf("%s-%s-%04d-%04d-%s", item.MainZone, item.SubZone, item.SeqNumber, 0, item.StatusCode)
+		// 优先复用回收序号
+		seq, err := s.repo.PopRecycledSeq(ctx, tx, req.InventoryID, item.MainZone, item.SubZone)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, err
+		}
+		useSeq := item.SeqNumber
+		if err == nil {
+			useSeq = seq
+		}
+
+		code := fmt.Sprintf("%s-%s-%04d-%04d-%s", item.MainZone, item.SubZone, useSeq, 0, item.StatusCode)
 		product, err := s.repo.FindProductByCode(ctx, req.InventoryID, code)
 		if err == sql.ErrNoRows {
 			qty := 0
@@ -234,7 +335,7 @@ func (s *Service) InboundBatch(ctx context.Context, req *InboundBatchReq) (*Inbo
 				Code:            code,
 				MainZone:        item.MainZone,
 				SubZone:         item.SubZone,
-				SeqNumber:       item.SeqNumber,
+				SeqNumber:       useSeq,
 				Quantity:        &qty,
 				StatusCode:      item.StatusCode,
 				Name:            item.Name,
@@ -244,10 +345,14 @@ func (s *Service) InboundBatch(ctx context.Context, req *InboundBatchReq) (*Inbo
 				Remark:          item.Remark,
 				StorageLocation: item.StorageLocation,
 				ImageURL:        item.ImageURL,
+				Images:          item.Images,
 				Tags:            item.Tags,
 			}
 			p, err := s.repo.CreateProductTx(ctx, tx, createReq)
 			if err != nil {
+				return nil, err
+			}
+			if err := s.repo.EnsureSeqCounter(ctx, tx, req.InventoryID, item.MainZone, item.SubZone, useSeq); err != nil {
 				return nil, err
 			}
 			results = append(results, *p)
@@ -271,7 +376,9 @@ func (s *Service) InboundBatch(ctx context.Context, req *InboundBatchReq) (*Inbo
 		return nil, err
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
 	return &InboundBatchResp{Items: results, Count: len(results)}, nil
 }
 
@@ -304,13 +411,20 @@ func (s *Service) InboundSearchImport(ctx context.Context, req *InboundSearchImp
 		return nil, err
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
 	return &InboundSearchImportResp{Items: results, Count: len(results)}, nil
 }
 
 // ListOutboundOrders 获取出库单列表
 func (s *Service) ListOutboundOrders(ctx context.Context, inventoryID string) ([]OutboundOrder, error) {
 	return s.repo.ListOutboundOrders(ctx, inventoryID)
+}
+
+// ListOutboundOrdersPaginated 分页获取出库单列表
+func (s *Service) ListOutboundOrdersPaginated(ctx context.Context, inventoryID string, page, pageSize int) ([]OutboundOrder, bool, error) {
+	return s.repo.ListOutboundOrdersPaginated(ctx, inventoryID, pageSize, (page-1)*pageSize)
 }
 
 // CreateOutboundOrder 创建出库单（同时锁定预留库存）
@@ -340,7 +454,9 @@ func (s *Service) CreateOutboundOrder(ctx context.Context, req *CreateOutboundRe
 		return nil, err
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
 	return order, nil
 }
 
@@ -376,7 +492,9 @@ func (s *Service) ConfirmOutbound(ctx context.Context, req *ConfirmOutboundReq) 
 		return nil, err
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
 	order.Status = string(OrderStatusConfirmed)
 	return order, nil
 }
@@ -413,7 +531,9 @@ func (s *Service) CancelOutbound(ctx context.Context, req *CancelOutboundReq) (*
 		return nil, err
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
 	order.Status = string(OrderStatusCancelled)
 	return order, nil
 }
@@ -421,6 +541,11 @@ func (s *Service) CancelOutbound(ctx context.Context, req *CancelOutboundReq) (*
 // ListInboundLogs 获取入库日志
 func (s *Service) ListInboundLogs(ctx context.Context, inventoryID string) ([]InboundLog, error) {
 	return s.repo.ListInboundLogs(ctx, inventoryID)
+}
+
+// ListInboundLogsPaginated 分页获取入库日志
+func (s *Service) ListInboundLogsPaginated(ctx context.Context, inventoryID string, page, pageSize int) ([]InboundLog, bool, error) {
+	return s.repo.ListInboundLogsPaginated(ctx, inventoryID, pageSize, (page-1)*pageSize)
 }
 
 // ListTags 获取标签列表
@@ -477,6 +602,20 @@ func (s *Service) UpdateStatusCode(ctx context.Context, req *UpdateStatusCodeReq
 
 // DeleteStatusCode 删除状态码
 func (s *Service) DeleteStatusCode(ctx context.Context, id string) error {
+	sc, err := s.repo.GetStatusCode(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return NewGoodserError(ErrStatusCodeNotFound)
+		}
+		return err
+	}
+	count, err := s.repo.CountProductsByStatusCode(ctx, sc.Code)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return NewGoodserError(ErrStatusCodeInUse)
+	}
 	if err := s.repo.DeleteStatusCode(ctx, id); err != nil {
 		return err
 	}
@@ -543,7 +682,9 @@ func (s *Service) CancelReserve(ctx context.Context, req *CancelReserveReq) (*Ou
 		return nil, err
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
 	order.Status = string(OrderStatusCancelled)
 	return order, nil
 }
@@ -611,7 +752,9 @@ func (s *Service) ReserveToOutbound(ctx context.Context, req *ReserveToOutboundR
 		}
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
 	return newOrder, nil
 }
 

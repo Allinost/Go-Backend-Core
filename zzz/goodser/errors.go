@@ -23,8 +23,9 @@ const (
 	ErrInvalidOrderStatus = 20201
 	ErrReserveConvertFail = 20202
 
-	ErrImageUpload   = 20300
-	ErrImageNotFound = 20301
+	ErrImageUpload     = 20300
+	ErrImageNotFound   = 20301
+	ErrStatusCodeInUse = 20302
 )
 
 var errMsgs = map[int]string{
@@ -46,6 +47,7 @@ var errMsgs = map[int]string{
 	ErrReserveConvertFail: "预留单转换失败",
 	ErrImageUpload:        "图片上传失败",
 	ErrImageNotFound:      "图片不存在",
+	ErrStatusCodeInUse:    "状态编码正在被使用，无法删除",
 }
 
 // GoodserError 模块级错误

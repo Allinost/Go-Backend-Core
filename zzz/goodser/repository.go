@@ -111,7 +111,7 @@ func (r *Repository) ListProducts(ctx context.Context, inventoryID string) ([]Pr
 		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
 		        quantity, reserved_quantity, status_code, name,
 		        original_price, market_price, expected_price,
-		        remark, storage_location, image_url, image_list, tags,
+		        remark, storage_location, image_url, images, tags,
 		        created_at, updated_at
 		 FROM `+tableProducts+` WHERE inventory_id = ? ORDER BY seq_number`, inventoryID)
 	if err != nil {
@@ -121,15 +121,39 @@ func (r *Repository) ListProducts(ctx context.Context, inventoryID string) ([]Pr
 	return scanProducts(rows)
 }
 
+func (r *Repository) ListProductsPaginated(ctx context.Context, inventoryID string, limit, offset int) ([]Product, bool, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
+		        quantity, reserved_quantity, status_code, name,
+		        original_price, market_price, expected_price,
+		        remark, storage_location, image_url, images, tags,
+		        created_at, updated_at
+		 FROM `+tableProducts+` WHERE inventory_id = ? ORDER BY seq_number LIMIT ? OFFSET ?`,
+		inventoryID, limit+1, offset)
+	if err != nil {
+		return nil, false, err
+	}
+	defer rows.Close()
+	items, err := scanProducts(rows)
+	if err != nil {
+		return nil, false, err
+	}
+	hasMore := len(items) > limit
+	if hasMore {
+		items = items[:limit]
+	}
+	return items, hasMore, nil
+}
+
 func (r *Repository) SearchProducts(ctx context.Context, inventoryID, keyword string) ([]Product, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
 		        quantity, reserved_quantity, status_code, name,
 		        original_price, market_price, expected_price,
-		        remark, storage_location, image_url, image_list, tags,
+		        remark, storage_location, image_url, images, tags,
 		        created_at, updated_at
-		 FROM `+tableProducts+` WHERE inventory_id = ? AND name LIKE ? ORDER BY seq_number`,
-		inventoryID, "%"+keyword+"%")
+		 FROM `+tableProducts+` WHERE inventory_id = ? AND (name LIKE ? OR code LIKE ? OR remark LIKE ?) ORDER BY seq_number`,
+		inventoryID, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +166,7 @@ func (r *Repository) GetProduct(ctx context.Context, id string) (*Product, error
 		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
 		        quantity, reserved_quantity, status_code, name,
 		        original_price, market_price, expected_price,
-		        remark, storage_location, image_url, image_list, tags,
+		        remark, storage_location, image_url, images, tags,
 		        created_at, updated_at
 		 FROM `+tableProducts+` WHERE id = ?`, id)
 	return scanProduct(row)
@@ -153,7 +177,7 @@ func (r *Repository) FindProductByCode(ctx context.Context, inventoryID, code st
 		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
 		        quantity, reserved_quantity, status_code, name,
 		        original_price, market_price, expected_price,
-		        remark, storage_location, image_url, image_list, tags,
+		        remark, storage_location, image_url, images, tags,
 		        created_at, updated_at
 		 FROM `+tableProducts+` WHERE inventory_id = ? AND code = ?`, inventoryID, code)
 	return scanProduct(row)
@@ -182,13 +206,23 @@ func scanProduct(row *sql.Row) (*Product, error) {
 func scanProductRow(scanner interface {
 	Scan(dest ...interface{}) error
 }, p *Product) error {
-	return scanner.Scan(
+	var images, tags sql.NullString
+	if err := scanner.Scan(
 		&p.ID, &p.InventoryID, &p.Code, &p.MainZone, &p.SubZone, &p.SeqNumber,
 		&p.Quantity, &p.ReservedQuantity, &p.StatusCode, &p.Name,
 		&p.OriginalPrice, &p.MarketPrice, &p.ExpectedPrice,
-		&p.Remark, &p.StorageLocation, &p.ImageURL, &p.ImageList, &p.Tags,
+		&p.Remark, &p.StorageLocation, &p.ImageURL, &images, &tags,
 		&p.CreatedAt, &p.UpdatedAt,
-	)
+	); err != nil {
+		return err
+	}
+	if images.Valid {
+		p.Images = json.RawMessage(images.String)
+	}
+	if tags.Valid {
+		p.Tags = json.RawMessage(tags.String)
+	}
+	return nil
 }
 
 // --- Seq Counters & Recycled ---
@@ -226,6 +260,16 @@ func (r *Repository) IncrementSeqCounter(ctx context.Context, tx *sql.Tx, invent
 	return seq, err
 }
 
+// EnsureSeqCounter 确保计数器不低于指定序号，用于 inboundSingle/inboundBatch 创建新商品后同步计数器
+func (r *Repository) EnsureSeqCounter(ctx context.Context, tx *sql.Tx, inventoryID, mainZone, subZone string, seqNumber int) error {
+	_, err := tx.ExecContext(ctx,
+		`INSERT INTO `+tableSeqCounters+` (id, inventory_id, main_zone, sub_zone, current_max)
+		 VALUES (?, ?, ?, ?, ?)
+		 ON DUPLICATE KEY UPDATE current_max = GREATEST(current_max, VALUES(current_max))`,
+		uuid.New().String(), inventoryID, mainZone, subZone, seqNumber)
+	return err
+}
+
 // --- Outbound Orders ---
 
 func (r *Repository) ListOutboundOrders(ctx context.Context, inventoryID string) ([]OutboundOrder, error) {
@@ -238,6 +282,27 @@ func (r *Repository) ListOutboundOrders(ctx context.Context, inventoryID string)
 	}
 	defer rows.Close()
 	return scanOrders(rows)
+}
+
+func (r *Repository) ListOutboundOrdersPaginated(ctx context.Context, inventoryID string, limit, offset int) ([]OutboundOrder, bool, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, inventory_id, order_no, type, status, order_info, remark, items,
+		        source_reserve_id, created_at, updated_at, confirmed_at, cancelled_at
+		 FROM `+tableOutboundOrders+` WHERE inventory_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		inventoryID, limit+1, offset)
+	if err != nil {
+		return nil, false, err
+	}
+	defer rows.Close()
+	items, err := scanOrders(rows)
+	if err != nil {
+		return nil, false, err
+	}
+	hasMore := len(items) > limit
+	if hasMore {
+		items = items[:limit]
+	}
+	return items, hasMore, nil
 }
 
 func scanOrders(rows *sql.Rows) ([]OutboundOrder, error) {
@@ -267,6 +332,30 @@ func (r *Repository) ListInboundLogs(ctx context.Context, inventoryID string) ([
 		return nil, err
 	}
 	defer rows.Close()
+	return scanInboundLogs(rows)
+}
+
+func (r *Repository) ListInboundLogsPaginated(ctx context.Context, inventoryID string, limit, offset int) ([]InboundLog, bool, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, inventory_id, order_no, type, remark, items, created_at
+		 FROM `+tableInboundLogs+` WHERE inventory_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		inventoryID, limit+1, offset)
+	if err != nil {
+		return nil, false, err
+	}
+	defer rows.Close()
+	items, err := scanInboundLogs(rows)
+	if err != nil {
+		return nil, false, err
+	}
+	hasMore := len(items) > limit
+	if hasMore {
+		items = items[:limit]
+	}
+	return items, hasMore, nil
+}
+
+func scanInboundLogs(rows *sql.Rows) ([]InboundLog, error) {
 	var items []InboundLog
 	for rows.Next() {
 		var item InboundLog
@@ -319,6 +408,9 @@ func (r *Repository) UpdateInboundLog(ctx context.Context, req *UpdateInboundLog
 	if err != nil {
 		return nil, err
 	}
+	if req.OrderNo != nil {
+		log.OrderNo = req.OrderNo
+	}
 	if req.Type != nil {
 		log.Type = *req.Type
 	}
@@ -330,8 +422,8 @@ func (r *Repository) UpdateInboundLog(ctx context.Context, req *UpdateInboundLog
 		log.Items = itemsJSON
 	}
 	_, err = r.db.ExecContext(ctx,
-		`UPDATE `+tableInboundLogs+` SET type = ?, remark = ?, items = ? WHERE id = ?`,
-		log.Type, log.Remark, log.Items, log.ID)
+		`UPDATE `+tableInboundLogs+` SET order_no = ?, type = ?, remark = ?, items = ? WHERE id = ?`,
+		log.OrderNo, log.Type, log.Remark, log.Items, log.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -389,6 +481,10 @@ func (r *Repository) UpdateProduct(ctx context.Context, req *UpdateProductReq) (
 	if req.ImageURL != nil {
 		product.ImageURL = req.ImageURL
 	}
+	if req.Images != nil {
+		data, _ := json.Marshal(*req.Images)
+		product.Images = data
+	}
 	if req.Tags != nil {
 		data, _ := json.Marshal(*req.Tags)
 		product.Tags = data
@@ -400,12 +496,12 @@ func (r *Repository) UpdateProduct(ctx context.Context, req *UpdateProductReq) (
 		 code=?, main_zone=?, sub_zone=?, seq_number=?,
 		 quantity=?, reserved_quantity=?, status_code=?, name=?,
 		 original_price=?, market_price=?, expected_price=?,
-		 remark=?, storage_location=?, image_url=?, tags=?, updated_at=?
+		 remark=?, storage_location=?, image_url=?, images=?, tags=?, updated_at=?
 		 WHERE id=?`,
 		product.Code, product.MainZone, product.SubZone, product.SeqNumber,
 		product.Quantity, product.ReservedQuantity, product.StatusCode, product.Name,
 		product.OriginalPrice, product.MarketPrice, product.ExpectedPrice,
-		product.Remark, product.StorageLocation, product.ImageURL, product.Tags,
+		product.Remark, product.StorageLocation, product.ImageURL, product.Images, product.Tags,
 		product.UpdatedAt, product.ID)
 	if err != nil {
 		return nil, err
@@ -548,6 +644,13 @@ func (r *Repository) DeleteStatusCode(ctx context.Context, id string) error {
 	return err
 }
 
+func (r *Repository) CountProductsByStatusCode(ctx context.Context, code string) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM `+tableProducts+` WHERE status_code = ?`, code).Scan(&count)
+	return count, err
+}
+
 func (r *Repository) ListStatusCodes(ctx context.Context) ([]StatusCode, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, code, label, is_system, created_at FROM `+tableStatusCodes+` ORDER BY code`)
@@ -601,6 +704,10 @@ func (r *Repository) CreateProductTx(ctx context.Context, tx *sql.Tx, req *Creat
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
+	if req.Images != nil {
+		data, _ := json.Marshal(*req.Images)
+		p.Images = data
+	}
 	if req.Tags != nil {
 		data, _ := json.Marshal(*req.Tags)
 		p.Tags = data
@@ -610,12 +717,12 @@ func (r *Repository) CreateProductTx(ctx context.Context, tx *sql.Tx, req *Creat
 		`INSERT INTO `+tableProducts+`
 		 (id, inventory_id, code, main_zone, sub_zone, seq_number, quantity, reserved_quantity,
 		  status_code, name, original_price, market_price, expected_price,
-		  remark, storage_location, image_url, tags, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		  remark, storage_location, image_url, images, tags, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.ID, p.InventoryID, p.Code, p.MainZone, p.SubZone, p.SeqNumber,
 		p.Quantity, p.ReservedQuantity, p.StatusCode, p.Name,
 		p.OriginalPrice, p.MarketPrice, p.ExpectedPrice,
-		p.Remark, p.StorageLocation, p.ImageURL, p.Tags,
+		p.Remark, p.StorageLocation, p.ImageURL, p.Images, p.Tags,
 		p.CreatedAt, p.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -642,7 +749,7 @@ func (r *Repository) GetProductForUpdateTx(ctx context.Context, tx *sql.Tx, prod
 		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
 		        quantity, reserved_quantity, status_code, name,
 		        original_price, market_price, expected_price,
-		        remark, storage_location, image_url, image_list, tags,
+		        remark, storage_location, image_url, images, tags,
 		        created_at, updated_at
 		 FROM `+tableProducts+` WHERE id = ? FOR UPDATE`, productID)
 	return scanProduct(row)

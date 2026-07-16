@@ -8,6 +8,9 @@ server:
   debug_port: 29092            # 调试/监控/运维端口（仅内网，含 Swagger UI + s0）
   mode: debug                  # Gin 运行模式：debug | release | test
 
+  swagger:                     # Swagger UI 配置
+    backend_addr: "192.168.1.36:29090"   # Swagger Try it out 调用的后端地址，可自行修改
+
 log:
   level: info                  # 日志级别：debug | info | warn | error | fatal
   format: json                 # 日志输出格式：json | text
