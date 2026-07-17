@@ -326,12 +326,12 @@ type InboundSearchImportResp struct {
 
 // SyncAllResp 全量同步响应
 type SyncAllResp struct {
-	Inventories    []Inventory              `json:"inventories"`
-	Products       map[string][]Product     `json:"products"`
+	Inventories    []Inventory                `json:"inventories"`
+	Products       map[string][]Product       `json:"products"`
 	OutboundOrders map[string][]OutboundOrder `json:"outbound_orders"`
-	InboundLogs    map[string][]InboundLog  `json:"inbound_logs"`
-	Tags           []Tag                    `json:"tags"`
-	StatusCodes    []StatusCode             `json:"status_codes"`
+	InboundLogs    map[string][]InboundLog    `json:"inbound_logs"`
+	Tags           []Tag                      `json:"tags"`
+	StatusCodes    []StatusCode               `json:"status_codes"`
 }
 
 type PaginatedReq struct {
@@ -356,6 +356,7 @@ func (r *PaginatedReq) Offset() int {
 type PaginatedResp[T any] struct {
 	Items   []T  `json:"items"`
 	HasMore bool `json:"has_more"`
+	Total   int  `json:"total"`
 }
 
 type InventoryStats struct {

@@ -121,7 +121,12 @@ func (r *Repository) ListProducts(ctx context.Context, inventoryID string) ([]Pr
 	return scanProducts(rows)
 }
 
-func (r *Repository) ListProductsPaginated(ctx context.Context, inventoryID string, limit, offset int) ([]Product, bool, error) {
+func (r *Repository) ListProductsPaginated(ctx context.Context, inventoryID string, limit, offset int) ([]Product, bool, int, error) {
+	var total int
+	if err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM `+tableProducts+` WHERE inventory_id = ?`, inventoryID).Scan(&total); err != nil {
+		return nil, false, 0, err
+	}
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
 		        quantity, reserved_quantity, status_code, name,
@@ -131,18 +136,18 @@ func (r *Repository) ListProductsPaginated(ctx context.Context, inventoryID stri
 		 FROM `+tableProducts+` WHERE inventory_id = ? ORDER BY seq_number LIMIT ? OFFSET ?`,
 		inventoryID, limit+1, offset)
 	if err != nil {
-		return nil, false, err
+		return nil, false, 0, err
 	}
 	defer rows.Close()
 	items, err := scanProducts(rows)
 	if err != nil {
-		return nil, false, err
+		return nil, false, 0, err
 	}
 	hasMore := len(items) > limit
 	if hasMore {
 		items = items[:limit]
 	}
-	return items, hasMore, nil
+	return items, hasMore, total, nil
 }
 
 func (r *Repository) SearchProducts(ctx context.Context, inventoryID, keyword string) ([]Product, error) {
@@ -284,25 +289,30 @@ func (r *Repository) ListOutboundOrders(ctx context.Context, inventoryID string)
 	return scanOrders(rows)
 }
 
-func (r *Repository) ListOutboundOrdersPaginated(ctx context.Context, inventoryID string, limit, offset int) ([]OutboundOrder, bool, error) {
+func (r *Repository) ListOutboundOrdersPaginated(ctx context.Context, inventoryID string, limit, offset int) ([]OutboundOrder, bool, int, error) {
+	var total int
+	if err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM `+tableOutboundOrders+` WHERE inventory_id = ?`, inventoryID).Scan(&total); err != nil {
+		return nil, false, 0, err
+	}
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, inventory_id, order_no, type, status, order_info, remark, items,
 		        source_reserve_id, created_at, updated_at, confirmed_at, cancelled_at
 		 FROM `+tableOutboundOrders+` WHERE inventory_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
 		inventoryID, limit+1, offset)
 	if err != nil {
-		return nil, false, err
+		return nil, false, 0, err
 	}
 	defer rows.Close()
 	items, err := scanOrders(rows)
 	if err != nil {
-		return nil, false, err
+		return nil, false, 0, err
 	}
 	hasMore := len(items) > limit
 	if hasMore {
 		items = items[:limit]
 	}
-	return items, hasMore, nil
+	return items, hasMore, total, nil
 }
 
 func scanOrders(rows *sql.Rows) ([]OutboundOrder, error) {
@@ -335,24 +345,29 @@ func (r *Repository) ListInboundLogs(ctx context.Context, inventoryID string) ([
 	return scanInboundLogs(rows)
 }
 
-func (r *Repository) ListInboundLogsPaginated(ctx context.Context, inventoryID string, limit, offset int) ([]InboundLog, bool, error) {
+func (r *Repository) ListInboundLogsPaginated(ctx context.Context, inventoryID string, limit, offset int) ([]InboundLog, bool, int, error) {
+	var total int
+	if err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM `+tableInboundLogs+` WHERE inventory_id = ?`, inventoryID).Scan(&total); err != nil {
+		return nil, false, 0, err
+	}
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, inventory_id, order_no, type, remark, items, created_at
 		 FROM `+tableInboundLogs+` WHERE inventory_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
 		inventoryID, limit+1, offset)
 	if err != nil {
-		return nil, false, err
+		return nil, false, 0, err
 	}
 	defer rows.Close()
 	items, err := scanInboundLogs(rows)
 	if err != nil {
-		return nil, false, err
+		return nil, false, 0, err
 	}
 	hasMore := len(items) > limit
 	if hasMore {
 		items = items[:limit]
 	}
-	return items, hasMore, nil
+	return items, hasMore, total, nil
 }
 
 func scanInboundLogs(rows *sql.Rows) ([]InboundLog, error) {

@@ -72,7 +72,7 @@ func (s *Service) ListProducts(ctx context.Context, inventoryID string) ([]Produ
 }
 
 // ListProductsPaginated 分页获取商品列表
-func (s *Service) ListProductsPaginated(ctx context.Context, inventoryID string, page, pageSize int) ([]Product, bool, error) {
+func (s *Service) ListProductsPaginated(ctx context.Context, inventoryID string, page, pageSize int) ([]Product, bool, int, error) {
 	return s.repo.ListProductsPaginated(ctx, inventoryID, pageSize, (page-1)*pageSize)
 }
 
@@ -423,7 +423,7 @@ func (s *Service) ListOutboundOrders(ctx context.Context, inventoryID string) ([
 }
 
 // ListOutboundOrdersPaginated 分页获取出库单列表
-func (s *Service) ListOutboundOrdersPaginated(ctx context.Context, inventoryID string, page, pageSize int) ([]OutboundOrder, bool, error) {
+func (s *Service) ListOutboundOrdersPaginated(ctx context.Context, inventoryID string, page, pageSize int) ([]OutboundOrder, bool, int, error) {
 	return s.repo.ListOutboundOrdersPaginated(ctx, inventoryID, pageSize, (page-1)*pageSize)
 }
 
@@ -544,7 +544,7 @@ func (s *Service) ListInboundLogs(ctx context.Context, inventoryID string) ([]In
 }
 
 // ListInboundLogsPaginated 分页获取入库日志
-func (s *Service) ListInboundLogsPaginated(ctx context.Context, inventoryID string, page, pageSize int) ([]InboundLog, bool, error) {
+func (s *Service) ListInboundLogsPaginated(ctx context.Context, inventoryID string, page, pageSize int) ([]InboundLog, bool, int, error) {
 	return s.repo.ListInboundLogsPaginated(ctx, inventoryID, pageSize, (page-1)*pageSize)
 }
 

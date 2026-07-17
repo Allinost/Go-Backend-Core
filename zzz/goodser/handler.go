@@ -69,7 +69,7 @@ func (h *Handler) LoadProducts(c *gin.Context) {
 		return
 	}
 	req.Normalize()
-	items, hasMore, err := h.svc.ListProductsPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
+	items, hasMore, total, err := h.svc.ListProductsPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -77,7 +77,7 @@ func (h *Handler) LoadProducts(c *gin.Context) {
 	if items == nil {
 		items = []Product{}
 	}
-	response.Success(c, PaginatedResp[Product]{Items: items, HasMore: hasMore})
+	response.Success(c, PaginatedResp[Product]{Items: items, HasMore: hasMore, Total: total})
 }
 
 // QueryProducts 按关键词搜索商品（匹配 name / code / remark）
@@ -380,7 +380,7 @@ func (h *Handler) LoadOutboundOrders(c *gin.Context) {
 		return
 	}
 	req.Normalize()
-	items, hasMore, err := h.svc.ListOutboundOrdersPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
+	items, hasMore, total, err := h.svc.ListOutboundOrdersPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -388,7 +388,7 @@ func (h *Handler) LoadOutboundOrders(c *gin.Context) {
 	if items == nil {
 		items = []OutboundOrder{}
 	}
-	response.Success(c, PaginatedResp[OutboundOrder]{Items: items, HasMore: hasMore})
+	response.Success(c, PaginatedResp[OutboundOrder]{Items: items, HasMore: hasMore, Total: total})
 }
 
 // CreateOutbound 创建出库单（同时锁定预留库存）
@@ -478,7 +478,7 @@ func (h *Handler) LoadInboundLogs(c *gin.Context) {
 		return
 	}
 	req.Normalize()
-	items, hasMore, err := h.svc.ListInboundLogsPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
+	items, hasMore, total, err := h.svc.ListInboundLogsPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -486,7 +486,7 @@ func (h *Handler) LoadInboundLogs(c *gin.Context) {
 	if items == nil {
 		items = []InboundLog{}
 	}
-	response.Success(c, PaginatedResp[InboundLog]{Items: items, HasMore: hasMore})
+	response.Success(c, PaginatedResp[InboundLog]{Items: items, HasMore: hasMore, Total: total})
 }
 
 // LoadTags 获取标签列表
@@ -907,7 +907,7 @@ func (h *Handler) ListProductsREST(c *gin.Context) {
 		PageSize:    parseInt(c.Query("page_size"), 20),
 	}
 	req.Normalize()
-	items, hasMore, err := h.svc.ListProductsPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
+	items, hasMore, total, err := h.svc.ListProductsPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -915,7 +915,7 @@ func (h *Handler) ListProductsREST(c *gin.Context) {
 	if items == nil {
 		items = []Product{}
 	}
-	response.Success(c, PaginatedResp[Product]{Items: items, HasMore: hasMore})
+	response.Success(c, PaginatedResp[Product]{Items: items, HasMore: hasMore, Total: total})
 }
 
 // GetInventoryREST 获取单个库存目录
@@ -993,7 +993,7 @@ func (h *Handler) ListOutboundOrdersREST(c *gin.Context) {
 		PageSize:    parseInt(c.Query("page_size"), 20),
 	}
 	req.Normalize()
-	items, hasMore, err := h.svc.ListOutboundOrdersPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
+	items, hasMore, total, err := h.svc.ListOutboundOrdersPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -1001,7 +1001,7 @@ func (h *Handler) ListOutboundOrdersREST(c *gin.Context) {
 	if items == nil {
 		items = []OutboundOrder{}
 	}
-	response.Success(c, PaginatedResp[OutboundOrder]{Items: items, HasMore: hasMore})
+	response.Success(c, PaginatedResp[OutboundOrder]{Items: items, HasMore: hasMore, Total: total})
 }
 
 // ListInboundLogsREST 获取入库日志列表（REST）
@@ -1021,7 +1021,7 @@ func (h *Handler) ListInboundLogsREST(c *gin.Context) {
 		PageSize:    parseInt(c.Query("page_size"), 20),
 	}
 	req.Normalize()
-	items, hasMore, err := h.svc.ListInboundLogsPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
+	items, hasMore, total, err := h.svc.ListInboundLogsPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -1029,7 +1029,7 @@ func (h *Handler) ListInboundLogsREST(c *gin.Context) {
 	if items == nil {
 		items = []InboundLog{}
 	}
-	response.Success(c, PaginatedResp[InboundLog]{Items: items, HasMore: hasMore})
+	response.Success(c, PaginatedResp[InboundLog]{Items: items, HasMore: hasMore, Total: total})
 }
 
 func parseInt(s string, defaultVal int) int {
