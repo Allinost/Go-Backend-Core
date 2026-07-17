@@ -90,15 +90,17 @@ func (h *Handler) LoadProducts(c *gin.Context) {
 // @Success      200  {object}  response.Response{data=[]Product}
 // @Router       /zzz-goodser/legacy/queryProducts [post]
 func (h *Handler) QueryProducts(c *gin.Context) {
-	var req struct {
-		InventoryID string `json:"inventory_id"`
-		Keyword     string `json:"keyword"`
-	}
+	var req QueryProductsReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ParamErr(c, "参数错误")
 		return
 	}
-	items, err := h.svc.SearchProducts(c.Request.Context(), req.InventoryID, req.Keyword)
+	if req.InventoryID == "" {
+		response.ParamErr(c, "缺少 inventory_id")
+		return
+	}
+	req.Normalize()
+	items, hasMore, total, err := h.svc.SearchProductsPaginated(c.Request.Context(), &req)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -106,7 +108,7 @@ func (h *Handler) QueryProducts(c *gin.Context) {
 	if items == nil {
 		items = []Product{}
 	}
-	response.Success(c, items)
+	response.Success(c, PaginatedResp[Product]{Items: items, HasMore: hasMore, Total: total})
 }
 
 // CreateInventory 创建库存目录

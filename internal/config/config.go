@@ -38,9 +38,9 @@ type Config struct {
 }
 
 type CryptoConfig struct {
-	MasterKeyHex string            `mapstructure:"master_key_hex"`
-	Enabled      bool              `mapstructure:"enabled"`
-	OldKeys      map[int]string    `mapstructure:"old_keys"`
+	MasterKeyHex string         `mapstructure:"master_key_hex"`
+	Enabled      bool           `mapstructure:"enabled"`
+	OldKeys      map[int]string `mapstructure:"old_keys"`
 }
 
 type NetConfig struct {
@@ -73,7 +73,8 @@ type ServerConfig struct {
 }
 
 type SwaggerConfig struct {
-	BackendAddr string `mapstructure:"backend_addr"` // Swagger 调用的后端 API 地址，默认 192.168.1.36:29090
+	BackendAddr string            `mapstructure:"backend_addr"` // Swagger 调用的后端 API 地址，默认 192.168.1.36:29090
+	Presets     map[string]string `mapstructure:"presets"`      // 环境预设，如 本地环境 -> localhost:29090
 }
 
 type LogConfig struct {

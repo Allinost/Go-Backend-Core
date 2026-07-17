@@ -455,6 +455,323 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员获取所有权限定义",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "获取权限列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.Permission"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员创建新的权限定义",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "创建权限",
+                "parameters": [
+                    {
+                        "description": "权限信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "action": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "resource": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/permissions/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员根据 ID 获取权限详情",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "获取权限详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "权限 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.Permission"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员更新权限定义",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "更新权限",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "权限 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "权限信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "action": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "resource": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员删除权限定义",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "删除权限",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "权限 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/profile": {
             "put": {
                 "security": [
@@ -621,6 +938,124 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/roles": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员获取所有角色",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "获取角色列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.RoleModel"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员创建新的角色",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "创建角色",
+                "parameters": [
+                    {
+                        "description": "角色名称",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/roles/assign": {
             "post": {
                 "security": [
@@ -628,7 +1063,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "管理员为指定用户分配角色（admin 或 user）",
+                "description": "管理员为指定用户分配角色",
                 "consumes": [
                     "application/json"
                 ],
@@ -679,6 +1114,274 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/roles/{name}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员更新角色名称",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "更新角色",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "原角色名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "新角色名称",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员删除角色",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "删除角色",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "角色名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/roles/{name}/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员获取指定角色的权限列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "获取角色权限",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "角色名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.Permission"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "全量替换角色的权限列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "设置角色权限",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "角色名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "权限ID列表",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "permission_ids": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "integer"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
                         }
@@ -888,6 +1591,269 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/users/{id}/permissions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员获取指定用户通过角色继承的所有权限",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "获取用户权限",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_services_auth.Permission"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/users/{id}/roles": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员获取指定用户的所有角色",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "获取用户角色",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "设置用户角色（覆盖已有角色）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "设置用户角色",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "角色列表",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "roles": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/users/{id}/roles/{role}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "管理员移除指定用户的某个角色",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth-管理"
+                ],
+                "summary": "移除用户角色",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "角色名称",
+                        "name": "role",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
                         }
@@ -3019,7 +3985,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/goodser.Inventory"
+                                                "$ref": "#/definitions/zzz_goodser.Inventory"
                                             }
                                         }
                                     }
@@ -3047,7 +4013,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.CreateInventoryReq"
+                            "$ref": "#/definitions/zzz_goodser.CreateInventoryReq"
                         }
                     }
                 ],
@@ -3063,7 +4029,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.Inventory"
+                                            "$ref": "#/definitions/zzz_goodser.Inventory"
                                         }
                                     }
                                 }
@@ -3103,7 +4069,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.Inventory"
+                                            "$ref": "#/definitions/zzz_goodser.Inventory"
                                         }
                                     }
                                 }
@@ -3137,7 +4103,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.UpdateInventoryReq"
+                            "$ref": "#/definitions/zzz_goodser.UpdateInventoryReq"
                         }
                     }
                 ],
@@ -3153,7 +4119,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.Inventory"
+                                            "$ref": "#/definitions/zzz_goodser.Inventory"
                                         }
                                     }
                                 }
@@ -3189,7 +4155,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/zzz-goodser/inventories/{id}/products": {
+        "/zzz-goodser/inventories/{id}/inbound-logs": {
             "get": {
                 "produces": [
                     "application/json"
@@ -3197,7 +4163,7 @@ const docTemplate = `{
                 "tags": [
                     "zzz-goodser"
                 ],
-                "summary": "获取商品列表",
+                "summary": "获取入库日志",
                 "parameters": [
                     {
                         "type": "string",
@@ -3205,6 +4171,18 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页条数，默认 20",
+                        "name": "page_size",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -3219,10 +4197,156 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/goodser.Product"
-                                            }
+                                            "$ref": "#/definitions/zzz_goodser.PaginatedResp-zzz_goodser_InboundLog"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/inventories/{id}/outbound-orders": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser"
+                ],
+                "summary": "获取出库单",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "库存目录 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页条数，默认 20",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.PaginatedResp-zzz_goodser_OutboundOrder"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/inventories/{id}/products": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser"
+                ],
+                "summary": "获取商品列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "库存目录 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页条数，默认 20",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.PaginatedResp-zzz_goodser_Product"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/legacy/addStatusCode": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser-legacy"
+                ],
+                "summary": "新增状态编码",
+                "parameters": [
+                    {
+                        "description": "状态编码信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_goodser.AddStatusCodeReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.StatusCode"
                                         }
                                     }
                                 }
@@ -3251,7 +4375,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.AllocateSeqReq"
+                            "$ref": "#/definitions/zzz_goodser.AllocateSeqReq"
                         }
                     }
                 ],
@@ -3267,7 +4391,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.AllocateSeqResp"
+                                            "$ref": "#/definitions/zzz_goodser.AllocateSeqResp"
                                         }
                                     }
                                 }
@@ -3297,7 +4421,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.CancelOutboundReq"
+                            "$ref": "#/definitions/zzz_goodser.CancelOutboundReq"
                         }
                     }
                 ],
@@ -3313,7 +4437,53 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.OutboundOrder"
+                                            "$ref": "#/definitions/zzz_goodser.OutboundOrder"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/legacy/cancelReserve": {
+            "post": {
+                "description": "取消指定预约单，释放已锁定的预留库存",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser-legacy"
+                ],
+                "summary": "取消预约",
+                "parameters": [
+                    {
+                        "description": "预约单 ID",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_goodser.CancelReserveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.OutboundOrder"
                                         }
                                     }
                                 }
@@ -3343,7 +4513,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.ConfirmOutboundReq"
+                            "$ref": "#/definitions/zzz_goodser.ConfirmOutboundReq"
                         }
                     }
                 ],
@@ -3359,7 +4529,52 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.OutboundOrder"
+                                            "$ref": "#/definitions/zzz_goodser.OutboundOrder"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/legacy/createInboundLog": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser-legacy"
+                ],
+                "summary": "创建入库日志",
+                "parameters": [
+                    {
+                        "description": "入库日志",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_goodser.CreateInboundLogReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.InboundLog"
                                         }
                                     }
                                 }
@@ -3388,7 +4603,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.CreateInventoryReq"
+                            "$ref": "#/definitions/zzz_goodser.CreateInventoryReq"
                         }
                     }
                 ],
@@ -3404,7 +4619,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.Inventory"
+                                            "$ref": "#/definitions/zzz_goodser.Inventory"
                                         }
                                     }
                                 }
@@ -3433,7 +4648,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.CreateOutboundReq"
+                            "$ref": "#/definitions/zzz_goodser.CreateOutboundReq"
                         }
                     }
                 ],
@@ -3449,7 +4664,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.OutboundOrder"
+                                            "$ref": "#/definitions/zzz_goodser.OutboundOrder"
                                         }
                                     }
                                 }
@@ -3479,7 +4694,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.CreateProductReq"
+                            "$ref": "#/definitions/zzz_goodser.CreateProductReq"
                         }
                     }
                 ],
@@ -3495,7 +4710,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.Product"
+                                            "$ref": "#/definitions/zzz_goodser.Product"
                                         }
                                     }
                                 }
@@ -3530,7 +4745,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.CreateTagReq"
+                            "$ref": "#/definitions/zzz_goodser.CreateTagReq"
                         }
                     }
                 ],
@@ -3546,7 +4761,62 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.Tag"
+                                            "$ref": "#/definitions/zzz_goodser.Tag"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/legacy/deleteInboundLog": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser-legacy"
+                ],
+                "summary": "删除入库日志",
+                "parameters": [
+                    {
+                        "description": "入库日志 ID",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -3575,7 +4845,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.DeleteInventoryReq"
+                            "$ref": "#/definitions/zzz_goodser.DeleteInventoryReq"
                         }
                     }
                 ],
@@ -3634,6 +4904,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/zzz-goodser/legacy/deleteTag": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser-legacy"
+                ],
+                "summary": "删除标签",
+                "parameters": [
+                    {
+                        "description": "标签 ID",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/zzz-goodser/legacy/inboundBatch": {
             "post": {
                 "description": "批量创建或增加商品库存，已存在的按 code 匹配叠加数量",
@@ -3654,7 +4979,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.InboundBatchReq"
+                            "$ref": "#/definitions/zzz_goodser.InboundBatchReq"
                         }
                     }
                 ],
@@ -3670,7 +4995,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.InboundBatchResp"
+                                            "$ref": "#/definitions/zzz_goodser.InboundBatchResp"
                                         }
                                     }
                                 }
@@ -3706,7 +5031,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.InboundSearchImportReq"
+                            "$ref": "#/definitions/zzz_goodser.InboundSearchImportReq"
                         }
                     }
                 ],
@@ -3722,7 +5047,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.InboundSearchImportResp"
+                                            "$ref": "#/definitions/zzz_goodser.InboundSearchImportResp"
                                         }
                                     }
                                 }
@@ -3758,7 +5083,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.InboundSingleReq"
+                            "$ref": "#/definitions/zzz_goodser.InboundSingleReq"
                         }
                     }
                 ],
@@ -3774,7 +5099,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.Product"
+                                            "$ref": "#/definitions/zzz_goodser.Product"
                                         }
                                     }
                                 }
@@ -3798,17 +5123,12 @@ const docTemplate = `{
                 "summary": "获取入库日志",
                 "parameters": [
                     {
-                        "description": "仓库 ID",
+                        "description": "分页参数",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "inventory_id": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/zzz_goodser.PaginatedReq"
                         }
                     }
                 ],
@@ -3824,10 +5144,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/goodser.InboundLog"
-                                            }
+                                            "$ref": "#/definitions/zzz_goodser.PaginatedResp-zzz_goodser_InboundLog"
                                         }
                                     }
                                 }
@@ -3863,7 +5180,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/goodser.Inventory"
+                                                "$ref": "#/definitions/zzz_goodser.Inventory"
                                             }
                                         }
                                     }
@@ -3888,17 +5205,12 @@ const docTemplate = `{
                 "summary": "获取出库单",
                 "parameters": [
                     {
-                        "description": "仓库 ID",
+                        "description": "分页参数",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "inventory_id": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/zzz_goodser.PaginatedReq"
                         }
                     }
                 ],
@@ -3914,10 +5226,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/goodser.OutboundOrder"
-                                            }
+                                            "$ref": "#/definitions/zzz_goodser.PaginatedResp-zzz_goodser_OutboundOrder"
                                         }
                                     }
                                 }
@@ -3941,17 +5250,12 @@ const docTemplate = `{
                 "summary": "获取商品列表",
                 "parameters": [
                     {
-                        "description": "仓库 ID",
+                        "description": "分页参数",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "inventory_id": {
-                                    "type": "string"
-                                }
-                            }
+                            "$ref": "#/definitions/zzz_goodser.PaginatedReq"
                         }
                     }
                 ],
@@ -3967,10 +5271,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/goodser.Product"
-                                            }
+                                            "$ref": "#/definitions/zzz_goodser.PaginatedResp-zzz_goodser_Product"
                                         }
                                     }
                                 }
@@ -4006,7 +5307,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/goodser.StatusCode"
+                                                "$ref": "#/definitions/zzz_goodser.StatusCode"
                                             }
                                         }
                                     }
@@ -4043,7 +5344,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/goodser.Tag"
+                                                "$ref": "#/definitions/zzz_goodser.Tag"
                                             }
                                         }
                                     }
@@ -4056,6 +5357,7 @@ const docTemplate = `{
         },
         "/zzz-goodser/legacy/queryProducts": {
             "post": {
+                "description": "根据关键词搜索商品，匹配 name / code / remark 字段",
                 "consumes": [
                     "application/json"
                 ],
@@ -4099,8 +5401,155 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/goodser.Product"
+                                                "$ref": "#/definitions/zzz_goodser.Product"
                                             }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/legacy/removeStatusCode": {
+            "post": {
+                "description": "删除前会检查是否有商品正在使用此编码，如有则返回错误",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser-legacy"
+                ],
+                "summary": "删除状态编码",
+                "parameters": [
+                    {
+                        "description": "状态编码 ID",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "success": {
+                                                    "type": "boolean"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/legacy/reserveToOutbound": {
+            "post": {
+                "description": "将预约单转为正式出库单，需重新指定出库信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser-legacy"
+                ],
+                "summary": "预约转出库",
+                "parameters": [
+                    {
+                        "description": "转出库信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_goodser.ReserveToOutboundReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.OutboundOrder"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/legacy/updateInboundLog": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser-legacy"
+                ],
+                "summary": "更新入库日志",
+                "parameters": [
+                    {
+                        "description": "更新信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_goodser.UpdateInboundLogReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.InboundLog"
                                         }
                                     }
                                 }
@@ -4129,7 +5578,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.UpdateInventoryReq"
+                            "$ref": "#/definitions/zzz_goodser.UpdateInventoryReq"
                         }
                     }
                 ],
@@ -4145,7 +5594,149 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.Inventory"
+                                            "$ref": "#/definitions/zzz_goodser.Inventory"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/legacy/updateProduct": {
+            "post": {
+                "description": "部分更新商品信息，仅传需要修改的字段",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser-legacy"
+                ],
+                "summary": "更新商品",
+                "parameters": [
+                    {
+                        "description": "更新字段",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_goodser.UpdateProductReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.Product"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/legacy/updateStatusCode": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser-legacy"
+                ],
+                "summary": "更新状态编码",
+                "parameters": [
+                    {
+                        "description": "更新信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_goodser.UpdateStatusCodeReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.StatusCode"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/legacy/updateTag": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser-legacy"
+                ],
+                "summary": "更新标签",
+                "parameters": [
+                    {
+                        "description": "标签信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_goodser.UpdateTagReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.Tag"
                                         }
                                     }
                                 }
@@ -4237,7 +5828,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/goodser.UpdateProductReq"
+                            "$ref": "#/definitions/zzz_goodser.UpdateProductReq"
                         }
                     }
                 ],
@@ -4253,7 +5844,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/goodser.Product"
+                                            "$ref": "#/definitions/zzz_goodser.Product"
                                         }
                                     }
                                 }
@@ -4297,6 +5888,41 @@ const docTemplate = `{
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/syncAll": {
+            "post": {
+                "description": "一次性同步所有库存目录、商品、出库单、入库日志、标签和状态编码",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-goodser"
+                ],
+                "summary": "全量同步",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.SyncAllResp"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -4360,6 +5986,26 @@ const docTemplate = `{
                 }
             }
         },
+        "github_com_Allinost_go-backend-core_internal_services_auth.Permission": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "resource": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_Allinost_go-backend-core_internal_services_auth.RegisterRequest": {
             "type": "object",
             "required": [
@@ -4379,6 +6025,20 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 32,
                     "minLength": 3
+                }
+            }
+        },
+        "github_com_Allinost_go-backend-core_internal_services_auth.RoleModel": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -4416,641 +6076,6 @@ const docTemplate = `{
                 },
                 "phone": {
                     "type": "string"
-                }
-            }
-        },
-        "goodser.AllocateSeqReq": {
-            "type": "object",
-            "properties": {
-                "inventory_id": {
-                    "type": "string"
-                },
-                "main_zone": {
-                    "type": "string"
-                },
-                "sub_zone": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.AllocateSeqResp": {
-            "type": "object",
-            "properties": {
-                "seq_number": {
-                    "type": "integer"
-                }
-            }
-        },
-        "goodser.CancelOutboundReq": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.ConfirmOutboundReq": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.CreateInventoryReq": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.CreateOutboundReq": {
-            "type": "object",
-            "properties": {
-                "inventory_id": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/goodser.OrderItem"
-                    }
-                },
-                "order_info": {
-                    "type": "string"
-                },
-                "order_no": {
-                    "type": "string"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "source_reserve_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.CreateProductReq": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "expected_price": {
-                    "type": "number"
-                },
-                "image_url": {
-                    "type": "string"
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "main_zone": {
-                    "type": "string"
-                },
-                "market_price": {
-                    "type": "number"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "original_price": {
-                    "type": "number"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "seq_number": {
-                    "type": "integer"
-                },
-                "status_code": {
-                    "type": "string"
-                },
-                "storage_location": {
-                    "type": "string"
-                },
-                "sub_zone": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "goodser.CreateTagReq": {
-            "type": "object",
-            "properties": {
-                "color": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.DeleteInventoryReq": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.InboundBatchReq": {
-            "type": "object",
-            "properties": {
-                "inventory_id": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/goodser.InboundBatchReqItem"
-                    }
-                },
-                "order_no": {
-                    "type": "string"
-                },
-                "remark": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.InboundBatchReqItem": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "expected_price": {
-                    "type": "number"
-                },
-                "image_url": {
-                    "type": "string"
-                },
-                "main_zone": {
-                    "type": "string"
-                },
-                "market_price": {
-                    "type": "number"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "original_price": {
-                    "type": "number"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "seq_number": {
-                    "type": "integer"
-                },
-                "status_code": {
-                    "type": "string"
-                },
-                "storage_location": {
-                    "type": "string"
-                },
-                "sub_zone": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "goodser.InboundBatchResp": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/goodser.Product"
-                    }
-                }
-            }
-        },
-        "goodser.InboundLog": {
-            "type": "object",
-            "properties": {
-                "_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "order_no": {
-                    "type": "string"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.InboundSearchImportReq": {
-            "type": "object",
-            "properties": {
-                "inventory_id": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/goodser.SearchImportReqItem"
-                    }
-                },
-                "order_no": {
-                    "type": "string"
-                },
-                "remark": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.InboundSearchImportResp": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "type": "integer"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/goodser.Product"
-                    }
-                }
-            }
-        },
-        "goodser.InboundSingleReq": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "expected_price": {
-                    "type": "number"
-                },
-                "image_url": {
-                    "type": "string"
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "main_zone": {
-                    "type": "string"
-                },
-                "market_price": {
-                    "type": "number"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "order_no": {
-                    "type": "string"
-                },
-                "original_price": {
-                    "type": "number"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "seq_number": {
-                    "type": "integer"
-                },
-                "status_code": {
-                    "type": "string"
-                },
-                "storage_location": {
-                    "type": "string"
-                },
-                "sub_zone": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "goodser.Inventory": {
-            "type": "object",
-            "properties": {
-                "_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "sort_order": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.OrderItem": {
-            "type": "object",
-            "properties": {
-                "image_url": {
-                    "type": "string"
-                },
-                "product_code": {
-                    "type": "string"
-                },
-                "product_id": {
-                    "type": "string"
-                },
-                "product_name": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "integer"
-                }
-            }
-        },
-        "goodser.OutboundOrder": {
-            "type": "object",
-            "properties": {
-                "_id": {
-                    "type": "string"
-                },
-                "cancelled_at": {
-                    "type": "string"
-                },
-                "confirmed_at": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "order_info": {
-                    "type": "string"
-                },
-                "order_no": {
-                    "type": "string"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "source_reserve_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.Product": {
-            "type": "object",
-            "properties": {
-                "_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "expected_price": {
-                    "type": "number"
-                },
-                "image_list": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "image_url": {
-                    "type": "string"
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "main_zone": {
-                    "type": "string"
-                },
-                "market_price": {
-                    "type": "number"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "original_price": {
-                    "type": "number"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "reserved_quantity": {
-                    "type": "integer"
-                },
-                "seq_number": {
-                    "type": "integer"
-                },
-                "status_code": {
-                    "type": "string"
-                },
-                "storage_location": {
-                    "type": "string"
-                },
-                "sub_zone": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.SearchImportReqItem": {
-            "type": "object",
-            "properties": {
-                "image_url": {
-                    "type": "string"
-                },
-                "product_code": {
-                    "type": "string"
-                },
-                "product_id": {
-                    "type": "string"
-                },
-                "product_name": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "integer"
-                }
-            }
-        },
-        "goodser.StatusCode": {
-            "type": "object",
-            "properties": {
-                "_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "is_system": {
-                    "type": "boolean"
-                },
-                "label": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.Tag": {
-            "type": "object",
-            "properties": {
-                "_id": {
-                    "type": "string"
-                },
-                "color": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.UpdateInventoryReq": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "goodser.UpdateProductReq": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "expected_price": {
-                    "type": "number"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "image_url": {
-                    "type": "string"
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "main_zone": {
-                    "type": "string"
-                },
-                "market_price": {
-                    "type": "number"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "original_price": {
-                    "type": "number"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "seq_number": {
-                    "type": "integer"
-                },
-                "status_code": {
-                    "type": "string"
-                },
-                "storage_location": {
-                    "type": "string"
-                },
-                "sub_zone": {
-                    "type": "string"
-                },
-                "tags": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },
@@ -5448,6 +6473,896 @@ const docTemplate = `{
                 "TaskTypeOnce",
                 "TaskTypeInterval"
             ]
+        },
+        "zzz_goodser.AddStatusCodeReq": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.AllocateSeqReq": {
+            "type": "object",
+            "properties": {
+                "inventory_id": {
+                    "type": "string"
+                },
+                "main_zone": {
+                    "type": "string"
+                },
+                "sub_zone": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.AllocateSeqResp": {
+            "type": "object",
+            "properties": {
+                "seq_number": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_goodser.CancelOutboundReq": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.CancelReserveReq": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.ConfirmOutboundReq": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.CreateInboundLogReq": {
+            "type": "object",
+            "properties": {
+                "inventory_id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.OrderItem"
+                    }
+                },
+                "order_no": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.CreateInventoryReq": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.CreateOutboundReq": {
+            "type": "object",
+            "properties": {
+                "inventory_id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.OrderItem"
+                    }
+                },
+                "order_info": {
+                    "type": "string"
+                },
+                "order_no": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "source_reserve_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.CreateProductReq": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "expected_price": {
+                    "type": "number"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "main_zone": {
+                    "type": "string"
+                },
+                "market_price": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "original_price": {
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "seq_number": {
+                    "type": "integer"
+                },
+                "status_code": {
+                    "type": "string"
+                },
+                "storage_location": {
+                    "type": "string"
+                },
+                "sub_zone": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "zzz_goodser.CreateTagReq": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.DeleteInventoryReq": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.InboundBatchReq": {
+            "type": "object",
+            "properties": {
+                "inventory_id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.InboundBatchReqItem"
+                    }
+                },
+                "order_no": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.InboundBatchReqItem": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "expected_price": {
+                    "type": "number"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "main_zone": {
+                    "type": "string"
+                },
+                "market_price": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "original_price": {
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "seq_number": {
+                    "type": "integer"
+                },
+                "status_code": {
+                    "type": "string"
+                },
+                "storage_location": {
+                    "type": "string"
+                },
+                "sub_zone": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "zzz_goodser.InboundBatchResp": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.Product"
+                    }
+                }
+            }
+        },
+        "zzz_goodser.InboundLog": {
+            "type": "object",
+            "properties": {
+                "_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "order_no": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.InboundSearchImportReq": {
+            "type": "object",
+            "properties": {
+                "inventory_id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.SearchImportReqItem"
+                    }
+                },
+                "order_no": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.InboundSearchImportResp": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.Product"
+                    }
+                }
+            }
+        },
+        "zzz_goodser.InboundSingleReq": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "expected_price": {
+                    "type": "number"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "main_zone": {
+                    "type": "string"
+                },
+                "market_price": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "order_no": {
+                    "type": "string"
+                },
+                "original_price": {
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "seq_number": {
+                    "type": "integer"
+                },
+                "status_code": {
+                    "type": "string"
+                },
+                "storage_location": {
+                    "type": "string"
+                },
+                "sub_zone": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "zzz_goodser.Inventory": {
+            "type": "object",
+            "properties": {
+                "_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.OrderItem": {
+            "type": "object",
+            "properties": {
+                "image_url": {
+                    "type": "string"
+                },
+                "product_code": {
+                    "type": "string"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_goodser.OutboundOrder": {
+            "type": "object",
+            "properties": {
+                "_id": {
+                    "type": "string"
+                },
+                "cancelled_at": {
+                    "type": "string"
+                },
+                "confirmed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "order_info": {
+                    "type": "string"
+                },
+                "order_no": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "source_reserve_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.PaginatedReq": {
+            "type": "object",
+            "properties": {
+                "inventory_id": {
+                    "type": "string"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_goodser.PaginatedResp-zzz_goodser_InboundLog": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.InboundLog"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_goodser.PaginatedResp-zzz_goodser_OutboundOrder": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.OutboundOrder"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_goodser.PaginatedResp-zzz_goodser_Product": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.Product"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_goodser.Product": {
+            "type": "object",
+            "properties": {
+                "_id": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "expected_price": {
+                    "type": "number"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "main_zone": {
+                    "type": "string"
+                },
+                "market_price": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "original_price": {
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "reserved_quantity": {
+                    "type": "integer"
+                },
+                "seq_number": {
+                    "type": "integer"
+                },
+                "status_code": {
+                    "type": "string"
+                },
+                "storage_location": {
+                    "type": "string"
+                },
+                "sub_zone": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.ReserveToOutboundReq": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.OrderItem"
+                    }
+                },
+                "order_info": {
+                    "type": "string"
+                },
+                "order_no": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.SearchImportReqItem": {
+            "type": "object",
+            "properties": {
+                "image_url": {
+                    "type": "string"
+                },
+                "product_code": {
+                    "type": "string"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_goodser.StatusCode": {
+            "type": "object",
+            "properties": {
+                "_id": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "is_system": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.SyncAllResp": {
+            "type": "object",
+            "properties": {
+                "inbound_logs": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/zzz_goodser.InboundLog"
+                        }
+                    }
+                },
+                "inventories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.Inventory"
+                    }
+                },
+                "outbound_orders": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/zzz_goodser.OutboundOrder"
+                        }
+                    }
+                },
+                "products": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/zzz_goodser.Product"
+                        }
+                    }
+                },
+                "status_codes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.StatusCode"
+                    }
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.Tag"
+                    }
+                }
+            }
+        },
+        "zzz_goodser.Tag": {
+            "type": "object",
+            "properties": {
+                "_id": {
+                    "type": "string"
+                },
+                "color": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.UpdateInboundLogReq": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.OrderItem"
+                    }
+                },
+                "order_no": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.UpdateInventoryReq": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.UpdateProductReq": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "expected_price": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "main_zone": {
+                    "type": "string"
+                },
+                "market_price": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "original_price": {
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "seq_number": {
+                    "type": "integer"
+                },
+                "status_code": {
+                    "type": "string"
+                },
+                "storage_location": {
+                    "type": "string"
+                },
+                "sub_zone": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "zzz_goodser.UpdateStatusCodeReq": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.UpdateTagReq": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -5463,7 +7378,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "0.1.0",
-	Host:             "192.168.1.36:29090",
+	Host:             "",
 	BasePath:         "/api/v1",
 	Schemes:          []string{"http", "https"},
 	Title:            "Go Backend Core API",

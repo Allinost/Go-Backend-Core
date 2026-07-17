@@ -76,9 +76,9 @@ func (s *Service) ListProductsPaginated(ctx context.Context, inventoryID string,
 	return s.repo.ListProductsPaginated(ctx, inventoryID, pageSize, (page-1)*pageSize)
 }
 
-// SearchProducts 搜索商品
-func (s *Service) SearchProducts(ctx context.Context, inventoryID, keyword string) ([]Product, error) {
-	return s.repo.SearchProducts(ctx, inventoryID, keyword)
+// SearchProductsPaginated 搜索商品（支持筛选、排序、分页）
+func (s *Service) SearchProductsPaginated(ctx context.Context, req *QueryProductsReq) ([]Product, bool, int, error) {
+	return s.repo.SearchProductsPaginated(ctx, req)
 }
 
 // AllocateSeq 分配序号（优先复用回收序号）

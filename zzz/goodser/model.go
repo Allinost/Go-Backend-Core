@@ -340,6 +340,30 @@ type PaginatedReq struct {
 	PageSize    int    `json:"page_size"`
 }
 
+type QueryProductsReq struct {
+	InventoryID string `json:"inventory_id"`
+	Keyword     string `json:"keyword"`
+	MainZone    string `json:"main_zone"`
+	StatusCode  string `json:"status_code"`
+	TagID       string `json:"tag_id"`
+	SortBy      string `json:"sort_by"`
+	SortOrder   string `json:"sort_order"`
+	Page        int    `json:"page"`
+	PageSize    int    `json:"page_size"`
+}
+
+func (r *QueryProductsReq) Normalize() {
+	if r.Page < 1 {
+		r.Page = 1
+	}
+	if r.PageSize < 1 || r.PageSize > 100 {
+		r.PageSize = 20
+	}
+	if r.SortOrder != "asc" && r.SortOrder != "desc" {
+		r.SortOrder = "asc"
+	}
+}
+
 func (r *PaginatedReq) Normalize() {
 	if r.Page < 1 {
 		r.Page = 1

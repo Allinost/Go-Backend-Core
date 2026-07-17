@@ -9,7 +9,12 @@ server:
   mode: debug                  # Gin 运行模式：debug | release | test
 
   swagger:                     # Swagger UI 配置
-    backend_addr: "192.168.1.36:29090"   # Swagger Try it out 调用的后端地址，可自行修改
+    backend_addr: "localhost:29090"   # Swagger Try it out 调用的后端地址，可自行修改
+    presets:                              # 环境预设，可在 Swagger UI 页面下拉切换
+      生产环境-EasyTier: "et.hailong.site"
+      生产环境: "api.hailong.site:8408"
+      本地环境: "localhost:29090"
+      测试环境: "nas.hailong.site"
 
 log:
   level: info                  # 日志级别：debug | info | warn | error | fatal

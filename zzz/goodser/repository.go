@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -150,20 +151,84 @@ func (r *Repository) ListProductsPaginated(ctx context.Context, inventoryID stri
 	return items, hasMore, total, nil
 }
 
-func (r *Repository) SearchProducts(ctx context.Context, inventoryID, keyword string) ([]Product, error) {
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
-		        quantity, reserved_quantity, status_code, name,
-		        original_price, market_price, expected_price,
-		        remark, storage_location, image_url, images, tags,
-		        created_at, updated_at
-		 FROM `+tableProducts+` WHERE inventory_id = ? AND (name LIKE ? OR code LIKE ? OR remark LIKE ?) ORDER BY seq_number`,
-		inventoryID, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+func (r *Repository) SearchProductsPaginated(ctx context.Context, req *QueryProductsReq) ([]Product, bool, int, error) {
+	var conditions []string
+	var args []interface{}
+
+	conditions = append(conditions, "inventory_id = ?")
+	args = append(args, req.InventoryID)
+
+	if req.Keyword != "" {
+		conditions = append(conditions, "(name LIKE ? OR code LIKE ? OR remark LIKE ?)")
+		kw := "%" + req.Keyword + "%"
+		args = append(args, kw, kw, kw)
+	}
+	if req.MainZone != "" {
+		conditions = append(conditions, "main_zone = ?")
+		args = append(args, req.MainZone)
+	}
+	if req.StatusCode != "" {
+		conditions = append(conditions, "status_code = ?")
+		args = append(args, req.StatusCode)
+	}
+	if req.TagID != "" {
+		conditions = append(conditions, "JSON_CONTAINS(tags, ?)")
+		tagJSON, _ := json.Marshal(req.TagID)
+		args = append(args, string(tagJSON))
+	}
+
+	whereClause := strings.Join(conditions, " AND ")
+
+	// Total count
+	var total int
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s", tableProducts, whereClause)
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, false, 0, err
+	}
+
+	// Sort — whitelist to prevent SQL injection
+	sortColumns := map[string]string{
+		"code":           "code",
+		"name":           "name",
+		"quantity":       "quantity",
+		"expected_price": "expected_price",
+	}
+	orderBy := "seq_number ASC"
+	if col, ok := sortColumns[req.SortBy]; ok {
+		orderBy = col + " " + strings.ToUpper(req.SortOrder)
+	}
+
+	// Data query with limit+1 for has_more detection
+	limit := req.PageSize
+	offset := (req.Page - 1) * req.PageSize
+
+	selectCols := `id, inventory_id, code, main_zone, sub_zone, seq_number,
+		       quantity, reserved_quantity, status_code, name,
+		       original_price, market_price, expected_price,
+		       remark, storage_location, image_url, images, tags,
+		       created_at, updated_at`
+
+	dataQuery := fmt.Sprintf("SELECT %s FROM %s WHERE %s ORDER BY %s LIMIT ? OFFSET ?",
+		selectCols, tableProducts, whereClause, orderBy)
+
+	dataArgs := append(args, limit+1, offset)
+	rows, err := r.db.QueryContext(ctx, dataQuery, dataArgs...)
 	if err != nil {
-		return nil, err
+		return nil, false, 0, err
 	}
 	defer rows.Close()
-	return scanProducts(rows)
+
+	items, err := scanProducts(rows)
+	if err != nil {
+		return nil, false, 0, err
+	}
+
+	hasMore := len(items) > limit
+	if hasMore {
+		items = items[:limit]
+	}
+
+	return items, hasMore, total, nil
 }
 
 func (r *Repository) GetProduct(ctx context.Context, id string) (*Product, error) {

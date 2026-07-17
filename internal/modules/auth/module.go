@@ -162,12 +162,35 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 
 	admin := r.Group("")
 	admin.Use(middleware.AuthRequiredWithBlacklist(m.svc, m.blacklist))
-	admin.Use(middleware.RequirePermission(m.rbac, "user", "admin"))
+	admin.Use(middleware.RequirePermission(m.rbac, "*", "*"))
 	admin.GET("/users", m.listUsers)
 	admin.GET("/users/:id", m.getUser)
 	admin.PUT("/users/:id", m.updateUser)
 	admin.DELETE("/users/:id", m.deleteUser)
+
+	// Permission management
+	admin.GET("/permissions", m.listPermissions)
+	admin.POST("/permissions", m.createPermission)
+	admin.GET("/permissions/:id", m.getPermission)
+	admin.PUT("/permissions/:id", m.updatePermission)
+	admin.DELETE("/permissions/:id", m.deletePermission)
+
+	// Role management
+	admin.GET("/roles", m.listRoles)
+	admin.POST("/roles", m.createRole)
+	admin.PUT("/roles/:name", m.updateRole)
+	admin.DELETE("/roles/:name", m.deleteRole)
+
+	// Role-Permission binding
+	admin.GET("/roles/:name/permissions", m.getRolePermissions)
+	admin.PUT("/roles/:name/permissions", m.setRolePermissions)
 	admin.POST("/roles/assign", m.assignRole)
+
+	// User role management
+	admin.GET("/users/:id/roles", m.getUserRoles)
+	admin.PUT("/users/:id/roles", m.setUserRoles)
+	admin.DELETE("/users/:id/roles/:role", m.removeUserRole)
+	admin.GET("/users/:id/permissions", m.getUserPermissions)
 
 	protected.POST("/api-keys", m.createAPIKey)
 	protected.GET("/api-keys", m.listAPIKeys)
@@ -787,7 +810,7 @@ func (m *Module) createAPIKey(c *gin.Context) {
 // @Router       /auth/api-keys [get]
 func (m *Module) listAPIKeys(c *gin.Context) {
 	userID := c.GetUint("user_id")
-	isAdmin := m.rbac.HasPermission(userID, "user", "admin")
+	isAdmin := m.rbac.IsAdmin(userID)
 
 	if isAdmin {
 		page, _ := parseInt(c.Query("page"), 1)
@@ -833,7 +856,7 @@ func (m *Module) updateAPIKey(c *gin.Context) {
 	}
 
 	userID := c.GetUint("user_id")
-	isAdmin := m.rbac.HasPermission(userID, "user", "admin")
+	isAdmin := m.rbac.IsAdmin(userID)
 
 	if !isAdmin {
 		keys, _ := m.apiKeys.ListByUser(userID)
@@ -899,7 +922,7 @@ func (m *Module) deleteAPIKey(c *gin.Context) {
 	}
 
 	userID := c.GetUint("user_id")
-	isAdmin := m.rbac.HasPermission(userID, "user", "admin")
+	isAdmin := m.rbac.IsAdmin(userID)
 
 	if !isAdmin {
 		keys, _ := m.apiKeys.ListByUser(userID)
@@ -939,9 +962,464 @@ func (m *Module) listAccounts(c *gin.Context) {
 	response.Success(c, accounts)
 }
 
+// ---- Permission Management ----
+
+// listPermissions 权限列表
+// @Summary      获取权限列表
+// @Description  管理员获取所有权限定义
+// @Tags         auth-管理
+// @Produce      json
+// @Success      200  {object}  response.Response{data=[]auth.Permission}
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/permissions [get]
+func (m *Module) listPermissions(c *gin.Context) {
+	permissions, err := m.rbac.ListPermissions()
+	if err != nil {
+		response.FailCode(c, appErrors.CodeSystemErr)
+		return
+	}
+	response.Success(c, permissions)
+}
+
+// createPermission 创建权限
+// @Summary      创建权限
+// @Description  管理员创建新的权限定义
+// @Tags         auth-管理
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{name=string,resource=string,action=string}  true  "权限信息"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      409  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/permissions [post]
+func (m *Module) createPermission(c *gin.Context) {
+	var req struct {
+		Name     string `json:"name" binding:"required"`
+		Resource string `json:"resource" binding:"required"`
+		Action   string `json:"action" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "请求格式错误: "+err.Error())
+		return
+	}
+
+	perm, err := m.rbac.CreatePermission(req.Name, req.Resource, req.Action)
+	if err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeConflict, err.Error()))
+		return
+	}
+	response.Success(c, perm)
+}
+
+// getPermission 获取权限详情
+// @Summary      获取权限详情
+// @Description  管理员根据 ID 获取权限详情
+// @Tags         auth-管理
+// @Produce      json
+// @Param        id   path  int  true  "权限 ID"
+// @Success      200  {object}  response.Response{data=auth.Permission}
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/permissions/{id} [get]
+func (m *Module) getPermission(c *gin.Context) {
+	id, err := parseUint(c.Param("id"))
+	if err != nil {
+		response.ParamErr(c, "无效的权限 ID")
+		return
+	}
+
+	perm, err := m.rbac.GetPermissionByID(id)
+	if err != nil {
+		response.FailCode(c, appErrors.CodeNotFound)
+		return
+	}
+	response.Success(c, perm)
+}
+
+// updatePermission 更新权限
+// @Summary      更新权限
+// @Description  管理员更新权限定义
+// @Tags         auth-管理
+// @Accept       json
+// @Produce      json
+// @Param        id    path  int     true  "权限 ID"
+// @Param        body  body  object{name=string,resource=string,action=string}  true  "权限信息"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/permissions/{id} [put]
+func (m *Module) updatePermission(c *gin.Context) {
+	id, err := parseUint(c.Param("id"))
+	if err != nil {
+		response.ParamErr(c, "无效的权限 ID")
+		return
+	}
+
+	var req struct {
+		Name     string `json:"name" binding:"required"`
+		Resource string `json:"resource" binding:"required"`
+		Action   string `json:"action" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "请求格式错误: "+err.Error())
+		return
+	}
+
+	if err := m.rbac.UpdatePermission(id, req.Name, req.Resource, req.Action); err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeNotFound, err.Error()))
+		return
+	}
+	response.Success(c, gin.H{"message": "权限已更新"})
+}
+
+// deletePermission 删除权限
+// @Summary      删除权限
+// @Description  管理员删除权限定义
+// @Tags         auth-管理
+// @Produce      json
+// @Param        id   path  int  true  "权限 ID"
+// @Success      200  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/permissions/{id} [delete]
+func (m *Module) deletePermission(c *gin.Context) {
+	id, err := parseUint(c.Param("id"))
+	if err != nil {
+		response.ParamErr(c, "无效的权限 ID")
+		return
+	}
+
+	if err := m.rbac.DeletePermission(id); err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeNotFound, err.Error()))
+		return
+	}
+	response.Success(c, gin.H{"message": "权限已删除"})
+}
+
+// ---- Role Management ----
+
+// listRoles 角色列表
+// @Summary      获取角色列表
+// @Description  管理员获取所有角色
+// @Tags         auth-管理
+// @Produce      json
+// @Success      200  {object}  response.Response{data=[]auth.RoleModel}
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/roles [get]
+func (m *Module) listRoles(c *gin.Context) {
+	roles, err := m.rbac.ListRoles()
+	if err != nil {
+		response.FailCode(c, appErrors.CodeSystemErr)
+		return
+	}
+	response.Success(c, roles)
+}
+
+// createRole 创建角色
+// @Summary      创建角色
+// @Description  管理员创建新的角色
+// @Tags         auth-管理
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{name=string}  true  "角色名称"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      409  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/roles [post]
+func (m *Module) createRole(c *gin.Context) {
+	var req struct {
+		Name string `json:"name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "请求格式错误: "+err.Error())
+		return
+	}
+
+	if err := m.rbac.CreateRole(req.Name); err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeConflict, err.Error()))
+		return
+	}
+	response.Success(c, gin.H{"message": "角色已创建"})
+}
+
+// updateRole 更新角色
+// @Summary      更新角色
+// @Description  管理员更新角色名称
+// @Tags         auth-管理
+// @Accept       json
+// @Produce      json
+// @Param        name  path  string  true  "原角色名称"
+// @Param        body  body  object{name=string}  true  "新角色名称"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      409  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/roles/{name} [put]
+func (m *Module) updateRole(c *gin.Context) {
+	oldName := c.Param("name")
+	if oldName == "" {
+		response.ParamErr(c, "角色名称不能为空")
+		return
+	}
+
+	var req struct {
+		Name string `json:"name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "请求格式错误: "+err.Error())
+		return
+	}
+
+	if err := m.rbac.UpdateRole(oldName, req.Name); err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeConflict, err.Error()))
+		return
+	}
+	response.Success(c, gin.H{"message": "角色已更新"})
+}
+
+// deleteRole 删除角色
+// @Summary      删除角色
+// @Description  管理员删除角色
+// @Tags         auth-管理
+// @Produce      json
+// @Param        name  path  string  true  "角色名称"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/roles/{name} [delete]
+func (m *Module) deleteRole(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		response.ParamErr(c, "角色名称不能为空")
+		return
+	}
+
+	if err := m.rbac.DeleteRole(name); err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeForbidden, err.Error()))
+		return
+	}
+	response.Success(c, gin.H{"message": "角色已删除"})
+}
+
+// ---- Role-Permission Binding ----
+
+// getRolePermissions 获取角色权限
+// @Summary      获取角色权限
+// @Description  管理员获取指定角色的权限列表
+// @Tags         auth-管理
+// @Produce      json
+// @Param        name  path  string  true  "角色名称"
+// @Success      200  {object}  response.Response{data=[]auth.Permission}
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/roles/{name}/permissions [get]
+func (m *Module) getRolePermissions(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		response.ParamErr(c, "角色名称不能为空")
+		return
+	}
+
+	permissions, err := m.rbac.GetRolePermissions(name)
+	if err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeNotFound, err.Error()))
+		return
+	}
+	response.Success(c, permissions)
+}
+
+// setRolePermissions 设置角色权限
+// @Summary      设置角色权限
+// @Description  全量替换角色的权限列表
+// @Tags         auth-管理
+// @Accept       json
+// @Produce      json
+// @Param        name  path  string  true  "角色名称"
+// @Param        body  body  object{permission_ids=[]uint}  true  "权限ID列表"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/roles/{name}/permissions [put]
+func (m *Module) setRolePermissions(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		response.ParamErr(c, "角色名称不能为空")
+		return
+	}
+
+	var req struct {
+		PermissionIDs []uint `json:"permission_ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "请求格式错误: "+err.Error())
+		return
+	}
+
+	if err := m.rbac.SetRolePermissions(name, req.PermissionIDs); err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeParamErr, err.Error()))
+		return
+	}
+	response.Success(c, gin.H{"message": "角色权限已更新"})
+}
+
+// ---- User Role Management ----
+
+// getUserRoles 获取用户角色
+// @Summary      获取用户角色
+// @Description  管理员获取指定用户的所有角色
+// @Tags         auth-管理
+// @Produce      json
+// @Param        id   path  int  true  "用户 ID"
+// @Success      200  {object}  response.Response{data=[]string}
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/users/{id}/roles [get]
+func (m *Module) getUserRoles(c *gin.Context) {
+	id, err := parseUint(c.Param("id"))
+	if err != nil {
+		response.ParamErr(c, "无效的用户 ID")
+		return
+	}
+
+	roles := m.rbac.GetRoles(id)
+	response.Success(c, roles)
+}
+
+// setUserRoles 设置用户角色
+// @Summary      设置用户角色
+// @Description  设置用户角色（覆盖已有角色）
+// @Tags         auth-管理
+// @Accept       json
+// @Produce      json
+// @Param        id    path  int     true  "用户 ID"
+// @Param        body  body  object{roles=[]string}  true  "角色列表"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/users/{id}/roles [put]
+func (m *Module) setUserRoles(c *gin.Context) {
+	id, err := parseUint(c.Param("id"))
+	if err != nil {
+		response.ParamErr(c, "无效的用户 ID")
+		return
+	}
+
+	var req struct {
+		Roles []string `json:"roles" binding:"required,min=1"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "请求格式错误: "+err.Error())
+		return
+	}
+
+	// Remove all existing roles and assign new ones
+	currentRoles := m.rbac.GetRoles(id)
+	for _, role := range currentRoles {
+		_ = m.rbac.RemoveUserRole(id, role)
+	}
+	for _, role := range req.Roles {
+		if err := m.rbac.AssignRole(id, role); err != nil {
+			response.Fail(c, appErrors.New(appErrors.CodeParamErr, err.Error()))
+			return
+		}
+	}
+
+	response.Success(c, gin.H{"message": "用户角色已更新"})
+}
+
+// removeUserRole 移除用户角色
+// @Summary      移除用户角色
+// @Description  管理员移除指定用户的某个角色
+// @Tags         auth-管理
+// @Produce      json
+// @Param        id    path  int     true  "用户 ID"
+// @Param        role  path  string  true  "角色名称"
+// @Success      200  {object}  response.Response
+// @Failure      400  {object}  response.Response
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      404  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/users/{id}/roles/{role} [delete]
+func (m *Module) removeUserRole(c *gin.Context) {
+	id, err := parseUint(c.Param("id"))
+	if err != nil {
+		response.ParamErr(c, "无效的用户 ID")
+		return
+	}
+
+	role := c.Param("role")
+	if role == "" {
+		response.ParamErr(c, "角色名称不能为空")
+		return
+	}
+
+	if err := m.rbac.RemoveUserRole(id, role); err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeNotFound, err.Error()))
+		return
+	}
+	response.Success(c, gin.H{"message": "已移除用户角色"})
+}
+
+// getUserPermissions 获取用户权限
+// @Summary      获取用户权限
+// @Description  管理员获取指定用户通过角色继承的所有权限
+// @Tags         auth-管理
+// @Produce      json
+// @Param        id   path  int  true  "用户 ID"
+// @Success      200  {object}  response.Response{data=[]auth.Permission}
+// @Failure      401  {object}  response.Response
+// @Failure      403  {object}  response.Response
+// @Failure      500  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/users/{id}/permissions [get]
+func (m *Module) getUserPermissions(c *gin.Context) {
+	id, err := parseUint(c.Param("id"))
+	if err != nil {
+		response.ParamErr(c, "无效的用户 ID")
+		return
+	}
+
+	permissions, err := m.rbac.GetUserPermissions(id)
+	if err != nil {
+		response.FailCode(c, appErrors.CodeSystemErr)
+		return
+	}
+	response.Success(c, permissions)
+}
+
 // assignRole 分配角色（管理员）
 // @Summary      分配用户角色
-// @Description  管理员为指定用户分配角色（admin 或 user）
+// @Description  管理员为指定用户分配角色
 // @Tags         auth-管理
 // @Accept       json
 // @Produce      json
@@ -962,12 +1440,10 @@ func (m *Module) assignRole(c *gin.Context) {
 		return
 	}
 
-	if req.Role != string(auth.RoleAdmin) && req.Role != string(auth.RoleUser) {
-		response.ParamErr(c, fmt.Sprintf("无效角色: %s", req.Role))
+	if err := m.rbac.AssignRole(req.UserID, req.Role); err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeParamErr, err.Error()))
 		return
 	}
-
-	m.rbac.AssignRole(req.UserID, req.Role)
 	response.Success(c, gin.H{"message": "角色已分配"})
 }
 
