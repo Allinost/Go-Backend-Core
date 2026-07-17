@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/minio/minio-go/v7"
+
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/Allinost/go-backend-core/internal/database"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
@@ -25,47 +27,55 @@ func (m *Module) Name() string {
 }
 
 func (m *Module) Init(cfg *config.Config) error {
-	// 获取 RustFS 连接（优先）
-	rustfsClient, ok := database.DB.RustFS["rustfs"]
-	if !ok {
-		logger.Warn().Msg("ops: RustFS 不可用，尝试使用 MinIO")
-		// 回退到 MinIO
-		if client, ok2 := database.DB.S3["minio"]; ok2 {
-			s3Cfg, ok3 := cfg.Database.S3["minio"]
-			if !ok3 {
-				return fmt.Errorf("ops: MinIO 配置不存在")
-			}
-			endpoint := s3Cfg.Endpoint
-			useSSL := s3Cfg.UseSSL
-			store := storage.NewS3StoreFromClient(client.Client, client.Bucket)
-			m.svc = NewService(nil, client.Client, client.Bucket, store, endpoint, useSSL, nil)
-			logger.Info().Msg("ops: 使用 MinIO 作为存储后端")
-			m.h = NewHandler(m.svc)
-			return nil
-		}
+	// 获取任意可用 S3 客户端
+	var s3Client *minio.Client
+	var s3Bucket string
+	var s3Endpoint string
+	var s3UseSSL bool
+	var store storage.Storage
+
+	if c, ok := database.DB.RustFS["rustfs"]; ok {
+		s3Cfg := cfg.Database.S3["rustfs"]
+		s3Client = c.Client
+		s3Bucket = c.Bucket
+		s3Endpoint = s3Cfg.Endpoint
+		s3UseSSL = s3Cfg.UseSSL
+		store = storage.NewS3StoreFromClient(c.Client, c.Bucket)
+		logger.Info().Str("endpoint", s3Endpoint).Msg("ops: 使用 RustFS 作为存储后端")
+	} else if c, ok := database.DB.S3["minio"]; ok {
+		s3Cfg := cfg.Database.S3["minio"]
+		s3Client = c.Client
+		s3Bucket = c.Bucket
+		s3Endpoint = s3Cfg.Endpoint
+		s3UseSSL = s3Cfg.UseSSL
+		store = storage.NewS3StoreFromClient(c.Client, c.Bucket)
+		logger.Warn().Str("endpoint", s3Endpoint).Msg("ops: RustFS 不可用，使用 MinIO 作为存储后端")
+	} else {
 		return fmt.Errorf("ops: 没有可用的 S3 存储")
 	}
 
-	s3Cfg, ok := cfg.Database.S3["rustfs"]
-	if !ok {
-		return fmt.Errorf("ops: RustFS 配置不存在")
-	}
-
-	// 获取 MySQL 连接（用于扫描）
-	var pool = database.DB.MySQL["main"]
-	if pool == nil {
-		pool = database.DB.MySQL["goodser"]
-	}
-
+	// 获取任意可用 MySQL 连接（遍历所有池）
 	var sqlDB *sql.DB
-	if pool != nil {
-		sqlDB = pool.DB
+	for name, pool := range database.DB.MySQL {
+		if pool != nil && pool.DB != nil {
+			sqlDB = pool.DB
+			logger.Info().Str("pool", name).Msg("ops: 使用 MySQL 连接池")
+			break
+		}
 	}
-
-	store := storage.NewS3StoreFromClient(rustfsClient.Client, rustfsClient.Bucket)
-
-	// 初始化文件引用服务
-	if sqlDB != nil {
+	if sqlDB == nil {
+		logger.Warn().Int("available_pools", len(database.DB.MySQL)).Msg("ops: MySQL 连接不可用，扫描/引用功能将降级")
+		if len(database.DB.MySQL) > 0 {
+			for name, pool := range database.DB.MySQL {
+				if pool == nil {
+					logger.Warn().Str("pool", name).Msg("ops:  MySQL 连接池 " + name + " 为 nil")
+				} else if pool.DB == nil {
+					logger.Warn().Str("pool", name).Msg("ops:  MySQL 连接池 " + name + " 的 DB 为 nil")
+				}
+			}
+		}
+	} else {
+		// 初始化文件引用服务
 		refStore := fileref.NewMySQLStore(sqlDB)
 		m.refSvc = fileref.NewService(refStore)
 		if err := m.refSvc.Init(context.Background()); err != nil {
@@ -76,10 +86,10 @@ func (m *Module) Init(cfg *config.Config) error {
 		}
 	}
 
-	m.svc = NewService(sqlDB, rustfsClient.Client, rustfsClient.Bucket, store, s3Cfg.Endpoint, s3Cfg.UseSSL, m.refSvc)
+	m.svc = NewService(sqlDB, s3Client, s3Bucket, store, s3Endpoint, s3UseSSL, m.refSvc)
 	m.h = NewHandler(m.svc)
 
-	logger.Info().Str("endpoint", s3Cfg.Endpoint).Str("bucket", rustfsClient.Bucket).Msg("ops: 模块初始化完成")
+	logger.Info().Str("endpoint", s3Endpoint).Str("bucket", s3Bucket).Msg("ops: 模块初始化完成")
 	return nil
 }
 
@@ -88,6 +98,10 @@ func (m *Module) Close() error {
 }
 
 func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
+	// 服务诊断
+	r.GET("/status", m.h.Status)
+	r.POST("/reinit", m.h.ReinitTables)
+
 	// RustFS 文件操作
 	rustfs := r.Group("/rustfs")
 	rustfs.GET("/files", m.h.ListFiles)

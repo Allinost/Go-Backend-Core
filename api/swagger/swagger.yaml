@@ -101,11 +101,222 @@ definitions:
       phone:
         type: string
     type: object
+  github_com_Allinost_go-backend-core_internal_services_fileref.ModuleStat:
+    properties:
+      count:
+        type: integer
+      module_name:
+        type: string
+    type: object
+  github_com_Allinost_go-backend-core_internal_services_fileref.ReferenceRecord:
+    properties:
+      column_name:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      module_name:
+        type: string
+      object_key:
+        type: string
+      record_id:
+        type: string
+      reference_type:
+        type: string
+      storage_name:
+        type: string
+      table_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_Allinost_go-backend-core_internal_services_fileref.ScanTarget:
+    properties:
+      column_name:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      module_name:
+        type: string
+      reference_type:
+        type: string
+      storage_name:
+        type: string
+      table_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_Allinost_go-backend-core_internal_services_fileref.StorageStat:
+    properties:
+      count:
+        type: integer
+      storage_name:
+        type: string
+    type: object
+  github_com_Allinost_go-backend-core_internal_services_fileref.UsageStats:
+    properties:
+      by_module:
+        items:
+          $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_fileref.ModuleStat'
+        type: array
+      by_storage:
+        items:
+          $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_fileref.StorageStat'
+        type: array
+      total_files:
+        type: integer
+      total_references:
+        type: integer
+    type: object
+  github_com_Allinost_go-backend-core_internal_services_storage.FileInfo:
+    properties:
+      content_type:
+        type: string
+      etag:
+        type: string
+      last_modified:
+        type: string
+      name:
+        type: string
+      path:
+        type: string
+      size:
+        type: integer
+    type: object
   http.Header:
     additionalProperties:
       items:
         type: string
       type: array
+    type: object
+  internal_modules_ops.BatchDeleteResult:
+    properties:
+      fail_count:
+        type: integer
+      failed_paths:
+        items:
+          type: string
+        type: array
+      success_count:
+        type: integer
+    type: object
+  internal_modules_ops.BucketStats:
+    properties:
+      files:
+        items:
+          $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_storage.FileInfo'
+        type: array
+      prefix_stats:
+        items:
+          $ref: '#/definitions/internal_modules_ops.PrefixStat'
+        type: array
+      total_files:
+        type: integer
+      total_size:
+        type: integer
+    type: object
+  internal_modules_ops.CleanupResult:
+    properties:
+      deleted_count:
+        type: integer
+      fail_count:
+        type: integer
+      failed_paths:
+        items:
+          type: string
+        type: array
+      total_orphans:
+        type: integer
+    type: object
+  internal_modules_ops.ComponentStatus:
+    properties:
+      file_ref_service:
+        type: string
+      file_references_table:
+        type: string
+      mysql:
+        type: string
+      s3_backend:
+        type: string
+      scan_targets_table:
+        type: string
+    type: object
+  internal_modules_ops.FileInfoDetail:
+    properties:
+      content_type:
+        type: string
+      etag:
+        type: string
+      last_modified:
+        type: string
+      name:
+        type: string
+      path:
+        type: string
+      signed_url:
+        type: string
+      size:
+        type: integer
+    type: object
+  internal_modules_ops.PrefixStat:
+    properties:
+      count:
+        type: integer
+      prefix:
+        type: string
+      size:
+        type: integer
+    type: object
+  internal_modules_ops.ScanResult:
+    properties:
+      all_referenced:
+        items:
+          $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_storage.FileInfo'
+        type: array
+      orphan_files:
+        type: integer
+      orphans:
+        items:
+          $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_storage.FileInfo'
+        type: array
+      referenced_files:
+        type: integer
+      scan_targets:
+        items:
+          $ref: '#/definitions/internal_modules_ops.TargetScanReport'
+        type: array
+      total_files:
+        type: integer
+      total_size:
+        type: integer
+    type: object
+  internal_modules_ops.SyncResult:
+    properties:
+      scanned_targets:
+        type: integer
+      synced_targets:
+        type: integer
+      total_registered:
+        type: integer
+    type: object
+  internal_modules_ops.TargetScanReport:
+    properties:
+      column:
+        type: string
+      referenced_count:
+        type: integer
+      scanned_rows:
+        type: integer
+      table:
+        type: string
     type: object
   internal_services_crypto.compressReq:
     properties:
@@ -2943,6 +3154,766 @@ paths:
       summary: TCP 端口可达性检查
       tags:
       - net-TCP
+  /ops/references:
+    get:
+      description: 按条件查询文件引用记录
+      parameters:
+      - description: 存储名称
+        in: query
+        name: storage_name
+        type: string
+      - description: 对象键
+        in: query
+        name: object_key
+        type: string
+      - description: 模块名称
+        in: query
+        name: module_name
+        type: string
+      - description: 表名
+        in: query
+        name: table_name
+        type: string
+      - description: 记录 ID
+        in: query
+        name: record_id
+        type: string
+      - description: 引用类型
+        in: query
+        name: reference_type
+        type: string
+      - default: 0
+        description: 分页偏移
+        in: query
+        name: offset
+        type: integer
+      - default: 100
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    limit:
+                      type: integer
+                    offset:
+                      type: integer
+                    records:
+                      items:
+                        $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_fileref.ReferenceRecord'
+                      type: array
+                    total:
+                      type: integer
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 列出文件引用
+      tags:
+      - ops-引用
+    post:
+      consumes:
+      - application/json
+      description: 注册文件引用记录到全局引用注册表
+      parameters:
+      - description: 引用记录列表
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            references:
+              items:
+                $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_fileref.ReferenceRecord'
+              type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 注册文件引用
+      tags:
+      - ops-引用
+  /ops/references/{id}:
+    delete:
+      description: 按 ID 删除文件引用记录
+      parameters:
+      - description: 引用记录 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    id:
+                      type: integer
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除文件引用
+      tags:
+      - ops-引用
+  /ops/references/stats:
+    get:
+      description: 获取文件引用全局统计信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_fileref.UsageStats'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 引用统计
+      tags:
+      - ops-引用
+  /ops/references/sync:
+    post:
+      consumes:
+      - application/json
+      description: 扫描数据库表并同步文件引用到全局引用注册表
+      parameters:
+      - description: '扫描目标，格式: ''table1.col1,table2.col2''（为空则使用默认值）'
+        in: body
+        name: body
+        schema:
+          properties:
+            targets:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_ops.SyncResult'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 同步文件引用
+      tags:
+      - ops-引用
+  /ops/reinit:
+    post:
+      description: 手动重试初始化 fileref 数据表（幂等操作）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 重建设表
+      tags:
+      - ops-诊断
+  /ops/rustfs/batch-delete:
+    post:
+      consumes:
+      - application/json
+      description: 批量删除 S3 存储中的多个文件
+      parameters:
+      - description: 待删除的文件路径列表
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            paths:
+              items:
+                type: string
+              type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_ops.BatchDeleteResult'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 批量删除文件
+      tags:
+      - ops-S3
+  /ops/rustfs/cleanup:
+    post:
+      consumes:
+      - application/json
+      description: 清理未被任何数据库记录引用的孤立 S3 文件。body 为空时自动扫描全量
+      parameters:
+      - description: 指定清理的路径列表（为空则全量扫描后清理）
+        in: body
+        name: body
+        schema:
+          properties:
+            paths:
+              items:
+                type: string
+              type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_ops.CleanupResult'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 清理孤立文件
+      tags:
+      - ops-扫描
+  /ops/rustfs/delete:
+    delete:
+      description: 删除 S3 存储中的单个文件
+      parameters:
+      - description: 文件路径
+        in: query
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    path:
+                      type: string
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除文件
+      tags:
+      - ops-S3
+  /ops/rustfs/download:
+    get:
+      description: 代理下载 S3 文件到本地
+      parameters:
+      - description: 文件路径
+        in: query
+        name: path
+        required: true
+        type: string
+      - description: 下载文件名
+        in: query
+        name: filename
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 下载文件
+      tags:
+      - ops-S3
+  /ops/rustfs/files:
+    get:
+      description: 按前缀列出 S3 存储中的文件，支持分页。返回当前层级文件和子目录
+      parameters:
+      - description: 文件路径前缀过滤
+        in: query
+        name: prefix
+        type: string
+      - default: 0
+        description: 分页偏移量
+        in: query
+        name: offset
+        type: integer
+      - default: 100
+        description: 每页数量(1-1000)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    dirs:
+                      items:
+                        type: string
+                      type: array
+                    files:
+                      items:
+                        $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_storage.FileInfo'
+                      type: array
+                    limit:
+                      type: integer
+                    offset:
+                      type: integer
+                    total:
+                      type: integer
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 列出 S3 文件
+      tags:
+      - ops-S3
+  /ops/rustfs/info:
+    get:
+      description: 获取 S3 文件的元信息，含 ContentType、ETag 等
+      parameters:
+      - description: 文件路径
+        in: query
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_ops.FileInfoDetail'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 获取文件信息
+      tags:
+      - ops-S3
+  /ops/rustfs/scan:
+    get:
+      description: 扫描 S3 文件在数据库中的引用情况，区分引用文件和孤立文件
+      parameters:
+      - description: '扫描目标，格式: table1.col1,table2.col2'
+        in: query
+        name: targets
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_ops.ScanResult'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 扫描文件引用
+      tags:
+      - ops-扫描
+  /ops/rustfs/stats:
+    get:
+      description: 获取 S3 存储桶的统计信息（文件总数、总大小、按前缀分布）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_ops.BucketStats'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 存储统计
+      tags:
+      - ops-S3
+  /ops/rustfs/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传文件到 S3 存储
+      parameters:
+      - description: 文件内容
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: 路径前缀
+        in: formData
+        name: path
+        type: string
+      - description: 文件 MIME 类型
+        in: formData
+        name: content_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    file:
+                      $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_storage.FileInfo'
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 上传文件
+      tags:
+      - ops-S3
+  /ops/rustfs/url:
+    get:
+      description: 获取 S3 文件的临时签名 URL（可指定过期时长）
+      parameters:
+      - description: 文件路径
+        in: query
+        name: path
+        required: true
+        type: string
+      - default: 3600
+        description: 过期时间(秒，60-604800)
+        in: query
+        name: expire
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    expire:
+                      type: integer
+                    path:
+                      type: string
+                    url:
+                      type: string
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 获取签名 URL
+      tags:
+      - ops-S3
+  /ops/scan-targets:
+    get:
+      description: 列出所有启用的扫描目标配置
+      parameters:
+      - default: rustfs
+        description: 存储名称
+        in: query
+        name: storage_name
+        type: string
+      - default: false
+        description: 仅显示已启用的
+        in: query
+        name: enabled_only
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    targets:
+                      items:
+                        $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_fileref.ScanTarget'
+                      type: array
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 列出扫描目标
+      tags:
+      - ops-扫描
+    post:
+      consumes:
+      - application/json
+      description: 创建新的扫描目标配置
+      parameters:
+      - description: 扫描目标配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_fileref.ScanTarget'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_fileref.ScanTarget'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 创建扫描目标
+      tags:
+      - ops-扫描
+  /ops/scan-targets/{id}:
+    delete:
+      description: 删除指定的扫描目标配置
+      parameters:
+      - description: 扫描目标 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    id:
+                      type: integer
+                  type: object
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除扫描目标
+      tags:
+      - ops-扫描
+    put:
+      consumes:
+      - application/json
+      description: 更新指定扫描目标的配置
+      parameters:
+      - description: 扫描目标 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新后的配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_fileref.ScanTarget'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_services_fileref.ScanTarget'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 更新扫描目标
+      tags:
+      - ops-扫描
+  /ops/status:
+    get:
+      description: 获取 S3、MySQL、文件引用服务的连接状态诊断
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_ops.ComponentStatus'
+              type: object
+      summary: 服务状态
+      tags:
+      - ops-诊断
   /s0/echo:
     get:
       description: 返回请求的详细信息，包括方法、路径、查询参数、请求头和客户端 IP

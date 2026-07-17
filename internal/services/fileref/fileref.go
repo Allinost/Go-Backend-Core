@@ -94,6 +94,10 @@ func (s *Service) Init(ctx context.Context) error {
 	return s.store.Init(ctx)
 }
 
+func (s *Service) Reinit(ctx context.Context) error {
+	return s.store.Init(ctx)
+}
+
 func (s *Service) Register(ctx context.Context, refs []ReferenceRecord) error {
 	return s.store.Insert(ctx, refs)
 }

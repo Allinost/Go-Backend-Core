@@ -85,37 +85,35 @@ func (s *S3Store) List(ctx context.Context, prefix string, opts ...ListOption) (
 	for _, opt := range opts {
 		opt(&o)
 	}
-	if o.Offset > 0 {
-		_ = o.Offset
-	}
 
 	ctxDone, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	var result []FileInfo
+	var skipped int
 	objCh := s.client.ListObjects(ctxDone, s.bucket, minio.ListObjectsOptions{
-		Prefix: prefix,
+		Prefix:    prefix,
+		Recursive: o.Recursive,
 	})
 	for obj := range objCh {
 		if obj.Err != nil {
 			return nil, fmt.Errorf("storage: s3 list failed: %w", obj.Err)
 		}
-		info := FileInfo{
+		if o.Offset > 0 && skipped < o.Offset {
+			skipped++
+			continue
+		}
+		if o.Limit > 0 && len(result) >= o.Limit {
+			break
+		}
+		result = append(result, FileInfo{
 			Name:         path.Base(obj.Key),
 			Path:         obj.Key,
 			Size:         obj.Size,
 			ContentType:  obj.ContentType,
 			LastModified: obj.LastModified,
 			ETag:         obj.ETag,
-		}
-		if o.Offset > 0 && len(result) < o.Offset {
-			_ = info
-			continue
-		}
-		if o.Limit > 0 && len(result) >= o.Limit {
-			break
-		}
-		result = append(result, info)
+		})
 	}
 	if result == nil {
 		result = []FileInfo{}

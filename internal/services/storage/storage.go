@@ -22,9 +22,10 @@ type FileInfo struct {
 
 // ListOptions 文件列表查询选项
 type ListOptions struct {
-	Prefix string
-	Offset int
-	Limit  int
+	Prefix    string
+	Offset    int
+	Limit     int
+	Recursive bool
 }
 
 // Storage 文件存储抽象接口，支持上传、下载、删除、列表、签名 URL
@@ -62,6 +63,10 @@ func WithOffset(offset int) ListOption {
 
 func WithLimit(limit int) ListOption {
 	return func(o *ListOptions) { o.Limit = limit }
+}
+
+func WithRecursive(recursive bool) ListOption {
+	return func(o *ListOptions) { o.Recursive = recursive }
 }
 
 // MemoryStore 内存文件存储，适用于开发和测试

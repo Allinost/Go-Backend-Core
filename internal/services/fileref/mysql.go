@@ -24,42 +24,74 @@ func NewMySQLStore(db *sql.DB) *MySQLStore {
 	return &MySQLStore{db: db}
 }
 
+// execDDL 执行一条 DDL 并记录精确 SQL（出错时方便排查）
+func (m *MySQLStore) execDDL(ctx context.Context, label, ddl string) error {
+	logger.Info().Str("ddl", ddl).Msg("fileref: 执行 " + label)
+	_, err := m.db.ExecContext(ctx, ddl)
+	if err != nil {
+		logger.Error().Str("ddl", ddl).Err(err).Msg("fileref: " + label + " 失败")
+		return fmt.Errorf("%s 失败: %w", label, err)
+	}
+	return nil
+}
+
 func (m *MySQLStore) Init(ctx context.Context) error {
+	// 记录当前连接的数据库
+	var dbName string
+	if err := m.db.QueryRowContext(ctx, "SELECT DATABASE()").Scan(&dbName); err != nil {
+		logger.Warn().Err(err).Msg("fileref: 无法获取当前数据库名")
+		dbName = "unknown"
+	} else {
+		logger.Info().Str("database", dbName).Msg("fileref: 当前 MySQL 数据库")
+	}
+
 	// 创建 file_references 表
-	refDDL := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
+	if err := m.execDDL(ctx, "创建 file_references 表", fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
 		id BIGINT AUTO_INCREMENT PRIMARY KEY,
 		storage_name VARCHAR(64) NOT NULL DEFAULT 'rustfs',
-		object_key VARCHAR(1024) NOT NULL,
-		module_name VARCHAR(128) NOT NULL,
-		table_name VARCHAR(128) NOT NULL DEFAULT '',
+		object_key VARCHAR(500) NOT NULL,
+		module_name VARCHAR(64) NOT NULL,
+		table_name VARCHAR(64) NOT NULL DEFAULT '',
 		record_id VARCHAR(64) NOT NULL DEFAULT '',
-		column_name VARCHAR(128) NOT NULL DEFAULT '',
-		reference_type VARCHAR(64) NOT NULL DEFAULT 'image',
-		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-		INDEX idx_storage_object (storage_name, object_key),
+		column_name VARCHAR(64) NOT NULL DEFAULT '',
+		reference_type VARCHAR(32) NOT NULL DEFAULT 'image',
+		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+		INDEX idx_storage_object (storage_name, object_key(255)),
 		INDEX idx_module_ref (module_name, table_name, record_id)
-	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`, tableName)
-	if _, err := m.db.ExecContext(ctx, refDDL); err != nil {
-		return fmt.Errorf("创建 %s 表失败: %w", tableName, err)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`, tableName)); err != nil {
+		return err
 	}
 
 	// 创建 scan_targets 表
-	targetDDL := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
+	if err := m.execDDL(ctx, "创建 scan_targets 表", fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
 		id BIGINT AUTO_INCREMENT PRIMARY KEY,
 		storage_name VARCHAR(64) NOT NULL DEFAULT 'rustfs',
-		table_name VARCHAR(128) NOT NULL,
-		column_name VARCHAR(128) NOT NULL,
-		module_name VARCHAR(128) NOT NULL DEFAULT '',
-		reference_type VARCHAR(64) NOT NULL DEFAULT 'image',
+		table_name VARCHAR(64) NOT NULL,
+		column_name VARCHAR(64) NOT NULL,
+		module_name VARCHAR(64) NOT NULL DEFAULT '',
+		reference_type VARCHAR(32) NOT NULL DEFAULT 'image',
 		enabled TINYINT(1) NOT NULL DEFAULT 1,
 		description VARCHAR(255) NOT NULL DEFAULT '',
-		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 		UNIQUE INDEX idx_unique_target (storage_name, table_name, column_name)
-	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`, targetTableName)
-	if _, err := m.db.ExecContext(ctx, targetDDL); err != nil {
-		return fmt.Errorf("创建 %s 表失败: %w", targetTableName, err)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`, targetTableName)); err != nil {
+		return err
+	}
+
+	// 验证表是否真的创建成功
+	for _, tbl := range []string{tableName, targetTableName} {
+		var cnt int
+		if err := m.db.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?",
+			dbName, tbl).Scan(&cnt); err != nil {
+			logger.Warn().Str("table", tbl).Err(err).Msg("fileref: 验证表存在性失败")
+		} else if cnt == 0 {
+			logger.Error().Str("database", dbName).Str("table", tbl).Msg("fileref: 表创建后仍不存在！请检查 MySQL 权限和数据库名称")
+		} else {
+			logger.Info().Str("table", tbl).Msg("fileref: 表已确认存在")
+		}
 	}
 
 	// 插入默认扫描目标（首次启动）
@@ -68,6 +100,8 @@ func (m *MySQLStore) Init(ctx context.Context) error {
 		('rustfs', 'zzz_goodser_products', 'images', 'goodser', 'image', '商品图片列表')`, targetTableName)
 	if _, err := m.db.ExecContext(ctx, seed); err != nil {
 		logger.Warn().Err(err).Msg("fileref: 插入默认扫描目标失败")
+	} else {
+		logger.Info().Msg("fileref: 默认扫描目标已插入")
 	}
 
 	logger.Info().Msg("fileref: 数据表初始化完成")
