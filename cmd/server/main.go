@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Allinost/go-backend-core/internal/modules/ops"
 	"github.com/Allinost/go-backend-core/zzz/goodser"
 	"html/template"
 	"net/http"
@@ -91,6 +92,7 @@ func main() {
 	modules.Register(crypto.NewModule())
 	modules.Register(&migrate.Module{})
 	modules.Register(&goodser.Module{})
+	modules.Register(&ops.Module{})
 
 	// 初始化所有模块（调用 Init，不挂载路由）
 	modules.InitAll(cfg)
