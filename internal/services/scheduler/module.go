@@ -17,6 +17,10 @@ type Module struct {
 	scheduler *Scheduler
 }
 
+func (m *Module) GetScheduler() *Scheduler {
+	return m.scheduler
+}
+
 func (m *Module) Name() string {
 	return "scheduler"
 }

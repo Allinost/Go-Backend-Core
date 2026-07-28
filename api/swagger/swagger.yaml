@@ -1,4 +1,3 @@
-basePath: /api/v1
 definitions:
   github_com_Allinost_go-backend-core_internal_pkg_response.Response:
     properties:
@@ -1498,6 +1497,213 @@ definitions:
       name:
         type: string
     type: object
+  zzz_login3rd.Account:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      label:
+        description: 用户标识
+        type: string
+      last_error:
+        type: string
+      last_login_at:
+        type: string
+      last_verified_at:
+        type: string
+      login_method:
+        description: auto / remote / manual
+        type: string
+      platform_id:
+        type: string
+      session_data:
+        allOf:
+        - $ref: '#/definitions/zzz_login3rd.SessionData'
+        description: Session（当前登录态，替代文件系统 profile）
+      session_expires_at:
+        type: string
+      status:
+        description: 状态
+        type: string
+      updated_at:
+        type: string
+      username:
+        description: 凭证（存储时加密，响应时脱敏）
+        type: string
+      verified_status:
+        description: valid / expired / unknown
+        type: string
+      webhook_ids:
+        description: Webhook 通知
+        items:
+          type: string
+        type: array
+    type: object
+  zzz_login3rd.AccountStatusResp:
+    properties:
+      account:
+        $ref: '#/definitions/zzz_login3rd.Account'
+      can_auto_login:
+        type: boolean
+      platform:
+        $ref: '#/definitions/zzz_login3rd.Platform'
+      session_expires_in:
+        type: string
+      session_valid:
+        type: boolean
+    type: object
+  zzz_login3rd.CreateAccountReq:
+    properties:
+      label:
+        description: 自定义名称
+        type: string
+      password:
+        description: 明文密码（仅用于创建，不存储明文）
+        type: string
+      platform_id:
+        description: 平台标识
+        type: string
+      token:
+        description: 备用 token
+        type: string
+      username:
+        description: 用户名
+        type: string
+      webhook_ids:
+        description: webhook 配置 ID 列表
+        items:
+          type: string
+        type: array
+    required:
+    - label
+    - platform_id
+    type: object
+  zzz_login3rd.FormConfig:
+    properties:
+      captcha_selector:
+        description: 验证码元素
+        type: string
+      login_wait_selector:
+        description: 等待出现的元素（二维码等）
+        type: string
+      max_auto_retry:
+        description: 自动填最大重试
+        type: integer
+      password_selector:
+        description: 密码输入框
+        type: string
+      submit_selector:
+        description: 登录按钮
+        type: string
+      success_cookies:
+        description: 出现这些 cookie 判定登录成功
+        items:
+          type: string
+        type: array
+      success_url_prefix:
+        description: URL 前缀判断登录成功
+        type: string
+      tab_selector:
+        description: 切换到账号密码 tab
+        type: string
+      username_selector:
+        description: 账号输入框
+        type: string
+    type: object
+  zzz_login3rd.PaginatedResp-zzz_login3rd_Account:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zzz_login3rd.Account'
+        type: array
+      total:
+        type: integer
+    type: object
+  zzz_login3rd.Platform:
+    properties:
+      category:
+        description: shopping/pt/sign
+        type: string
+      created_at:
+        type: string
+      form_config:
+        allOf:
+        - $ref: '#/definitions/zzz_login3rd.FormConfig'
+        description: 自动填表单配置
+      has_auto:
+        description: 是否支持账号密码自动登录
+        type: boolean
+      home_url:
+        description: 登录后首页 URL（提取 cookie）
+        type: string
+      icon_url:
+        type: string
+      id:
+        description: 平台标识 jd/taobao/pdd/_1688/tjupt
+        type: string
+      login_type:
+        description: browser/oauth/qrcode
+        type: string
+      login_url:
+        description: 登录页 URL
+        type: string
+      name:
+        description: 显示名称
+        type: string
+    type: object
+  zzz_login3rd.SessionCookie:
+    properties:
+      domain:
+        type: string
+      expires:
+        type: string
+      http_only:
+        type: boolean
+      name:
+        type: string
+      path:
+        type: string
+      secure:
+        type: boolean
+      value:
+        type: string
+    type: object
+  zzz_login3rd.SessionData:
+    properties:
+      cookies:
+        items:
+          $ref: '#/definitions/zzz_login3rd.SessionCookie'
+        type: array
+      expires_at:
+        type: string
+      extra:
+        additionalProperties: {}
+        type: object
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  zzz_login3rd.UpdateAccountReq:
+    properties:
+      label:
+        type: string
+      password:
+        type: string
+      status:
+        type: string
+      token:
+        type: string
+      username:
+        type: string
+      webhook_ids:
+        items:
+          type: string
+        type: array
+    type: object
   zzz_shopchecker.CreateProductReq:
     properties:
       check_interval:
@@ -1567,8 +1773,14 @@ definitions:
         type: integer
       new_price:
         type: number
+      new_stock_status:
+        type: string
+      notify_type:
+        type: string
       old_price:
         type: number
+      old_stock_status:
+        type: string
       price_record_id:
         type: integer
       product_id:
@@ -1633,6 +1845,8 @@ definitions:
         items:
           type: integer
         type: array
+      stock_status:
+        type: string
       title:
         type: string
     type: object
@@ -1658,6 +1872,8 @@ definitions:
         type: string
       last_price:
         type: number
+      last_stock_status:
+        type: string
       name:
         type: string
       next_check_at:
@@ -1703,16 +1919,7 @@ definitions:
         type: string
     type: object
 info:
-  contact:
-    name: Allinost
-    url: https://github.com/Allinost/go-backend-core
-  description: 模块化 Go 后端服务 API 文档
-  license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
-  termsOfService: https://github.com/Allinost/go-backend-core
-  title: Go Backend Core API
-  version: 0.1.0
+  contact: {}
 paths:
   /auth/{provider}/bind:
     post:
@@ -3174,6 +3381,345 @@ paths:
       summary: 哈希计算
       tags:
       - crypto
+  /login3rd/accounts:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 页码，默认 1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认 20，最大 100
+        in: query
+        name: page_size
+        type: integer
+      - description: 筛选平台：jd / taobao / pdd
+        in: query
+        name: platform_id
+        type: string
+      - description: 筛选状态：active / expired / disabled
+        in: query
+        name: status
+        type: string
+      - description: 搜索关键词（标签/用户名）
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_login3rd.PaginatedResp-zzz_login3rd_Account'
+              type: object
+      summary: 获取第三方账号列表
+      tags:
+      - login3rd
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 账号信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_login3rd.CreateAccountReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_login3rd.Account'
+              type: object
+      summary: 新增第三方账号
+      tags:
+      - login3rd
+  /login3rd/accounts/{id}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 账号 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除第三方账号
+      tags:
+      - login3rd
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 账号 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_login3rd.Account'
+              type: object
+      summary: 获取第三方账号详情
+      tags:
+      - login3rd
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 账号 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_login3rd.UpdateAccountReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_login3rd.Account'
+              type: object
+      summary: 更新第三方账号
+      tags:
+      - login3rd
+  /login3rd/accounts/{id}/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 账号 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_login3rd.Account'
+              type: object
+      summary: 自动登录（使用保存的账号密码）
+      tags:
+      - login3rd
+  /login3rd/accounts/{id}/logout:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 账号 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 登出（清除 session 数据）
+      tags:
+      - login3rd
+  /login3rd/accounts/{id}/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 账号 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_login3rd.Account'
+              type: object
+      summary: 刷新登录会话（尝试用 refresh token 续期）
+      tags:
+      - login3rd
+  /login3rd/accounts/{id}/remote-login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 账号 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    token:
+                      type: string
+                    url:
+                      type: string
+                  type: object
+              type: object
+      summary: 创建远程浏览器登录会话（返回链接，供 webhook 使用）
+      tags:
+      - login3rd
+  /login3rd/accounts/{id}/status:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 账号 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_login3rd.AccountStatusResp'
+              type: object
+      summary: 获取账号登录状态
+      tags:
+      - login3rd
+  /login3rd/accounts/{id}/verify:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 账号 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    valid:
+                      type: boolean
+                  type: object
+              type: object
+      summary: 验证登录会话是否有效
+      tags:
+      - login3rd
+  /login3rd/platforms:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_login3rd.Platform'
+                  type: array
+              type: object
+      summary: 列出所有支持的第三方平台
+      tags:
+      - login3rd
+  /login3rd/remote/session/{token}:
+    get:
+      parameters:
+      - description: 会话 token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses: {}
+      summary: 远程浏览器页面（Web 前端）
+      tags:
+      - login3rd
+  /login3rd/remote/session/{token}/ws:
+    get:
+      parameters:
+      - description: 会话 token
+        in: path
+        name: token
+        required: true
+        type: string
+      responses: {}
+      summary: 远程浏览器 WebSocket 连接（推送截图 + 接收指令）
+      tags:
+      - login3rd
   /migrate/backup:
     post:
       consumes:
@@ -6706,13 +7252,4 @@ paths:
       summary: 全量同步
       tags:
       - zzz-goodser
-schemes:
-- http
-- https
-securityDefinitions:
-  BearerAuth:
-    description: 'JWT Bearer token, 格式: "Bearer {token}"'
-    in: header
-    name: Authorization
-    type: apiKey
 swagger: "2.0"

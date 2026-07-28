@@ -44,8 +44,9 @@ type CryptoConfig struct {
 }
 
 type NetConfig struct {
-	HTTP NetHTTPConfig `mapstructure:"http"`
-	TCP  NetTCPConfig  `mapstructure:"tcp"`
+	HTTP            NetHTTPConfig `mapstructure:"http"`
+	TCP             NetTCPConfig  `mapstructure:"tcp"`
+	ChromeRemoteURL string        `mapstructure:"chrome_remote_url"` // browserless/chrome 连接地址，如 ws://chrome:29091
 }
 
 type NetHTTPConfig struct {

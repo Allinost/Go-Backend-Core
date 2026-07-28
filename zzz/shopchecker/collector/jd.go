@@ -15,6 +15,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Allinost/go-backend-core/internal/modules"
+	"github.com/Allinost/go-backend-core/zzz/login3rd"
+	"github.com/Allinost/go-backend-core/zzz/login3rd/provider"
+	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 )
 
@@ -26,7 +30,7 @@ const (
 type JDCollector struct {
 	client      *http.Client
 	browserPath string
-	profileDir  string
+	remoteURL   string
 	mu          sync.Mutex
 }
 
@@ -42,7 +46,7 @@ func NewJDCollector() *JDCollector {
 			},
 		},
 		browserPath: findBrowser(),
-		profileDir:  filepath.Join(getDataDir(), "jd-profile"),
+		remoteURL:   os.Getenv("CHROME_REMOTE_URL"),
 	}
 }
 
@@ -90,7 +94,7 @@ func (c *JDCollector) FetchPrice(ctx context.Context, rawURL string) (*PriceResu
 	return result, nil
 }
 
-// ---------- STU 解析 ----------
+// ---------- SKU 解析 ----------
 
 var skuRegexes = []*regexp.Regexp{
 	regexp.MustCompile(`/(\d+)\.html`),
@@ -306,183 +310,114 @@ func (c *JDCollector) fetchTitleHTTP(ctx context.Context, skuID string) string {
 	return ""
 }
 
-// ---------- Browser 采集 ----------
+// ---------- 浏览器采集（通过 Login3rd 获取 session） ----------
 
 func (c *JDCollector) fetchPriceBrowser(ctx context.Context, skuID string) (*PriceResult, error) {
-	if c.browserPath == "" {
-		return nil, fmt.Errorf("未找到 Edge/Chrome 浏览器")
-	}
-
-	opts := []chromedp.ExecAllocatorOption{
-		chromedp.ExecPath(c.browserPath),
-		chromedp.NoSandbox,
-		chromedp.UserDataDir(c.profileDir),
-		chromedp.Flag("disable-blink-features", "AutomationControlled"),
-		chromedp.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"),
-		chromedp.Flag("no-first-run", true),
-		chromedp.Flag("no-default-browser-check", true),
-		chromedp.Flag("disable-sync", true),
-	}
-
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	browserCtx, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
-
 	pageURL := fmt.Sprintf(jdProductURL, skuID)
 
-	// 先检查登录状态（会导航到商品页）
-	loggedIn, err := c.checkLogin(browserCtx, pageURL)
+	// 从 Login3rd 获取京东 session cookie
+	var sessionCookies []*provider.Cookie
+	if svc := c.getLogin3rdSvc(); svc != nil {
+		accounts, _, _, err := svc.ListAccounts(ctx, &login3rd.ListAccountsReq{
+			PlatformID: "jd",
+			Page:       1,
+			PageSize:   1,
+		})
+		if err == nil && len(accounts) > 0 {
+			acct := accounts[0]
+			if acct.SessionData != nil && acct.VerifiedStatus == "valid" {
+				for _, sc := range acct.SessionData.Cookies {
+					sessionCookies = append(sessionCookies, &provider.Cookie{
+						Name: sc.Name, Value: sc.Value, Domain: sc.Domain,
+						Path: sc.Path, Secure: sc.Secure, HTTPOnly: sc.HTTPOnly,
+					})
+				}
+			}
+		}
+	}
+
+	// 创建临时浏览器上下文
+	tabCtx, cancelTab, err := c.createTempBrowser(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("检查登录状态失败: %w", err)
+		return nil, err
 	}
+	defer cancelTab()
 
-	if !loggedIn {
-		if err := c.loginToJD(browserCtx); err != nil {
-			return nil, fmt.Errorf("登录失败: %w", err)
-		}
-		// 登录后重新导航到商品页
-		var url string
-		if err := chromedp.Run(browserCtx,
-			chromedp.Navigate(pageURL),
-			chromedp.WaitReady("body"),
-			chromedp.Sleep(3*time.Second),
-			chromedp.Location(&url),
-		); err != nil {
-			return nil, fmt.Errorf("登录后导航到商品页失败: %w", err)
-		}
-		if strings.Contains(url, "plogin") || strings.Contains(url, "passport") {
-			return nil, fmt.Errorf("登录后仍被重定向到登录页: %s", url)
+	// 注入 cookie
+	if len(sessionCookies) > 0 {
+		for _, sc := range sessionCookies {
+			chromedp.Run(tabCtx,
+				network.SetCookie(sc.Name, sc.Value).
+					WithDomain(".jd.com").
+					WithPath("/"),
+			)
 		}
 	}
 
-	// 正常采集（已位于商品页，不再导航）
-	return c.scrapeProduct(browserCtx)
-}
-
-func (c *JDCollector) checkLogin(browserCtx context.Context, pageURL string) (bool, error) {
-	var currentURL string
-	err := chromedp.Run(browserCtx,
+	// 导航到商品页
+	if err := chromedp.Run(tabCtx,
 		chromedp.Navigate(pageURL),
 		chromedp.WaitReady("body"),
 		chromedp.Sleep(3*time.Second),
-		chromedp.Location(&currentURL),
-	)
-	if err != nil {
-		return false, err
+	); err != nil {
+		return nil, fmt.Errorf("浏览器加载页面失败: %w", err)
 	}
+
+	// 检查是否被重定向到登录页
+	var currentURL string
+	chromedp.Run(tabCtx, chromedp.Location(&currentURL))
 	if strings.Contains(currentURL, "plogin") || strings.Contains(currentURL, "passport") || strings.Contains(currentURL, "risk_handler") {
-		return false, nil
+		if svc := c.getLogin3rdSvc(); svc != nil && len(sessionCookies) > 0 {
+			svc.SendWebhookNotification(ctx, 0, "[ShopChecker] 京东登录已过期",
+				"京东 session 已失效，请通过 Login3rd 重新登录")
+		}
+		return nil, fmt.Errorf("需要登录（session 已过期）")
 	}
-	return true, nil
+
+	return c.scrapeProduct(tabCtx)
 }
 
-func (c *JDCollector) loginToJD(browserCtx context.Context) error {
-	username := os.Getenv("JD_USERNAME")
-	password := os.Getenv("JD_PASSWORD")
-
-	if username == "" || password == "" {
-		return fmt.Errorf("环境变量 JD_USERNAME/JD_PASSWORD 未设置")
-	}
-
-	// 导航到登录页
-	if err := chromedp.Run(browserCtx,
-		chromedp.Navigate(jdLoginURL),
-		chromedp.WaitReady("body"),
-		chromedp.Sleep(2*time.Second),
-	); err != nil {
-		return fmt.Errorf("导航到登录页失败: %w", err)
-	}
-
-	// 点击"账号密码登录"标签
-	if err := chromedp.Run(browserCtx,
-		chromedp.Click(`.planBLogin`, chromedp.ByQuery),
-		chromedp.Sleep(1*time.Second),
-	); err != nil {
-		return fmt.Errorf("点击密码登录标签失败: %w", err)
-	}
-
-	// 填写用户名和密码
-	if err := chromedp.Run(browserCtx,
-		chromedp.SetValue(`#username`, username, chromedp.ByQuery),
-		chromedp.Sleep(500*time.Millisecond),
-		chromedp.SetValue(`#pwd`, password, chromedp.ByQuery),
-		chromedp.Sleep(500*time.Millisecond),
-	); err != nil {
-		return fmt.Errorf("填写登录表单失败: %w", err)
-	}
-
-	// 点击"同意协议并登录"按钮
-	loginClicked := false
-	if err := chromedp.Run(browserCtx,
-		chromedp.Click(`a.btn.J_ping`, chromedp.ByQuery),
-	); err == nil {
-		loginClicked = true
-	}
-	if !loginClicked {
-		// 备用选择器
-		if err := chromedp.Run(browserCtx,
-			chromedp.Click(`.checkbtn.J_ping`, chromedp.ByQuery),
-		); err != nil {
-			return fmt.Errorf("找不到登录按钮: %w", err)
-		}
-	}
-
-	// 等待登录完成或验证码出现
-	time.Sleep(3 * time.Second)
-
-	// 检查是否需要验证码
-	var pageURL string
-	if err := chromedp.Run(browserCtx,
-		chromedp.Location(&pageURL),
-	); err != nil {
-		return err
-	}
-
-	if !strings.Contains(pageURL, "plogin") && !strings.Contains(pageURL, "passport") {
-		// 已经登录成功
+// getLogin3rdSvc 懒加载 Login3rd 服务（避免模块初始化顺序依赖）
+func (c *JDCollector) getLogin3rdSvc() *login3rd.Service {
+	mod := modules.Get("login3rd")
+	if mod == nil {
 		return nil
 	}
-
-	// 检查是否有 CAPTCHA 或验证步骤
-	var hasCaptcha bool
-	_ = chromedp.Run(browserCtx,
-		chromedp.Evaluate(`document.querySelector('.captcha,.slide-captcha,#captcha,[class*="verif"],[class*="captcha"]') !== null`, &hasCaptcha),
-	)
-
-	if hasCaptcha {
-		// 保存截图，让用户手动完成验证
-		var buf []byte
-		_ = chromedp.Run(browserCtx,
-			chromedp.CaptureScreenshot(&buf),
-		)
-		screenshotPath := filepath.Join(c.profileDir, "captcha_required.png")
-		os.MkdirAll(filepath.Dir(screenshotPath), 0755)
-		os.WriteFile(screenshotPath, buf, 0644)
-		fmt.Printf("[ShopChecker] 登录需要验证码，截图已保存到 %s\n", screenshotPath)
-		fmt.Printf("[ShopChecker] 请在打开的浏览器窗口中手动完成验证（60秒内）\n")
-
-		// 等待用户完成验证（最多60秒）
-		select {
-		case <-time.After(60 * time.Second):
-			// 检查是否已登录
-			var finalURL string
-			_ = chromedp.Run(browserCtx,
-				chromedp.Location(&finalURL),
-			)
-			if strings.Contains(finalURL, "plogin") || strings.Contains(finalURL, "passport") {
-				return fmt.Errorf("验证码超时，登录未完成")
-			}
-		case <-browserCtx.Done():
-			return browserCtx.Err()
-		}
-	} else {
-		return fmt.Errorf("登录失败，可能需要验证码或账号密码错误")
+	m, ok := mod.(interface{ GetService() *login3rd.Service })
+	if !ok {
+		return nil
 	}
-
-	return nil
+	return m.GetService()
 }
+
+// createTempBrowser 创建临时浏览器上下文（无持久化状态）
+func (c *JDCollector) createTempBrowser(ctx context.Context) (context.Context, context.CancelFunc, error) {
+	if c.remoteURL != "" {
+		allocCtx, _ := chromedp.NewRemoteAllocator(ctx, c.remoteURL)
+		tabCtx, cancel := chromedp.NewContext(allocCtx)
+		return tabCtx, cancel, nil
+	}
+	if c.browserPath != "" {
+		profileDir, err := os.MkdirTemp("", "jd-scrape-*")
+		if err != nil {
+			return nil, nil, err
+		}
+		opts := append(chromedp.DefaultExecAllocatorOptions[:],
+			chromedp.ExecPath(c.browserPath),
+			chromedp.NoSandbox,
+			chromedp.UserDataDir(profileDir),
+			chromedp.Flag("disable-blink-features", "AutomationControlled"),
+			chromedp.Flag("disable-dev-shm-usage", true),
+			chromedp.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"),
+		)
+		allocCtx, _ := chromedp.NewExecAllocator(ctx, opts...)
+		tabCtx, cancel := chromedp.NewContext(allocCtx)
+		return tabCtx, cancel, nil
+	}
+	return nil, nil, fmt.Errorf("未找到浏览器（Chrome 或远程连接）")
+}
+
+func (c *JDCollector) Close() {}
 
 func (c *JDCollector) scrapeProduct(browserCtx context.Context) (*PriceResult, error) {
 	var pageHTML string
@@ -682,16 +617,19 @@ func cleanJdTitle(t string) string {
 	return t
 }
 
-// ---------- Browser 查找 ----------
+// ---------- 浏览器查找 ----------
 
 func findBrowser() string {
 	candidates := []string{
-		`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`,
-		`C:\Program Files\Microsoft\Edge\Application\msedge.exe`,
 		`C:\Program Files\Google\Chrome\Application\chrome.exe`,
 		`C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`,
 		filepath.Join(os.Getenv("LOCALAPPDATA"), `Google\Chrome\Application\chrome.exe`),
+		`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`,
+		`C:\Program Files\Microsoft\Edge\Application\msedge.exe`,
 		filepath.Join(os.Getenv("LOCALAPPDATA"), `Microsoft\Edge\Application\msedge.exe`),
+		"/usr/bin/chromium-browser",
+		"/usr/bin/google-chrome",
+		"/usr/bin/chromium",
 	}
 	for _, p := range candidates {
 		if _, err := os.Stat(p); err == nil {
@@ -699,13 +637,4 @@ func findBrowser() string {
 		}
 	}
 	return ""
-}
-
-func getDataDir() string {
-	dir := os.Getenv("SHOPCHECKER_DATA_DIR")
-	if dir == "" {
-		dir = filepath.Join(os.TempDir(), "shopchecker-data")
-	}
-	os.MkdirAll(dir, 0755)
-	return dir
 }

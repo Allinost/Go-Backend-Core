@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Allinost/go-backend-core/internal/modules/ops"
 	"github.com/Allinost/go-backend-core/zzz/goodser"
+	"github.com/Allinost/go-backend-core/zzz/login3rd"
 	"github.com/Allinost/go-backend-core/zzz/shopchecker"
 	"github.com/Allinost/go-backend-core/internal/modules/webhook"
 	"html/template"
@@ -97,6 +98,7 @@ func main() {
 	modules.Register(&ops.Module{})
 	modules.Register(&webhook.Module{})
 	modules.Register(&shopchecker.Module{})
+	modules.Register(&login3rd.Module{})
 
 	// 初始化所有模块（调用 Init，不挂载路由）
 	modules.InitAll(cfg)

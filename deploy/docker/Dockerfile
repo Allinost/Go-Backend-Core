@@ -36,6 +36,8 @@ WORKDIR /app
 COPY --from=builder /build/server .
 COPY config.yaml .
 
+ENV SHOPCHECKER_DATA_DIR=/data/shopchecker
+
 EXPOSE 29090 29092
 
 CMD ["./server"]

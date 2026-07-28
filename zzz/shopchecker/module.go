@@ -11,6 +11,7 @@ import (
 	"github.com/Allinost/go-backend-core/internal/modules"
 	"github.com/Allinost/go-backend-core/internal/modules/webhook"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
+	centralscheduler "github.com/Allinost/go-backend-core/internal/services/scheduler"
 	"github.com/Allinost/go-backend-core/zzz/shopchecker/collector"
 	"github.com/Allinost/go-backend-core/zzz/shopchecker/scheduler"
 	"github.com/gin-gonic/gin"
@@ -63,6 +64,8 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.sched = scheduler.New(m.svc, m.svc.RunCheck)
 	m.sched.Start()
 
+	m.registerSchedulerTask()
+
 	m.h = NewHandler(m.svc, m.colRegistry)
 	return nil
 }
@@ -78,6 +81,38 @@ func (m *Module) Close() error {
 // GetService 暴露 Service 实例，供其他模块调用价格检查能力
 func (m *Module) GetService() *Service {
 	return m.svc
+}
+
+// registerSchedulerTask 在 centralized scheduler 中注册价格检查任务（仅用于管理可见性）
+func (m *Module) registerSchedulerTask() {
+	schedMod := modules.Get("scheduler")
+	if schedMod == nil {
+		return
+	}
+	s := schedMod.(*centralscheduler.Module).GetScheduler()
+	if s == nil {
+		return
+	}
+
+	tasks, err := s.ListTasks()
+	if err != nil {
+		return
+	}
+	for _, t := range tasks {
+		if t.Name == "shopchecker_price_scan" {
+			return
+		}
+	}
+
+	s.AddTask(&centralscheduler.Task{
+		Name:       "shopchecker_price_scan",
+		Type:       centralscheduler.TaskTypeInterval,
+		Expression: "30s",
+		Handler:    "shopchecker_price_scan",
+		Status:     centralscheduler.TaskStatusActive,
+		Timeout:    300,
+	})
+	logger.Info().Msg("shopchecker: 价格扫描任务已注册到 centralized scheduler（管理可见性，实际由独立调度器驱动）")
 }
 
 // RegisterRoutes 注册模块路由到 /api/v1/shopchecker/* 下

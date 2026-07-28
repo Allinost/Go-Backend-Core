@@ -9,15 +9,7 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "https://github.com/Allinost/go-backend-core",
-        "contact": {
-            "name": "Allinost",
-            "url": "https://github.com/Allinost/go-backend-core"
-        },
-        "license": {
-            "name": "MIT",
-            "url": "https://opensource.org/licenses/MIT"
-        },
+        "contact": {},
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
@@ -2355,6 +2347,572 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/login3rd/accounts": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "获取第三方账号列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码，默认 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认 20，最大 100",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "筛选平台：jd / taobao / pdd",
+                        "name": "platform_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "筛选状态：active / expired / disabled",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "搜索关键词（标签/用户名）",
+                        "name": "keyword",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_login3rd.PaginatedResp-zzz_login3rd_Account"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "新增第三方账号",
+                "parameters": [
+                    {
+                        "description": "账号信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_login3rd.CreateAccountReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_login3rd.Account"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/login3rd/accounts/{id}": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "获取第三方账号详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "账号 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_login3rd.Account"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "更新第三方账号",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "账号 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新字段",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_login3rd.UpdateAccountReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_login3rd.Account"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "删除第三方账号",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "账号 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/login3rd/accounts/{id}/login": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "自动登录（使用保存的账号密码）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "账号 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_login3rd.Account"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/login3rd/accounts/{id}/logout": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "登出（清除 session 数据）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "账号 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/login3rd/accounts/{id}/refresh": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "刷新登录会话（尝试用 refresh token 续期）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "账号 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_login3rd.Account"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/login3rd/accounts/{id}/remote-login": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "创建远程浏览器登录会话（返回链接，供 webhook 使用）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "账号 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "token": {
+                                                    "type": "string"
+                                                },
+                                                "url": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/login3rd/accounts/{id}/status": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "获取账号登录状态",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "账号 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_login3rd.AccountStatusResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/login3rd/accounts/{id}/verify": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "验证登录会话是否有效",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "账号 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "valid": {
+                                                    "type": "boolean"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/login3rd/platforms": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "列出所有支持的第三方平台",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/zzz_login3rd.Platform"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/login3rd/remote/session/{token}": {
+            "get": {
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "远程浏览器页面（Web 前端）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话 token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
+        "/login3rd/remote/session/{token}/ws": {
+            "get": {
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "远程浏览器 WebSocket 连接（推送截图 + 接收指令）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话 token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
             }
         },
         "/migrate/backup": {
@@ -10431,6 +10989,310 @@ const docTemplate = `{
                 }
             }
         },
+        "zzz_login3rd.Account": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "label": {
+                    "description": "用户标识",
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "last_login_at": {
+                    "type": "string"
+                },
+                "last_verified_at": {
+                    "type": "string"
+                },
+                "login_method": {
+                    "description": "auto / remote / manual",
+                    "type": "string"
+                },
+                "platform_id": {
+                    "type": "string"
+                },
+                "session_data": {
+                    "description": "Session（当前登录态，替代文件系统 profile）",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/zzz_login3rd.SessionData"
+                        }
+                    ]
+                },
+                "session_expires_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "description": "凭证（存储时加密，响应时脱敏）",
+                    "type": "string"
+                },
+                "verified_status": {
+                    "description": "valid / expired / unknown",
+                    "type": "string"
+                },
+                "webhook_ids": {
+                    "description": "Webhook 通知",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "zzz_login3rd.AccountStatusResp": {
+            "type": "object",
+            "properties": {
+                "account": {
+                    "$ref": "#/definitions/zzz_login3rd.Account"
+                },
+                "can_auto_login": {
+                    "type": "boolean"
+                },
+                "platform": {
+                    "$ref": "#/definitions/zzz_login3rd.Platform"
+                },
+                "session_expires_in": {
+                    "type": "string"
+                },
+                "session_valid": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "zzz_login3rd.CreateAccountReq": {
+            "type": "object",
+            "required": [
+                "label",
+                "platform_id"
+            ],
+            "properties": {
+                "label": {
+                    "description": "自定义名称",
+                    "type": "string"
+                },
+                "password": {
+                    "description": "明文密码（仅用于创建，不存储明文）",
+                    "type": "string"
+                },
+                "platform_id": {
+                    "description": "平台标识",
+                    "type": "string"
+                },
+                "token": {
+                    "description": "备用 token",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "用户名",
+                    "type": "string"
+                },
+                "webhook_ids": {
+                    "description": "webhook 配置 ID 列表",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "zzz_login3rd.FormConfig": {
+            "type": "object",
+            "properties": {
+                "captcha_selector": {
+                    "description": "验证码元素",
+                    "type": "string"
+                },
+                "login_wait_selector": {
+                    "description": "等待出现的元素（二维码等）",
+                    "type": "string"
+                },
+                "max_auto_retry": {
+                    "description": "自动填最大重试",
+                    "type": "integer"
+                },
+                "password_selector": {
+                    "description": "密码输入框",
+                    "type": "string"
+                },
+                "submit_selector": {
+                    "description": "登录按钮",
+                    "type": "string"
+                },
+                "success_cookies": {
+                    "description": "出现这些 cookie 判定登录成功",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "success_url_prefix": {
+                    "description": "URL 前缀判断登录成功",
+                    "type": "string"
+                },
+                "tab_selector": {
+                    "description": "切换到账号密码 tab",
+                    "type": "string"
+                },
+                "username_selector": {
+                    "description": "账号输入框",
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_login3rd.PaginatedResp-zzz_login3rd_Account": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_login3rd.Account"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_login3rd.Platform": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "description": "shopping/pt/sign",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "form_config": {
+                    "description": "自动填表单配置",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/zzz_login3rd.FormConfig"
+                        }
+                    ]
+                },
+                "has_auto": {
+                    "description": "是否支持账号密码自动登录",
+                    "type": "boolean"
+                },
+                "home_url": {
+                    "description": "登录后首页 URL（提取 cookie）",
+                    "type": "string"
+                },
+                "icon_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "description": "平台标识 jd/taobao/pdd/_1688/tjupt",
+                    "type": "string"
+                },
+                "login_type": {
+                    "description": "browser/oauth/qrcode",
+                    "type": "string"
+                },
+                "login_url": {
+                    "description": "登录页 URL",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "显示名称",
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_login3rd.SessionCookie": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string"
+                },
+                "expires": {
+                    "type": "string"
+                },
+                "http_only": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "secure": {
+                    "type": "boolean"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_login3rd.SessionData": {
+            "type": "object",
+            "properties": {
+                "cookies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_login3rd.SessionCookie"
+                    }
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "extra": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "zzz_login3rd.UpdateAccountReq": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "webhook_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "zzz_shopchecker.CreateProductReq": {
             "type": "object",
             "required": [
@@ -10535,8 +11397,17 @@ const docTemplate = `{
                 "new_price": {
                     "type": "number"
                 },
+                "new_stock_status": {
+                    "type": "string"
+                },
+                "notify_type": {
+                    "type": "string"
+                },
                 "old_price": {
                     "type": "number"
+                },
+                "old_stock_status": {
+                    "type": "string"
                 },
                 "price_record_id": {
                     "type": "integer"
@@ -10636,6 +11507,9 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
+                "stock_status": {
+                    "type": "string"
+                },
                 "title": {
                     "type": "string"
                 }
@@ -10673,6 +11547,9 @@ const docTemplate = `{
                 },
                 "last_price": {
                     "type": "number"
+                },
+                "last_stock_status": {
+                    "type": "string"
                 },
                 "name": {
                     "type": "string"
@@ -10741,25 +11618,17 @@ const docTemplate = `{
                 }
             }
         }
-    },
-    "securityDefinitions": {
-        "BearerAuth": {
-            "description": "JWT Bearer token, 格式: \"Bearer {token}\"",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
-        }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "0.1.0",
+	Version:          "",
 	Host:             "",
-	BasePath:         "/api/v1",
-	Schemes:          []string{"http", "https"},
-	Title:            "Go Backend Core API",
-	Description:      "模块化 Go 后端服务 API 文档",
+	BasePath:         "",
+	Schemes:          []string{},
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

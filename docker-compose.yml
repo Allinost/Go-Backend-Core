@@ -10,6 +10,33 @@ services:
       - .env
     environment:
       - TZ=Asia/Shanghai
+      - CHROME_REMOTE_URL=ws://chrome:29091
+    depends_on:
+      chrome:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - 1panel-network
+
+  chrome:
+    image: browserless/chrome:1.61.1-chrome-stable
+    ports:
+      - "29091:29091"
+    environment:
+      - TZ=Asia/Shanghai
+      - CONNECTION_TIMEOUT=600000
+      - MAX_CONCURRENT_SESSIONS=1
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    tmpfs:
+      - /dev/shm:size=256m
+    healthcheck:
+      test: ["CMD", "node", "/home/browserless/healthcheck.js"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
     networks:
       - 1panel-network
