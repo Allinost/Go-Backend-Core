@@ -127,13 +127,38 @@ func (s *Service) ListProducts(ctx context.Context, req *ListProductsReq) ([]Pro
 // ExecuteCheck 执行单次价格检查核心流程：
 // 抓取价格 → 保存记录 → 判断是否通知（价格/库存变化） → 发送 Webhook → 保存通知日志 → 更新检查结果
 func (s *Service) ExecuteCheck(ctx context.Context, p *Product, col collector.Collector) error {
-	result, err := col.FetchPrice(ctx, p.URL)
+	// 地址回退：地址为空时自动读取备注中的原始地址
+	fetchURL := p.URL
+	if fetchURL == "" && p.Remark != nil && *p.Remark != "" {
+		fetchURL = *p.Remark
+	}
+
+	result, err := col.FetchPrice(ctx, fetchURL)
 	if err != nil {
 		errMsg := err.Error()
 		s.repo.SavePriceRecord(ctx, p.ID, 0, "", "unknown", errMsg)
 		nextCheck := s.computeNextCheck(time.Now(), p.CheckInterval, p.CronExpr)
 		s.repo.UpdateCheckResult(ctx, p.ID, 0, "unknown", time.Now(), nextCheck)
 		return err
+	}
+
+	// 地址规范化：首次采集成功后，用采集到的规范商品页地址更新商品 URL，
+	// 并把原始地址存入备注，后续检查直接使用规范地址，不再走跳转/解析分支
+	if result.ProductURL != "" && result.ProductURL != p.URL {
+		origURL := p.URL
+		if p.Remark == nil || *p.Remark == "" {
+			if origURL != "" {
+				p.Remark = &origURL
+			} else {
+				empty := ""
+				p.Remark = &empty
+			}
+		}
+		p.URL = result.ProductURL
+		upd := &UpdateProductReq{URL: &p.URL, Remark: p.Remark}
+		if _, err := s.repo.UpdateProduct(ctx, p.ID, upd); err != nil {
+			return fmt.Errorf("更新商品地址失败: %w", err)
+		}
 	}
 
 	stockStatus := result.StockStatus
@@ -160,13 +185,22 @@ func (s *Service) ExecuteCheck(ctx context.Context, p *Product, col collector.Co
 		var title, content, notifyType string
 
 		if shouldNotifyPrice {
-			dropPercent := (oldPrice - newPrice) / oldPrice * 100
-			notifyType = "price_drop"
-			title = fmt.Sprintf("💰 商品降价通知 - %s", p.Name)
-			content = fmt.Sprintf(
-				"| 字段 | 值 |\n|---|---|\n| 商品名称 | %s |\n| 平台 | %s |\n| 原价 | %.2f |\n| 现价 | %.2f |\n| 降幅 | %.2f%% |\n| 查看链接 | [点击前往](%s) |",
-				p.Name, p.Platform, oldPrice, newPrice, dropPercent, p.URL,
-			)
+			if oldPrice > 0 && newPrice < oldPrice {
+				dropPercent := (oldPrice - newPrice) / oldPrice * 100
+				notifyType = "price_drop"
+				title = fmt.Sprintf("💰 商品降价通知 - %s", p.Name)
+				content = fmt.Sprintf(
+					"| 字段 | 值 |\n|---|---|\n| 商品名称 | %s |\n| 平台 | %s |\n| 原价 | %.2f |\n| 现价 | %.2f |\n| 降幅 | %.2f%% |\n| 查看链接 | [点击前往](%s) |",
+					p.Name, p.Platform, oldPrice, newPrice, dropPercent, p.URL,
+				)
+			} else {
+				notifyType = "target_reached"
+				title = fmt.Sprintf("🎯 商品到达目标价 - %s", p.Name)
+				content = fmt.Sprintf(
+					"| 字段 | 值 |\n|---|---|\n| 商品名称 | %s |\n| 平台 | %s |\n| 当前价格 | %.2f |\n| 目标价格 | %.2f |\n| 查看链接 | [点击前往](%s) |",
+					p.Name, p.Platform, newPrice, p.TargetPrice, p.URL,
+				)
+			}
 		} else {
 			notifyType = "stock_restore"
 			title = fmt.Sprintf("📦 商品补货通知 - %s", p.Name)
@@ -202,15 +236,15 @@ func (s *Service) ExecuteCheck(ctx context.Context, p *Product, col collector.Co
 		}
 
 		s.repo.SaveNotificationLog(ctx, &NotificationLog{
-			ProductID:     p.ID,
-			PriceRecordID: pr.ID,
-			WebhookIDs:    p.CustomWebhookIDs,
-			OldPrice:      oldPrice,
-			NewPrice:      newPrice,
+			ProductID:      p.ID,
+			PriceRecordID:  pr.ID,
+			WebhookIDs:     p.CustomWebhookIDs,
+			OldPrice:       oldPrice,
+			NewPrice:       newPrice,
 			OldStockStatus: oldStock,
 			NewStockStatus: newStock,
-			NotifyType:    notifyType,
-			ResultSummary: string(summary),
+			NotifyType:     notifyType,
+			ResultSummary:  string(summary),
 		})
 
 		s.repo.MarkPriceRecordNotified(ctx, pr.ID)
@@ -286,12 +320,17 @@ func (s *Service) Dashboard(ctx context.Context) (*DashboardResp, error) {
 	return s.repo.GetDashboardStats(ctx)
 }
 
-// shouldNotify 判断是否需要发送降价通知
+// shouldNotify 判断是否需要发送降价/达标通知
 func (s *Service) shouldNotify(oldPrice, newPrice, targetPrice, dropRatio float64) bool {
-	if oldPrice <= 0 || newPrice <= 0 || newPrice >= oldPrice {
+	if newPrice <= 0 {
 		return false
 	}
-	if targetPrice > 0 && newPrice > targetPrice {
+	// 到达目标价即通知（不要求存在历史价格，首次达标也能触发）
+	if targetPrice > 0 && newPrice <= targetPrice {
+		return true
+	}
+	// 降价通知：需有历史价格且价格确实下降
+	if oldPrice <= 0 || newPrice >= oldPrice {
 		return false
 	}
 	if dropRatio > 0 {
@@ -303,8 +342,8 @@ func (s *Service) shouldNotify(oldPrice, newPrice, targetPrice, dropRatio float6
 	return true
 }
 
-const sleepStartHour = 1  // 凌晨 1 点
-const sleepEndHour   = 9  // 上午 9 点
+const sleepStartHour = 1 // 凌晨 1 点
+const sleepEndHour = 9   // 上午 9 点
 
 // computeNextCheck 计算下次检查时间，加入随机抖动并避开休眠时段
 func (s *Service) computeNextCheck(from time.Time, interval, cronExpr string) time.Time {

@@ -324,12 +324,51 @@ func (h *Handler) Logout(c *gin.Context) {
 // @Router       /login3rd/remote/session/{token} [get]
 func (h *Handler) RemoteSessionPage(c *gin.Context) {
 	token := c.Param("token")
-	if _, err := h.svc.GetRemoteManager().GetSession(token); err != nil {
+	session, err := h.svc.GetRemoteManager().GetSession(token)
+	if err != nil {
 		response.Fail(c, appErr.New(appErr.CodeNotFound, "会话不存在或已过期"))
 		return
 	}
-	html := buildRemoteHTML(token)
+	var html string
+	if session.IsLocal {
+		html = buildLocalHTML(token)
+	} else {
+		html = buildRemoteHTML(token)
+	}
 	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
+}
+
+// RemoteSessionStatus 获取远程会话状态（用于本地模式轮询）
+// @Summary      获取远程会话状态
+// @Tags         login3rd
+// @Param        token   path  string  true  "会话 token"
+// @Router       /login3rd/remote/session/{token}/status [get]
+func (h *Handler) RemoteSessionStatus(c *gin.Context) {
+	token := c.Param("token")
+	session, err := h.svc.GetRemoteManager().GetSession(token)
+	if err != nil {
+		response.Fail(c, appErr.New(appErr.CodeNotFound, "会话不存在或已过期"))
+		return
+	}
+
+	done := false
+	success := false
+	errMsg := ""
+	select {
+	case <-session.Done:
+		done = true
+		if session.Result != nil {
+			success = session.Result.Success
+			errMsg = session.Result.Error
+		}
+	default:
+	}
+
+	response.Success(c, gin.H{
+		"done":    done,
+		"success": success,
+		"error":   errMsg,
+	})
 }
 
 // RemoteSessionWS 远程浏览器 WebSocket 连接
@@ -342,6 +381,11 @@ func (h *Handler) RemoteSessionWS(c *gin.Context) {
 	session, err := h.svc.GetRemoteManager().GetSession(token)
 	if err != nil {
 		response.Fail(c, appErr.New(appErr.CodeNotFound, "会话不存在或已过期"))
+		return
+	}
+
+	if session.IsLocal {
+		response.Fail(c, appErr.New(appErr.CodeSystemErr, "本地模式不支持 WebSocket"))
 		return
 	}
 
@@ -489,4 +533,47 @@ connect();
 </body>
 </html>`
 	return strings.ReplaceAll(html, "`"+token+"`", token)
+}
+
+// buildLocalHTML 本地 Chrome 浏览器页面（简单状态轮询，无需截图/WS）
+func buildLocalHTML(token string) string {
+	return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>本地浏览器登录 - Login3rd</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#1a1a2e;color:#eee;display:flex;justify-content:center;min-height:100vh;padding:20px}
+.container{max-width:520px;width:100%;text-align:center;margin-top:60px}
+h1{font-size:24px;margin-bottom:16px;color:#e94560}
+.alert{background:#e94560;color:#fff;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px}
+.status{background:#16213e;border-radius:12px;padding:32px;margin-bottom:16px}
+.status .icon{font-size:48px;margin-bottom:16px}
+.status p{font-size:14px;color:#aaa;line-height:1.6}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#00ff88;animation:pulse 1.5s infinite}
+@keyframes pulse{0%{opacity:0.3}50%{opacity:1}100%{opacity:0.3}}
+.footer{font-size:12px;color:#555}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🖥 本地浏览器登录</h1>
+<div class="alert">⚠️ 请在<strong>新弹出的 Chrome 窗口</strong>中登录，不要使用原有的 Chrome</div>
+<div class="status" id="statusBox">
+<div class="icon" id="statusIcon">⏳</div>
+<p id="statusText">Chrome 浏览器已打开，请在弹窗中完成登录...</p>
+<p style="margin-top:12px"><span class="dot"></span> 等待登录</p>
+</div>
+<p class="footer">登录成功后 Cookie 将自动保存到数据库</p>
+</div>
+<script>
+var token = "` + token + `";
+var baseURL = '/api/v1/login3rd/remote/session/' + token + '/status';
+function poll(){fetch(baseURL).then(function(r){return r.json()}).then(function(d){if(d.code!==0)return;var data=d.data;if(data.done){if(data.success){document.getElementById('statusIcon').textContent='✅';document.getElementById('statusText').innerHTML='<strong>登录成功！</strong><br>Cookie 已保存到数据库，你可关闭此页面。';}else{document.getElementById('statusIcon').textContent='❌';document.getElementById('statusText').innerHTML='<strong>登录失败</strong><br>'+(data.error||'请重试');}}else{setTimeout(poll,2000)}}).catch(function(){setTimeout(poll,3000)})}
+setTimeout(poll, 1000);
+</script>
+</body>
+</html>`
 }

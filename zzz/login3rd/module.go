@@ -20,12 +20,12 @@ import (
 
 // Module Login3rd 模块
 type Module struct {
-	cfg       *config.Config
-	h         *Handler
-	svc       *Service
-	repo      *Repository
-	whSvc     *webhook.Service
-	sch       *SessionChecker
+	cfg   *config.Config
+	h     *Handler
+	svc   *Service
+	repo  *Repository
+	whSvc *webhook.Service
+	sch   *SessionChecker
 }
 
 // Name 返回模块名称，路由挂载至 /api/v1/login3rd
@@ -143,6 +143,7 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 
 	// 远程浏览器
 	r.GET("/remote/session/:token", m.h.RemoteSessionPage)
+	r.GET("/remote/session/:token/status", m.h.RemoteSessionStatus)
 	r.GET("/remote/session/:token/ws", m.h.RemoteSessionWS)
 }
 

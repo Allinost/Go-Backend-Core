@@ -19,6 +19,7 @@ func (m *testModule) RegisterRoutes(r *gin.RouterGroup) {}
 
 func resetRegistry() {
 	registry = make(map[string]Module)
+	order = nil
 }
 
 func TestRegister_And_Get(t *testing.T) {
@@ -78,8 +79,8 @@ func TestRegisterRoutesTo(t *testing.T) {
 func TestCloseAll(t *testing.T) {
 	resetRegistry()
 	closed := make([]string, 0)
-	registry["a"] = &closeRecorder{name: "a", fn: func() { closed = append(closed, "a") }}
-	registry["b"] = &closeRecorder{name: "b", fn: func() { closed = append(closed, "b") }}
+	Register(&closeRecorder{name: "a", fn: func() { closed = append(closed, "a") }})
+	Register(&closeRecorder{name: "b", fn: func() { closed = append(closed, "b") }})
 
 	CloseAll()
 	assert.ElementsMatch(t, []string{"a", "b"}, closed)

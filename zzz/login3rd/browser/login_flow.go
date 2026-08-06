@@ -33,15 +33,22 @@ type LoginFlow struct {
 
 // Execute 执行浏览器登录流程
 func (f *LoginFlow) Execute(ctx context.Context, browserCtx context.Context, username, password string) (*provider.SessionData, error) {
-	if err := chromedp.Run(browserCtx,
+	fmt.Fprintf(os.Stderr, "[login3rd] Execute: 开始导航到 %s\n", f.LoginURL)
+
+	navCtx, navCancel := context.WithTimeout(browserCtx, 30*time.Second)
+	defer navCancel()
+	if err := chromedp.Run(navCtx,
 		chromedp.Navigate(f.LoginURL),
 		chromedp.WaitReady("body"),
 		chromedp.Sleep(2*time.Second),
 	); err != nil {
+		fmt.Fprintf(os.Stderr, "[login3rd] Execute: 导航失败 %v\n", err)
 		return nil, fmt.Errorf("导航到登录页失败: %w", err)
 	}
+	fmt.Fprintf(os.Stderr, "[login3rd] Execute: 导航成功，FormCfg=%v username=%q password=%q\n", f.FormCfg != nil, username, password)
 
 	if f.FormCfg != nil && username != "" && password != "" {
+		fmt.Fprintf(os.Stderr, "[login3rd] Execute: 尝试自动填充表单\n")
 		tasks := []chromedp.Action{}
 		if f.FormCfg.TabSelector != "" {
 			tasks = append(tasks, chromedp.Click(f.FormCfg.TabSelector, chromedp.ByQuery))
@@ -54,16 +61,22 @@ func (f *LoginFlow) Execute(ctx context.Context, browserCtx context.Context, use
 			chromedp.SendKeys(f.FormCfg.PasswordSelector, password),
 			chromedp.Sleep(500*time.Millisecond),
 		)
-		if err := chromedp.Run(browserCtx, tasks...); err != nil {
-			return nil, fmt.Errorf("自动填充账号密码失败: %w", err)
-		}
-
-		if f.FormCfg.CaptchaSelector == "" && f.FormCfg.SubmitSelector != "" {
-			if err := chromedp.Run(browserCtx,
-				chromedp.Click(f.FormCfg.SubmitSelector),
-				chromedp.Sleep(2*time.Second),
-			); err != nil {
-				return nil, fmt.Errorf("点击登录按钮失败: %w", err)
+		autoCtx, autoCancel := context.WithTimeout(browserCtx, 10*time.Second)
+		if err := chromedp.Run(autoCtx, tasks...); err != nil {
+			fmt.Fprintf(os.Stderr, "[login3rd] Execute: 自动填充失败 %v，降级到手动登录\n", err)
+			autoCancel()
+		} else {
+			autoCancel()
+			if f.FormCfg.CaptchaSelector == "" && f.FormCfg.SubmitSelector != "" {
+				fmt.Fprintf(os.Stderr, "[login3rd] Execute: 尝试自动点击登录按钮\n")
+				clickCtx, clickCancel := context.WithTimeout(browserCtx, 10*time.Second)
+				if err := chromedp.Run(clickCtx,
+					chromedp.Click(f.FormCfg.SubmitSelector),
+					chromedp.Sleep(2*time.Second),
+				); err != nil {
+					fmt.Fprintf(os.Stderr, "[login3rd] Execute: 点击登录失败 %v，降级到手动登录\n", err)
+				}
+				clickCancel()
 			}
 		}
 	}
@@ -127,6 +140,8 @@ func (f *LoginFlow) ExecuteRemote(ctx context.Context, remoteURL string, usernam
 
 // waitLogin 轮询检测登录是否成功
 func (f *LoginFlow) waitLogin(browserCtx context.Context) ([]*provider.Cookie, error) {
+	fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 开始, SuccessCookies=%v SuccessURLPrefix=%q\n",
+		f.FormCfg.SuccessCookies, f.FormCfg.SuccessURLPrefix)
 	timeout := time.After(120 * time.Second)
 	tick := time.NewTicker(2 * time.Second)
 	defer tick.Stop()
@@ -134,29 +149,52 @@ func (f *LoginFlow) waitLogin(browserCtx context.Context) ([]*provider.Cookie, e
 	for {
 		select {
 		case <-browserCtx.Done():
+			fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: browserCtx 已取消: %v\n", browserCtx.Err())
 			return nil, browserCtx.Err()
 		case <-timeout:
+			fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 超时（120s）\n")
 			return nil, fmt.Errorf("等待登录超时（120s）")
-		case <-tick.C:
-			cookies, err := f.extractCookies(browserCtx)
+		case ts := <-tick.C:
+			fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: tick at %s\n", ts.Format("15:04:05"))
+			opCtx, opCancel := context.WithTimeout(browserCtx, 10*time.Second)
+			cookies, err := f.extractCookies(opCtx)
 			if err != nil {
+				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: extractCookies 失败: %v\n", err)
+				opCancel()
 				continue
 			}
-
-			if len(f.FormCfg.SuccessCookies) > 0 {
-				if hasAllCookies(cookies, f.FormCfg.SuccessCookies) {
-					return cookies, nil
-				}
+			fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 获取 %d 个 cookie\n", len(cookies))
+			for _, c := range cookies {
+				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin:   cookie %s=%s...\n", c.Name, safePrefix(c.Value, 20))
 			}
 
-			if f.FormCfg.SuccessURLPrefix != "" {
-				var currentURL string
-				if err := chromedp.Run(browserCtx, chromedp.Location(&currentURL)); err == nil {
-					if len(currentURL) >= len(f.FormCfg.SuccessURLPrefix) &&
-						currentURL[:len(f.FormCfg.SuccessURLPrefix)] == f.FormCfg.SuccessURLPrefix {
-						return cookies, nil
-					}
+			matched := false
+			if len(f.FormCfg.SuccessCookies) > 0 {
+				if hasAllCookies(cookies, f.FormCfg.SuccessCookies) {
+					fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: cookies 匹配成功\n")
+					matched = true
+				} else {
+					fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: cookies 不匹配（需要 %v）\n", f.FormCfg.SuccessCookies)
 				}
+			}
+			if !matched && f.FormCfg.SuccessURLPrefix != "" {
+				var currentURL string
+				if err := chromedp.Run(opCtx, chromedp.Location(&currentURL)); err == nil {
+					fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 当前 URL=%q\n", currentURL)
+					ok := len(currentURL) >= len(f.FormCfg.SuccessURLPrefix) &&
+						currentURL[:len(f.FormCfg.SuccessURLPrefix)] == f.FormCfg.SuccessURLPrefix
+					fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: URL 前缀匹配 %s = %v\n", f.FormCfg.SuccessURLPrefix, ok)
+					if ok {
+						matched = true
+					}
+				} else {
+					fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: Location 失败: %v\n", err)
+				}
+			}
+			opCancel()
+			if matched {
+				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 登录成功\n")
+				return cookies, nil
 			}
 		}
 	}
@@ -197,4 +235,11 @@ func hasAllCookies(cookies []*provider.Cookie, names []string) bool {
 		}
 	}
 	return true
+}
+
+func safePrefix(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
 }

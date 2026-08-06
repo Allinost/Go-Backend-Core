@@ -3,6 +3,8 @@ package login3rd
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/Allinost/go-backend-core/internal/config"
@@ -13,11 +15,11 @@ import (
 
 // Service 业务逻辑层
 type Service struct {
-	repo          *Repository
-	whSvc         *webhook.Service
-	providers     map[string]provider.Provider  // platform_id -> Provider
-	remoteMgr     *browser.RemoteManager
-	masterKey     []byte
+	repo      *Repository
+	whSvc     *webhook.Service
+	providers map[string]provider.Provider // platform_id -> Provider
+	remoteMgr *browser.RemoteManager
+	masterKey []byte
 }
 
 // NewService 创建 Service
@@ -167,8 +169,8 @@ func (s *Service) GetAccountStatus(ctx context.Context, id int64) (*AccountStatu
 	}
 
 	resp := &AccountStatusResp{
-		Account:  *a,
-		Platform: *p,
+		Account:      *a,
+		Platform:     *p,
 		SessionValid: a.VerifiedStatus == "valid" && (a.SessionExpiresAt == nil || a.SessionExpiresAt.After(time.Now())),
 		CanAutoLogin: p.HasAuto && a.EncryptedPwd != "" && s.providers[a.PlatformID] != nil,
 	}
@@ -250,6 +252,13 @@ func (s *Service) CreateRemoteSession(ctx context.Context, accountID int64) (str
 
 	// 导航到登录页
 	p, _ := s.repo.GetPlatform(ctx, a.PlatformID)
+	hasP := p != nil
+	hasCfg := hasP && p.FormCfg != nil
+	loginURL := ""
+	if hasP {
+		loginURL = p.LoginURL
+	}
+	fmt.Fprintf(os.Stderr, "[login3rd] CreateRemoteSession: platform=%v FormCfg=%v LoginURL=%q\n", hasP, hasCfg, loginURL)
 	if p != nil && p.LoginURL != "" {
 		formCfg := (*browser.FormConfig)(nil)
 		if p.FormCfg != nil {
@@ -271,13 +280,18 @@ func (s *Service) CreateRemoteSession(ctx context.Context, accountID int64) (str
 			FormCfg:  formCfg,
 		}
 		go func() {
+			// 仅平台支持自动登录时才传入凭据；否则纯手动登录（用户手动操作，登录成功自动抓 cookie）
+			username := ""
 			pwd := ""
-			if a.EncryptedPwd != "" {
-				if pwdBytes, err := decrypt(a.EncryptedPwd, s.masterKey); err == nil {
-					pwd = string(pwdBytes)
+			if p.HasAuto {
+				username = a.Username
+				if a.EncryptedPwd != "" {
+					if pwdBytes, err := decrypt(a.EncryptedPwd, s.masterKey); err == nil {
+						pwd = string(pwdBytes)
+					}
 				}
 			}
-			sessionData, err := flow.Execute(context.Background(), session.BrowserCtx, a.Username, pwd)
+			sessionData, err := flow.Execute(context.Background(), session.BrowserCtx, username, pwd)
 			if err != nil {
 				s.remoteMgr.MarkDone(session.Token, &browser.SessionResult{
 					Success: false,
@@ -370,11 +384,11 @@ func (s *Service) Logout(ctx context.Context, accountID int64) error {
 		return errAccountNotFound()
 	}
 	return s.repo.UpdateAccount(ctx, accountID, map[string]any{
-		"session_data":     nil,
+		"session_data":       nil,
 		"session_expires_at": nil,
-		"verified_status":  "unknown",
-		"login_method":     "",
-		"last_error":       "用户手动登出",
+		"verified_status":    "unknown",
+		"login_method":       "",
+		"last_error":         "用户手动登出",
 	})
 }
 

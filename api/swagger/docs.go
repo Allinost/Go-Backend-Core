@@ -9,7 +9,15 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "contact": {},
+        "termsOfService": "https://github.com/Allinost/go-backend-core",
+        "contact": {
+            "name": "Allinost",
+            "url": "https://github.com/Allinost/go-backend-core"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
@@ -2897,6 +2905,24 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/login3rd/remote/session/{token}/status": {
+            "get": {
+                "tags": [
+                    "login3rd"
+                ],
+                "summary": "获取远程会话状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话 token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {}
+            }
+        },
         "/login3rd/remote/session/{token}/ws": {
             "get": {
                 "tags": [
@@ -5756,6 +5782,404 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/servicenav/services": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicenav"
+                ],
+                "summary": "获取服务条目列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码，默认 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认 20，最大 100",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "搜索关键词（匹配服务名，模糊）",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "按服务类型筛选",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "排序字段：name / created_at，默认 name",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "排序方向：asc / desc，默认 asc",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_modules_servicenav.PaginatedResp-internal_modules_servicenav_ServiceItem"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicenav"
+                ],
+                "summary": "创建服务条目",
+                "parameters": [
+                    {
+                        "description": "服务条目",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_servicenav.CreateItemReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_modules_servicenav.ServiceItem"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/servicenav/services/{id}": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicenav"
+                ],
+                "summary": "获取服务条目详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "服务条目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_modules_servicenav.ServiceItem"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicenav"
+                ],
+                "summary": "更新服务条目",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "服务条目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新字段",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_servicenav.UpdateItemReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_modules_servicenav.ServiceItem"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicenav"
+                ],
+                "summary": "删除服务条目",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "服务条目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/servicenav/types": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicenav"
+                ],
+                "summary": "获取服务类型列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/internal_modules_servicenav.ServiceType"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicenav"
+                ],
+                "summary": "创建服务类型",
+                "parameters": [
+                    {
+                        "description": "服务类型",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_servicenav.CreateTypeReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_modules_servicenav.ServiceType"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/servicenav/types/{id}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicenav"
+                ],
+                "summary": "更新服务类型",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "服务类型 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新字段",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_servicenav.UpdateTypeReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_modules_servicenav.ServiceType"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicenav"
+                ],
+                "summary": "删除服务类型",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "服务类型 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
                         }
@@ -9212,6 +9636,192 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_modules_servicenav.CreateItemReq": {
+            "type": "object",
+            "required": [
+                "name",
+                "types"
+            ],
+            "properties": {
+                "account": {
+                    "type": "string"
+                },
+                "address": {
+                    "type": "string"
+                },
+                "easytier_port": {
+                    "type": "integer"
+                },
+                "intranet_port": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password_hint": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_modules_servicenav.CreateTypeReq": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_modules_servicenav.PaginatedResp-internal_modules_servicenav_ServiceItem": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_modules_servicenav.ServiceItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_modules_servicenav.ServiceItem": {
+            "type": "object",
+            "properties": {
+                "_id": {
+                    "type": "string"
+                },
+                "account": {
+                    "type": "string"
+                },
+                "address": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "easytier_port": {
+                    "type": "integer"
+                },
+                "intranet_port": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password_hint": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_modules_servicenav.ServiceType": {
+            "type": "object",
+            "properties": {
+                "_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_modules_servicenav.UpdateItemReq": {
+            "type": "object",
+            "properties": {
+                "account": {
+                    "type": "string"
+                },
+                "address": {
+                    "type": "string"
+                },
+                "clear_easytier_port": {
+                    "type": "boolean"
+                },
+                "clear_intranet_port": {
+                    "type": "boolean"
+                },
+                "easytier_port": {
+                    "type": "integer"
+                },
+                "intranet_port": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password_hint": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_modules_servicenav.UpdateTypeReq": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_modules_webhook.BatchDeleteDeliveryLogsReq": {
             "type": "object",
             "required": [
@@ -11618,17 +12228,25 @@ const docTemplate = `{
                 }
             }
         }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "JWT Bearer token, 格式: \"Bearer {token}\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
+	Version:          "0.1.0",
 	Host:             "",
-	BasePath:         "",
-	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	BasePath:         "/api/v1",
+	Schemes:          []string{"http", "https"},
+	Title:            "Go Backend Core API",
+	Description:      "模块化 Go 后端服务 API 文档",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

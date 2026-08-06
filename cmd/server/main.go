@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/Allinost/go-backend-core/internal/modules/ops"
+	"github.com/Allinost/go-backend-core/internal/mod
 	"github.com/Allinost/go-backend-core/zzz/goodser"
 	"github.com/Allinost/go-backend-core/zzz/login3rd"
 	"github.com/Allinost/go-backend-core/zzz/shopchecker"
-	"github.com/Allinost/go-backend-core/internal/modules/webhook"
 	"html/template"
 	"net/http"
 	"os"
@@ -24,6 +24,7 @@ import (
 	"github.com/Allinost/go-backend-core/internal/modules/s0"
 	"github.com/Allinost/go-backend-core/internal/modules/s1"
 	"github.com/Allinost/go-backend-core/internal/modules/s2"
+	"github.com/Allinost/go-backend-core/internal/modules/servicenav"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/Allinost/go-backend-core/internal/services/crypto"
 	"github.com/Allinost/go-backend-core/internal/services/eventbus"
@@ -97,6 +98,7 @@ func main() {
 	modules.Register(&goodser.Module{})
 	modules.Register(&ops.Module{})
 	modules.Register(&webhook.Module{})
+	modules.Register(&servicenav.Module{})
 	modules.Register(&shopchecker.Module{})
 	modules.Register(&login3rd.Module{})
 

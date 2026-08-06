@@ -12,6 +12,7 @@ type PriceResult struct {
 	OriginalPrice float64   // 原价
 	Title         string    // 商品标题
 	StockStatus   string    // 库存状态：in_stock / out_of_stock / unknown
+	ProductURL    string    // 采集到的规范商品页地址（用于回写商品 URL，避免后续跳转）
 	FetchedAt     time.Time // 抓取时间
 }
 

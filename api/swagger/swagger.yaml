@@ -1,3 +1,4 @@
+basePath: /api/v1
 definitions:
   github_com_Allinost_go-backend-core_internal_pkg_response.Response:
     properties:
@@ -315,6 +316,128 @@ definitions:
       scanned_rows:
         type: integer
       table:
+        type: string
+    type: object
+  internal_modules_servicenav.CreateItemReq:
+    properties:
+      account:
+        type: string
+      address:
+        type: string
+      easytier_port:
+        type: integer
+      intranet_port:
+        type: integer
+      name:
+        type: string
+      password_hint:
+        type: string
+      protocol:
+        type: string
+      remark:
+        type: string
+      types:
+        items:
+          type: string
+        type: array
+    required:
+    - name
+    - types
+    type: object
+  internal_modules_servicenav.CreateTypeReq:
+    properties:
+      name:
+        type: string
+      remark:
+        type: string
+    required:
+    - name
+    type: object
+  internal_modules_servicenav.PaginatedResp-internal_modules_servicenav_ServiceItem:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/internal_modules_servicenav.ServiceItem'
+        type: array
+      total:
+        type: integer
+    type: object
+  internal_modules_servicenav.ServiceItem:
+    properties:
+      _id:
+        type: string
+      account:
+        type: string
+      address:
+        type: string
+      created_at:
+        type: string
+      easytier_port:
+        type: integer
+      intranet_port:
+        type: integer
+      name:
+        type: string
+      password_hint:
+        type: string
+      protocol:
+        type: string
+      remark:
+        type: string
+      types:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+    type: object
+  internal_modules_servicenav.ServiceType:
+    properties:
+      _id:
+        type: string
+      created_at:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_modules_servicenav.UpdateItemReq:
+    properties:
+      account:
+        type: string
+      address:
+        type: string
+      clear_easytier_port:
+        type: boolean
+      clear_intranet_port:
+        type: boolean
+      easytier_port:
+        type: integer
+      intranet_port:
+        type: integer
+      name:
+        type: string
+      password_hint:
+        type: string
+      protocol:
+        type: string
+      remark:
+        type: string
+      types:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_modules_servicenav.UpdateTypeReq:
+    properties:
+      name:
+        type: string
+      remark:
         type: string
     type: object
   internal_modules_webhook.BatchDeleteDeliveryLogsReq:
@@ -1919,7 +2042,16 @@ definitions:
         type: string
     type: object
 info:
-  contact: {}
+  contact:
+    name: Allinost
+    url: https://github.com/Allinost/go-backend-core
+  description: 模块化 Go 后端服务 API 文档
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://github.com/Allinost/go-backend-core
+  title: Go Backend Core API
+  version: 0.1.0
 paths:
   /auth/{provider}/bind:
     post:
@@ -3708,6 +3840,18 @@ paths:
       summary: 远程浏览器页面（Web 前端）
       tags:
       - login3rd
+  /login3rd/remote/session/{token}/status:
+    get:
+      parameters:
+      - description: 会话 token
+        in: path
+        name: token
+        required: true
+        type: string
+      responses: {}
+      summary: 获取远程会话状态
+      tags:
+      - login3rd
   /login3rd/remote/session/{token}/ws:
     get:
       parameters:
@@ -5493,6 +5637,245 @@ paths:
       summary: 立即执行任务
       tags:
       - scheduler
+  /servicenav/services:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 页码，默认 1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认 20，最大 100
+        in: query
+        name: page_size
+        type: integer
+      - description: 搜索关键词（匹配服务名，模糊）
+        in: query
+        name: keyword
+        type: string
+      - description: 按服务类型筛选
+        in: query
+        name: type
+        type: string
+      - description: 排序字段：name / created_at，默认 name
+        in: query
+        name: sort_by
+        type: string
+      - description: 排序方向：asc / desc，默认 asc
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_servicenav.PaginatedResp-internal_modules_servicenav_ServiceItem'
+              type: object
+      summary: 获取服务条目列表
+      tags:
+      - servicenav
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 服务条目
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_servicenav.CreateItemReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_servicenav.ServiceItem'
+              type: object
+      summary: 创建服务条目
+      tags:
+      - servicenav
+  /servicenav/services/{id}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 服务条目 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除服务条目
+      tags:
+      - servicenav
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: 服务条目 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_servicenav.ServiceItem'
+              type: object
+      summary: 获取服务条目详情
+      tags:
+      - servicenav
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 服务条目 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_servicenav.UpdateItemReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_servicenav.ServiceItem'
+              type: object
+      summary: 更新服务条目
+      tags:
+      - servicenav
+  /servicenav/types:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/internal_modules_servicenav.ServiceType'
+                  type: array
+              type: object
+      summary: 获取服务类型列表
+      tags:
+      - servicenav
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 服务类型
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_servicenav.CreateTypeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_servicenav.ServiceType'
+              type: object
+      summary: 创建服务类型
+      tags:
+      - servicenav
+  /servicenav/types/{id}:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: 服务类型 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除服务类型
+      tags:
+      - servicenav
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 服务类型 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_servicenav.UpdateTypeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_servicenav.ServiceType'
+              type: object
+      summary: 更新服务类型
+      tags:
+      - servicenav
   /shopchecker/dashboard:
     get:
       consumes:
@@ -7252,4 +7635,13 @@ paths:
       summary: 全量同步
       tags:
       - zzz-goodser
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT Bearer token, 格式: "Bearer {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

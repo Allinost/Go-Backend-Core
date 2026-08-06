@@ -50,9 +50,14 @@ func (r *Repository) SeedPlatforms(ctx context.Context) error {
 			formStr = &s
 		}
 		_, err := r.db.ExecContext(ctx,
-			`INSERT IGNORE INTO login3rd_platforms
+			`INSERT INTO login3rd_platforms
 			 (id, name, category, login_type, has_auto, login_url, home_url, form_config)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			 ON DUPLICATE KEY UPDATE
+			 has_auto    = VALUES(has_auto),
+			 form_config = VALUES(form_config),
+			 login_url   = VALUES(login_url),
+			 home_url    = VALUES(home_url)`,
 			p.ID, p.Name, p.Category, p.LoginType, p.HasAuto, p.LoginURL, p.HomeURL, formStr)
 		if err != nil {
 			return fmt.Errorf("seed platform %s 失败: %w", p.ID, err)
@@ -73,15 +78,12 @@ var seedPlatforms = []struct {
 	FormCfg   *FormConfig
 }{
 	{
-		ID: "jd", Name: "京东", Category: "shopping", LoginType: "browser", HasAuto: true,
+		ID: "jd", Name: "京东", Category: "shopping", LoginType: "browser", HasAuto: false,
 		LoginURL: "https://plogin.m.jd.com/login/login?appid=2193",
 		HomeURL:  "https://home.m.jd.com",
 		FormCfg: &FormConfig{
-			TabSelector:      `.login-tab`,
-			UsernameSelector: `#username`,
-			PasswordSelector: `#password`,
-			SubmitSelector:   `#loginBtn`,
 			SuccessCookies:   []string{"pt_key", "pt_pin"},
+			SuccessURLPrefix: "https://m.jd.com",
 			MaxAutoRetry:     3,
 		},
 	},
