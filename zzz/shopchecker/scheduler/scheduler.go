@@ -17,28 +17,37 @@ type CheckRunner func(ctx context.Context, productID string) error
 
 // Scheduler 定时价格检查调度器，周期性地扫描到期商品并执行价格抓取
 type Scheduler struct {
-	finder  DueProductFinder
-	runner  CheckRunner
-	ticker  *time.Ticker
-	stopCh  chan struct{}
-	sem     chan struct{}
-	once    sync.Once
+	finder       DueProductFinder
+	runner       CheckRunner
+	pollInterval time.Duration
+	ticker       *time.Ticker
+	stopCh       chan struct{}
+	sem          chan struct{}
+	once         sync.Once
 }
 
 // New 创建 Scheduler
 func New(finder DueProductFinder, runner CheckRunner) *Scheduler {
 	return &Scheduler{
-		finder: finder,
-		runner: runner,
-		stopCh: make(chan struct{}),
-		sem:    make(chan struct{}, 5),
+		finder:       finder,
+		runner:       runner,
+		pollInterval: 1 * time.Hour,
+		stopCh:       make(chan struct{}),
+		sem:          make(chan struct{}, 5),
 	}
 }
 
-// Start 启动调度器，每 1 秒扫描一次到期商品
+// SetPollInterval 设置到期商品轮询间隔（允许到期时间出现最多一个轮询周期的偏差）
+func (s *Scheduler) SetPollInterval(d time.Duration) {
+	if d > 0 {
+		s.pollInterval = d
+	}
+}
+
+// Start 启动调度器，周期性扫描到期商品
 func (s *Scheduler) Start() {
 	s.once.Do(func() {
-		s.ticker = time.NewTicker(1 * time.Second)
+		s.ticker = time.NewTicker(s.pollInterval)
 		go func() {
 			for {
 				select {

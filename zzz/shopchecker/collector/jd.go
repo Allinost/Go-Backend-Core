@@ -26,7 +26,7 @@ import (
 const (
 	jdProductURL = "https://item.m.jd.com/product/%s.html"
 	jdDesktopURL = "https://item.jd.com/%s.html"
-	jdLoginURL   = "https://plogin.m.jd.com/login/login?appid=2193"
+	jdLoginURL   = "https://passport.jd.com/new/login.aspx?ReturnUrl=https%3A%2F%2Fwww.jd.com"
 )
 
 type JDCollector struct {
@@ -448,24 +448,24 @@ func (c *JDCollector) fetchPriceBrowser(ctx context.Context, skuID string) (*Pri
 		}
 	}
 
-	// 导航到商品页（30s 超时；轮询 body 就绪，避免 WaitReady 在慢页面卡死）
-	navCtx, navCancel := context.WithTimeout(tabCtx, 30*time.Second)
+	// 导航到商品页（Navigate 可能因桌面页 load 事件迟迟不触发而超时，但 body 未必不可用，
+	// 因此超时后仍继续轮询 body，预算 45s）
+	navDeadline := time.Now().Add(45 * time.Second)
+	navCtx, navCancel := context.WithTimeout(tabCtx, 45*time.Second)
 	defer navCancel()
 	if err := chromedp.Run(navCtx, chromedp.Navigate(pageURL)); err != nil {
-		return nil, fmt.Errorf("浏览器导航失败: %w", err)
+		fmt.Fprintf(os.Stderr, "[jd] Navigate 未在预期内完成（%v），继续轮询 body\n", err)
 	}
 	bodyOK := false
 	for !bodyOK {
-		if err := chromedp.Run(navCtx, chromedp.Evaluate(`!!document.body && document.readyState !== 'loading'`, &bodyOK)); err != nil {
-			if navCtx.Err() != nil {
-				return nil, fmt.Errorf("浏览器加载页面失败: %w", navCtx.Err())
-			}
+		if time.Now().After(navDeadline) {
+			return nil, fmt.Errorf("浏览器加载页面失败: body 未就绪（%s）", pageURL)
+		}
+		if err := chromedp.Run(tabCtx, chromedp.Evaluate(`!!document.body && document.readyState !== 'loading'`, &bodyOK)); err != nil {
 			bodyOK = false
 		}
-		select {
-		case <-navCtx.Done():
-			return nil, fmt.Errorf("浏览器加载页面失败: %w", navCtx.Err())
-		case <-time.After(300 * time.Millisecond):
+		if !bodyOK {
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 	chromedp.Run(tabCtx, chromedp.Sleep(3*time.Second))

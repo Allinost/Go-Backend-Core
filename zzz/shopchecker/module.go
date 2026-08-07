@@ -100,6 +100,12 @@ func (m *Module) registerSchedulerTask() {
 	}
 	for _, t := range tasks {
 		if t.Name == "shopchecker_price_scan" {
+			if t.Expression != "1h" {
+				t.Expression = "1h"
+				if err := s.UpdateTask(&t); err == nil {
+					logger.Info().Msg("shopchecker: 价格扫描任务间隔已更新为 1h")
+				}
+			}
 			return
 		}
 	}
@@ -107,7 +113,7 @@ func (m *Module) registerSchedulerTask() {
 	s.AddTask(&centralscheduler.Task{
 		Name:       "shopchecker_price_scan",
 		Type:       centralscheduler.TaskTypeInterval,
-		Expression: "30s",
+		Expression: "1h",
 		Handler:    "shopchecker_price_scan",
 		Status:     centralscheduler.TaskStatusActive,
 		Timeout:    300,

@@ -79,11 +79,11 @@ var seedPlatforms = []struct {
 }{
 	{
 		ID: "jd", Name: "京东", Category: "shopping", LoginType: "browser", HasAuto: false,
-		LoginURL: "https://plogin.m.jd.com/login/login?appid=2193",
-		HomeURL:  "https://home.m.jd.com",
+		LoginURL: "https://passport.jd.com/new/login.aspx?ReturnUrl=https%3A%2F%2Fwww.jd.com",
+		HomeURL:  "https://www.jd.com",
 		FormCfg: &FormConfig{
 			SuccessCookies:   []string{"pt_key", "pt_pin"},
-			SuccessURLPrefix: "https://m.jd.com",
+			SuccessURLPrefix: "https://www.jd.com",
 			MaxAutoRetry:     3,
 		},
 	},

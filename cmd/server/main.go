@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"github.com/Allinost/go-backend-core/internal/modules/ops"
-	"github.com/Allinost/go-backend-core/internal/mod
 	"github.com/Allinost/go-backend-core/zzz/goodser"
 	"github.com/Allinost/go-backend-core/zzz/login3rd"
 	"github.com/Allinost/go-backend-core/zzz/shopchecker"
@@ -25,6 +25,7 @@ import (
 	"github.com/Allinost/go-backend-core/internal/modules/s1"
 	"github.com/Allinost/go-backend-core/internal/modules/s2"
 	"github.com/Allinost/go-backend-core/internal/modules/servicenav"
+	"github.com/Allinost/go-backend-core/internal/modules/webhook"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/Allinost/go-backend-core/internal/services/crypto"
 	"github.com/Allinost/go-backend-core/internal/services/eventbus"

@@ -83,7 +83,7 @@ func (m *Module) GetService() *Service {
 	return m.svc
 }
 
-// registerSessionCheckTask 在 centralized scheduler 中注册 1h 间隔的 session 检查任务
+// registerSessionCheckTask 在 centralized scheduler 中注册 24h 间隔的 session 检查任务
 func (m *Module) registerSessionCheckTask() {
 	schedMod := modules.Get("scheduler")
 	if schedMod == nil {
@@ -102,7 +102,12 @@ func (m *Module) registerSessionCheckTask() {
 	}
 	for _, t := range tasks {
 		if t.Name == "login3rd_session_check" {
-			logger.Info().Msg("login3rd: session 检查任务已存在 scheduler 中")
+			if t.Expression != "24h" {
+				t.Expression = "24h"
+				if err := s.UpdateTask(&t); err == nil {
+					logger.Info().Msg("login3rd: session 检查任务间隔已更新为 24h")
+				}
+			}
 			return
 		}
 	}
@@ -110,7 +115,7 @@ func (m *Module) registerSessionCheckTask() {
 	if err := s.AddTask(&scheduler.Task{
 		Name:       "login3rd_session_check",
 		Type:       scheduler.TaskTypeInterval,
-		Expression: "1h",
+		Expression: "24h",
 		Handler:    "login3rd_session_check",
 		Status:     scheduler.TaskStatusActive,
 		Timeout:    600,
@@ -118,7 +123,7 @@ func (m *Module) registerSessionCheckTask() {
 		logger.Warn().Err(err).Msg("login3rd: 添加 session 检查任务到 scheduler 失败")
 		return
 	}
-	logger.Info().Msg("login3rd: session 检查任务已注册到 centralized scheduler（间隔 1h）")
+	logger.Info().Msg("login3rd: session 检查任务已注册到 centralized scheduler（间隔 24h）")
 }
 
 // RegisterRoutes 注册路由到 /api/v1/login3rd/*
