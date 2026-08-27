@@ -49,6 +49,13 @@ func (s *Service) RegisterProvider(p provider.Provider) {
 	s.providers[p.ID()] = p
 }
 
+// RegisterProviderAs 以指定平台 ID 注册 Provider（用于复用同一 Provider 服务的多平台）
+func (s *Service) RegisterProviderAs(platformID string, p provider.Provider) {
+	if platformID != "" && p != nil {
+		s.providers[platformID] = p
+	}
+}
+
 // ---------- Platform ----------
 
 // ListPlatforms 列出所有平台
@@ -421,6 +428,95 @@ func (s *Service) SendWebhookNotification(ctx context.Context, accountID int64, 
 		},
 	})
 	return err
+}
+
+// MarkExpired 标记账号为登录失效（供 shopchecker 检测到登录失效时同步状态）
+func (s *Service) MarkExpired(ctx context.Context, id int64, errMsg string) error {
+	return s.repo.MarkExpired(ctx, id, errMsg)
+}
+
+// NotifyLoginExpired 平台登录失效处理（供 shopchecker 调用）：
+// 标记该平台所有非禁用账号为失效，并通过各账号绑定的 webhook 发送含远程登录地址的告警。
+// 返回是否有通知实际发送到渠道 webhook 和涉及的全部账号 webhook ID（用于 shopchecker 记录日志）。
+func (s *Service) NotifyLoginExpired(ctx context.Context, platformID, errMsg string) (notified bool, webhookIDs []string) {
+	accounts, err := s.repo.GetAccountByPlatform(ctx, platformID)
+	if err != nil {
+		return false, nil
+	}
+
+	for i := range accounts {
+		a := accounts[i]
+		if a.Status == "disabled" {
+			continue
+		}
+		// 同步账号登录状态为失效
+		s.repo.MarkExpired(ctx, a.ID, errMsg)
+		webhookIDs = append(webhookIDs, a.WebhookIDs...)
+		if len(a.WebhookIDs) == 0 {
+			continue
+		}
+
+		// 创建远程登录会话，获取可点击的重新登录地址
+		token := ""
+		if t, err := s.CreateRemoteSession(ctx, a.ID); err == nil {
+			token = t
+		}
+
+		title := fmt.Sprintf("⚠️ %s 登录已失效", a.Label)
+		content := fmt.Sprintf("平台「%s」（账号：%s）登录已失效，请重新登录。\n错误信息：%s", a.PlatformID, a.Label, errMsg)
+		if token != "" {
+			content += fmt.Sprintf("\n点击下方链接在浏览器中完成登录（5 分钟内有效）：\n%s/api/v1/login3rd/remote/session/%s", getHost(), token)
+		}
+		if err := s.SendWebhookNotification(ctx, a.ID, title, content); err == nil {
+			notified = true
+		}
+	}
+	return notified, webhookIDs
+}
+
+// IsPlatformLoginExpired 判断平台下是否存在标记为登录失效的账号（disabled 账号跳过）
+func (s *Service) IsPlatformLoginExpired(ctx context.Context, platformID string) (bool, error) {
+	if platformID == "" {
+		return false, nil
+	}
+	accounts, err := s.repo.GetAccountByPlatform(ctx, platformID)
+	if err != nil {
+		return false, err
+	}
+	for _, a := range accounts {
+		if a.Status == "disabled" {
+			continue
+		}
+		if a.VerifiedStatus == "expired" || a.Status == "expired" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// TouchSession 价格采集成功后延寿：把平台下非禁用账号的会话有效期顺延到
+// max(当前会话到期时间, now + keepAlive)，并刷新为 valid/active，保证频繁采集期间会话不失效
+func (s *Service) TouchSession(ctx context.Context, platformID string, keepAlive time.Duration) error {
+	if platformID == "" {
+		return nil
+	}
+	accounts, err := s.repo.GetAccountByPlatform(ctx, platformID)
+	if err != nil {
+		return err
+	}
+	for _, a := range accounts {
+		if a.Status == "disabled" {
+			continue
+		}
+		newExpiry := time.Now().Add(keepAlive)
+		if a.SessionExpiresAt != nil && a.SessionExpiresAt.After(newExpiry) {
+			newExpiry = *a.SessionExpiresAt
+		}
+		if err := s.repo.TouchSession(ctx, a.ID, newExpiry); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // GetRemoteManager 返回远程浏览器管理器

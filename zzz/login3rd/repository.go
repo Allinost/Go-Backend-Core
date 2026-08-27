@@ -88,6 +88,26 @@ var seedPlatforms = []struct {
 		},
 	},
 	{
+		ID: "qixian", Name: "七鲜", Category: "shopping", LoginType: "browser", HasAuto: false,
+		LoginURL: "https://plogin.m.jd.com/login/login?appid=2193",
+		HomeURL:  "https://7fresh.m.jd.com",
+		FormCfg: &FormConfig{
+			SuccessCookies:   []string{"pt_key", "pt_pin"},
+			SuccessURLPrefix: "https://m.jd.com",
+			MaxAutoRetry:     3,
+		},
+	},
+	{
+		ID: "jdm", Name: "京东移动版", Category: "shopping", LoginType: "browser", HasAuto: false,
+		LoginURL: "https://plogin.m.jd.com/login/login?appid=2193",
+		HomeURL:  "https://m.jd.com",
+		FormCfg: &FormConfig{
+			SuccessCookies:   []string{"pt_key", "pt_pin"},
+			SuccessURLPrefix: "https://m.jd.com",
+			MaxAutoRetry:     3,
+		},
+	},
+	{
 		ID: "taobao", Name: "淘宝", Category: "shopping", LoginType: "browser", HasAuto: false,
 		LoginURL: "https://login.taobao.com",
 		HomeURL:  "https://www.taobao.com",
@@ -245,7 +265,7 @@ func (r *Repository) UpdateSession(ctx context.Context, id int64, sessionData *S
 	sessionJSON, _ := json.Marshal(sessionData)
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE login3rd_accounts SET session_data = ?, login_method = ?,
-		 session_expires_at = ?, last_login_at = NOW(), verified_status = 'valid', last_error = ''
+		 session_expires_at = ?, last_login_at = NOW(), verified_status = 'valid', status = 'active', last_error = ''
 		 WHERE id = ?`,
 		nullJSON(sessionJSON), method, expiresAt, id)
 	return err
@@ -253,9 +273,25 @@ func (r *Repository) UpdateSession(ctx context.Context, id int64, sessionData *S
 
 // UpdateVerifiedStatus 更新验证状态
 func (r *Repository) UpdateVerifiedStatus(ctx context.Context, id int64, status string) error {
+	if status == "valid" {
+		_, err := r.db.ExecContext(ctx,
+			`UPDATE login3rd_accounts SET verified_status = 'valid', status = 'active', last_verified_at = NOW(), last_error = '' WHERE id = ?`,
+			id)
+		return err
+	}
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE login3rd_accounts SET verified_status = ?, last_verified_at = NOW() WHERE id = ?`,
 		status, id)
+	return err
+}
+
+// TouchSession 标记 session 使用成功：刷新验证时间并顺延会话有效期（供价格采集成功后调用）
+func (r *Repository) TouchSession(ctx context.Context, id int64, expiresAt time.Time) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE login3rd_accounts SET verified_status = 'valid', status = 'active',
+		 last_verified_at = NOW(), last_error = '', session_expires_at = ?
+		 WHERE id = ?`,
+		expiresAt, id)
 	return err
 }
 

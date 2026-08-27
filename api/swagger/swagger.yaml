@@ -1620,6 +1620,1565 @@ definitions:
       name:
         type: string
     type: object
+  zzz_ia.Account:
+    properties:
+      broker:
+        type: string
+      cost_method:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  zzz_ia.AccrueResult:
+    properties:
+      accrued:
+        description: 当日新计提笔数
+        type: integer
+      errors:
+        items:
+          type: string
+        type: array
+      scanned:
+        description: 计息持仓数
+        type: integer
+      skipped:
+        description: 幂等跳过数
+        type: integer
+      total_interest:
+        description: 当日计提利息总额
+        type: number
+    type: object
+  zzz_ia.AlertCheckResult:
+    properties:
+      checked:
+        description: active 规则数
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.AlertTriggeredView'
+        type: array
+      notified:
+        type: boolean
+      triggered:
+        type: integer
+    type: object
+  zzz_ia.AlertTriggeredView:
+    properties:
+      account_id:
+        type: string
+      alert_type:
+        type: string
+      code:
+        type: string
+      last_price:
+        type: number
+      name:
+        type: string
+      target_price:
+        type: number
+    type: object
+  zzz_ia.AllocationItem:
+    properties:
+      account_id:
+        description: 空=全局
+        type: string
+      category:
+        description: stock/etf/fund/deposit/wealth/cash
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      remark:
+        type: string
+      status:
+        description: active / inactive
+        type: string
+      target_ratio:
+        description: 0-1，如 0.4
+        type: number
+      tolerance:
+        description: 允许偏差阈值，如 0.05
+        type: number
+      updated_at:
+        type: string
+    type: object
+  zzz_ia.AllocationReviewItem:
+    properties:
+      actual_ratio:
+        type: number
+      breach:
+        description: 偏差超出容忍阈值
+        type: boolean
+      category:
+        type: string
+      deviation:
+        description: actual - target
+        type: number
+      target_ratio:
+        type: number
+      value_cny:
+        type: number
+    type: object
+  zzz_ia.AllocationReviewResp:
+    properties:
+      account_id:
+        description: 空=全局
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.AllocationReviewItem'
+        type: array
+      uncovered:
+        description: 有实际持仓但未设置目标的类别
+        items:
+          type: string
+        type: array
+    type: object
+  zzz_ia.Asset:
+    properties:
+      annual_rate:
+        description: 约定年化利率（存款/理财），如 0.025
+        type: number
+      asset_type:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      id:
+        type: string
+      issuer:
+        description: 发行方/管理人
+        type: string
+      lock_days:
+        description: 封闭期天数（理财）
+        type: integer
+      market:
+        type: string
+      maturity_date:
+        description: 到期日 YYYY-MM-DD
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      risk_level:
+        description: R1-R5
+        type: string
+      start_date:
+        description: 起息日 YYYY-MM-DD
+        type: string
+      status:
+        description: active / delisted / matured
+        type: string
+      sub_type:
+        type: string
+      tracking_index:
+        description: QDII 参考指数代码
+        type: string
+      updated_at:
+        type: string
+    type: object
+  zzz_ia.AssetTradeReview:
+    properties:
+      account_id:
+        type: string
+      asset_id:
+        type: string
+      buys:
+        items:
+          $ref: '#/definitions/zzz_ia.TradeReviewBuy'
+        type: array
+      code:
+        type: string
+      currency:
+        type: string
+      name:
+        type: string
+      sells:
+        items:
+          $ref: '#/definitions/zzz_ia.TradeReviewSell'
+        type: array
+      win_rate:
+        type: number
+    type: object
+  zzz_ia.BenchmarkPoint:
+    properties:
+      date:
+        type: string
+      index:
+        type: number
+    type: object
+  zzz_ia.CashFlow:
+    properties:
+      account_id:
+        type: string
+      amount:
+        type: number
+      counter_account_id:
+        description: 划转对手方账户
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      flow_date:
+        description: YYYY-MM-DD
+        type: string
+      flow_type:
+        type: string
+      id:
+        type: integer
+      remark:
+        type: string
+    type: object
+  zzz_ia.ConcentrationItem:
+    properties:
+      asset_id:
+        type: string
+      breach:
+        type: boolean
+      code:
+        type: string
+      name:
+        type: string
+      value:
+        type: number
+      weight:
+        type: number
+    type: object
+  zzz_ia.CreateAccountReq:
+    properties:
+      broker:
+        type: string
+      cost_method:
+        description: 默认 wa
+        type: string
+      currency:
+        description: 默认 CNY
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      remark:
+        type: string
+      type:
+        type: string
+    required:
+    - name
+    - type
+    type: object
+  zzz_ia.CreateAlertReq:
+    properties:
+      account_id:
+        type: string
+      alert_type:
+        type: string
+      asset_id:
+        type: string
+      note:
+        type: string
+      target_price:
+        type: number
+    required:
+    - account_id
+    - alert_type
+    - asset_id
+    - target_price
+    type: object
+  zzz_ia.CreateAllocationReq:
+    properties:
+      account_id:
+        description: 空=全局
+        type: string
+      category:
+        type: string
+      remark:
+        type: string
+      target_ratio:
+        type: number
+      tolerance:
+        type: number
+    required:
+    - category
+    - target_ratio
+    type: object
+  zzz_ia.CreateAssetReq:
+    properties:
+      annual_rate:
+        type: number
+      asset_type:
+        type: string
+      code:
+        maxLength: 32
+        type: string
+      currency:
+        type: string
+      issuer:
+        type: string
+      lock_days:
+        type: integer
+      market:
+        type: string
+      maturity_date:
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      remark:
+        type: string
+      risk_level:
+        type: string
+      start_date:
+        type: string
+      sub_type:
+        type: string
+      tracking_index:
+        type: string
+    required:
+    - asset_type
+    - code
+    - market
+    - name
+    type: object
+  zzz_ia.CreateCashFlowReq:
+    properties:
+      account_id:
+        type: string
+      amount:
+        type: number
+      counter_account_id:
+        type: string
+      currency:
+        type: string
+      flow_date:
+        description: 默认今天
+        type: string
+      flow_type:
+        type: string
+      remark:
+        type: string
+    required:
+    - account_id
+    - amount
+    - flow_type
+    type: object
+  zzz_ia.CreateDCAPlanReq:
+    properties:
+      account_id:
+        type: string
+      amount:
+        type: number
+      asset_id:
+        type: string
+      auto_buy:
+        type: boolean
+      cycle:
+        type: string
+      end_date:
+        type: string
+      exec_day:
+        maximum: 28
+        minimum: 1
+        type: integer
+      name:
+        maxLength: 100
+        type: string
+      remark:
+        type: string
+      start_date:
+        type: string
+    required:
+    - account_id
+    - amount
+    - asset_id
+    - cycle
+    - exec_day
+    - name
+    type: object
+  zzz_ia.CreateFeeReq:
+    properties:
+      account_id:
+        type: string
+      amount:
+        type: number
+      asset_id:
+        type: string
+      charge_date:
+        type: string
+      currency:
+        type: string
+      fee_type:
+        type: string
+      period:
+        type: string
+      remark:
+        type: string
+    required:
+    - account_id
+    - amount
+    - fee_type
+    type: object
+  zzz_ia.CreateTransactionReq:
+    properties:
+      account_id:
+        type: string
+      amount:
+        type: number
+      asset_id:
+        type: string
+      fee:
+        type: number
+      fee_detail:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+      price:
+        type: number
+      remark:
+        type: string
+      settle_date:
+        type: string
+      shares:
+        type: number
+      status:
+        type: string
+      stop_loss_price:
+        description: 止损参考价（可选）
+        type: number
+      target_price:
+        description: 买入追踪目标价（可选）
+        type: number
+      tax:
+        type: number
+      trade_at:
+        description: RFC3339 或 YYYY-MM-DD HH:MM:SS，默认当前时间
+        type: string
+      trade_type:
+        type: string
+    required:
+    - account_id
+    - asset_id
+    - trade_type
+    type: object
+  zzz_ia.DCAPlan:
+    properties:
+      account:
+        $ref: '#/definitions/zzz_ia.Account'
+      account_id:
+        type: string
+      amount:
+        type: number
+      asset:
+        $ref: '#/definitions/zzz_ia.Asset'
+      asset_id:
+        type: string
+      auto_buy:
+        type: boolean
+      created_at:
+        type: string
+      cycle:
+        description: daily / weekly / biweekly / monthly
+        type: string
+      end_date:
+        type: string
+      exec_day:
+        description: 周几(1-7) 或 几号(1-28)
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      next_exec_date:
+        type: string
+      remark:
+        type: string
+      start_date:
+        type: string
+      status:
+        description: active / paused / finished
+        type: string
+      updated_at:
+        type: string
+    type: object
+  zzz_ia.DCASimulateResp:
+    properties:
+      advantage:
+        description: 定投收益率 - 一次性收益率
+        type: number
+      asset_id:
+        type: string
+      cycle:
+        type: string
+      end_date:
+        type: string
+      exec_count:
+        type: integer
+      final_nav:
+        type: number
+      final_value:
+        type: number
+      lump_return_rate:
+        type: number
+      lump_sum_value:
+        type: number
+      return_rate:
+        type: number
+      shares_accum:
+        type: number
+      start_date:
+        type: string
+      total_invested:
+        type: number
+    type: object
+  zzz_ia.DividendAssetRow:
+    properties:
+      account_id:
+        type: string
+      asset_id:
+        type: string
+      code:
+        type: string
+      count:
+        type: integer
+      gross:
+        type: number
+      name:
+        type: string
+      net:
+        type: number
+      tax:
+        type: number
+      years:
+        additionalProperties:
+          format: float64
+          type: number
+        description: 年度 → 税后净额（原币）
+        type: object
+    type: object
+  zzz_ia.DividendReportResp:
+    properties:
+      by_asset:
+        items:
+          $ref: '#/definitions/zzz_ia.DividendAssetRow'
+        type: array
+      reinvest_count:
+        type: integer
+      scope:
+        type: string
+      total_gross:
+        type: number
+      total_net:
+        type: number
+      total_tax:
+        type: number
+      yield_on_cost:
+        description: 近12月税后分红 / 当前持仓市值(CNY)
+        type: number
+    type: object
+  zzz_ia.DynamicPotentialResp:
+    properties:
+      analyzed:
+        description: 完成动量分析的候选数
+        type: integer
+      generated_at:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.PotentialStock'
+        type: array
+      universe:
+        description: 快照池总数
+        type: integer
+    type: object
+  zzz_ia.EquityCurvePoint:
+    properties:
+      cost:
+        description: 持仓成本
+        type: number
+      date:
+        type: string
+      pnl:
+        description: 累计盈亏
+        type: number
+      pnl_ratio:
+        description: 盈亏/成本
+        type: number
+      value:
+        description: 总资产（含现金，CNY）
+        type: number
+    type: object
+  zzz_ia.EquityCurveResp:
+    properties:
+      benchmark:
+        description: 与组合曲线日期对齐
+        items:
+          $ref: '#/definitions/zzz_ia.BenchmarkPoint'
+        type: array
+      benchmark_name:
+        type: string
+      points:
+        items:
+          $ref: '#/definitions/zzz_ia.EquityCurvePoint'
+        type: array
+      scope:
+        description: global / 账户ID
+        type: string
+    type: object
+  zzz_ia.FeeRecord:
+    properties:
+      account_id:
+        type: string
+      amount:
+        type: number
+      asset_id:
+        type: string
+      charge_date:
+        description: YYYY-MM-DD
+        type: string
+      created_at:
+        type: string
+      currency:
+        type: string
+      fee_type:
+        type: string
+      id:
+        type: integer
+      period:
+        description: 计费周期，如 2026-Q3
+        type: string
+      remark:
+        type: string
+    type: object
+  zzz_ia.FeeYearRow:
+    properties:
+      standalone_fees:
+        type: number
+      total:
+        type: number
+      trade_fees:
+        type: number
+      trade_tax:
+        type: number
+      year:
+        type: integer
+    type: object
+  zzz_ia.FeesReportResp:
+    properties:
+      base_value:
+        description: 侵蚀度分母（最新快照总值或当前市值）
+        type: number
+      by_year:
+        items:
+          $ref: '#/definitions/zzz_ia.FeeYearRow'
+        type: array
+      drag_ratio:
+        description: 费用/资产基数
+        type: number
+      end_date:
+        type: string
+      grand:
+        type: number
+      scope:
+        type: string
+      standalone_by_type:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+      start_date:
+        type: string
+      total_standalone:
+        type: number
+      total_trade_fees:
+        type: number
+      total_trade_tax:
+        type: number
+    type: object
+  zzz_ia.FxRate:
+    properties:
+      base_ccy:
+        description: 如 CNY
+        type: string
+      id:
+        type: integer
+      quote_ccy:
+        description: 如 USD
+        type: string
+      rate:
+        description: 1 USD = 7.16 CNY 则 rate=7.16
+        type: number
+      rate_date:
+        description: YYYY-MM-DD
+        type: string
+      source:
+        description: manual / auto
+        type: string
+    type: object
+  zzz_ia.FxRefreshResult:
+    properties:
+      errors:
+        items:
+          type: string
+        type: array
+      rates:
+        additionalProperties:
+          format: float64
+          type: number
+        description: 最新汇率
+        type: object
+      updated:
+        description: 更新的币对 CNY->USD
+        items:
+          type: string
+        type: array
+    type: object
+  zzz_ia.ImportResult:
+    properties:
+      assets_added:
+        description: 自动创建的标的 code
+        items:
+          type: string
+        type: array
+      created:
+        description: 新建交易数
+        type: integer
+      duplicates:
+        description: 查重跳过数
+        type: integer
+      errors:
+        items:
+          type: string
+        type: array
+      failed:
+        description: 失败行数
+        type: integer
+      total_rows:
+        description: 数据行数（不含表头）
+        type: integer
+    type: object
+  zzz_ia.IndexAnalysisResp:
+    properties:
+      generated_at:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.IndexMetrics'
+        type: array
+      years:
+        type: integer
+    type: object
+  zzz_ia.IndexMetrics:
+    properties:
+      above_ma20:
+        type: boolean
+      above_ma60:
+        type: boolean
+      above_ma120:
+        type: boolean
+      above_ma250:
+        type: boolean
+      ann_return:
+        description: 窗口年化收益
+        type: number
+      ann_vol:
+        description: 年化波动率
+        type: number
+      change_ytd:
+        description: 年初至今涨幅 %
+        type: number
+      error:
+        description: 单指数获取失败原因
+        type: string
+      latest:
+        type: number
+      ma20:
+        type: number
+      ma60:
+        type: number
+      ma120:
+        type: number
+      ma250:
+        type: number
+      max_drawdown:
+        description: 窗口最大回撤
+        type: number
+      name:
+        type: string
+      percentile:
+        description: 当前点位在窗口高低区间分位 0-1
+        type: number
+      samples:
+        type: integer
+      secid:
+        type: string
+      trend:
+        description: 多头排列/多头震荡/空头震荡/空头排列
+        type: string
+      window_high:
+        type: number
+      window_low:
+        type: number
+    type: object
+  zzz_ia.MaturingAssetView:
+    properties:
+      asset_type:
+        type: string
+      code:
+        type: string
+      days_left:
+        type: integer
+      maturity_date:
+        type: string
+      name:
+        type: string
+      value:
+        type: number
+    type: object
+  zzz_ia.MaturityCheckResult:
+    properties:
+      count:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.MaturingAssetView'
+        type: array
+      notified:
+        description: 是否已推送 webhook
+        type: boolean
+      within_days:
+        type: integer
+    type: object
+  zzz_ia.OverviewResp:
+    properties:
+      accounts:
+        additionalProperties:
+          $ref: '#/definitions/zzz_ia.OverviewSummary'
+        description: 按 account_id 分组汇总
+        type: object
+      grand:
+        allOf:
+        - $ref: '#/definitions/zzz_ia.OverviewSummary'
+        description: 全局汇总
+    type: object
+  zzz_ia.OverviewSummary:
+    properties:
+      by_currency:
+        additionalProperties:
+          $ref: '#/definitions/zzz_ia.OverviewSummary'
+        description: 仅顶层汇总填充
+        type: object
+      cash_balance:
+        description: 入金-出金净额
+        type: number
+      dividend_income:
+        type: number
+      fee_total:
+        type: number
+      interest_income:
+        type: number
+      pnl_ratio:
+        type: number
+      realized_pnl:
+        type: number
+      tax_paid:
+        type: number
+      total_cost:
+        type: number
+      total_pnl:
+        type: number
+      total_value:
+        type: number
+      total_value_cny:
+        description: 汇率折算后（可得的币种）
+        type: number
+    type: object
+  zzz_ia.PaginatedResp-zzz_ia_Account:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.Account'
+        type: array
+      total:
+        type: integer
+    type: object
+  zzz_ia.PaginatedResp-zzz_ia_Asset:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.Asset'
+        type: array
+      total:
+        type: integer
+    type: object
+  zzz_ia.PaginatedResp-zzz_ia_CashFlow:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.CashFlow'
+        type: array
+      total:
+        type: integer
+    type: object
+  zzz_ia.PaginatedResp-zzz_ia_DCAPlan:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.DCAPlan'
+        type: array
+      total:
+        type: integer
+    type: object
+  zzz_ia.PaginatedResp-zzz_ia_FeeRecord:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.FeeRecord'
+        type: array
+      total:
+        type: integer
+    type: object
+  zzz_ia.PaginatedResp-zzz_ia_PriceAlert:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.PriceAlert'
+        type: array
+      total:
+        type: integer
+    type: object
+  zzz_ia.PaginatedResp-zzz_ia_Transaction:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.Transaction'
+        type: array
+      total:
+        type: integer
+    type: object
+  zzz_ia.PositionView:
+    properties:
+      account_id:
+        type: string
+      asset:
+        allOf:
+        - $ref: '#/definitions/zzz_ia.Asset'
+        description: 动态计算字段（不入库）
+      asset_id:
+        type: string
+      available_shares:
+        description: 可用份额（扣除锁定）
+        type: number
+      avg_cost:
+        type: number
+      cost_amount:
+        type: number
+      created_at:
+        type: string
+      currency:
+        type: string
+      id:
+        type: integer
+      last_price:
+        type: number
+      last_price_at:
+        type: string
+      last_price_source:
+        type: string
+      locked_shares:
+        type: number
+      market_value:
+        description: 市值（无最新价时按成本兜底）
+        type: number
+      pnl_ratio:
+        description: 浮动收益率
+        type: number
+      price_valued:
+        description: 是否有真实行情估值（false=按成本兜底）
+        type: boolean
+      shares:
+        type: number
+      status:
+        description: holding / closed
+        type: string
+      stop_loss_price:
+        description: 止损参考价（0=未设置）
+        type: number
+      target_price:
+        description: 追踪目标价（0=未设置）
+        type: number
+      target_set_at:
+        type: string
+      unrealized_pnl:
+        description: 浮动盈亏
+        type: number
+      updated_at:
+        type: string
+    type: object
+  zzz_ia.PotentialStock:
+    properties:
+      above_ma20:
+        type: boolean
+      above_ma60:
+        type: boolean
+      change_pct:
+        description: 当日涨跌幅 %
+        type: number
+      code:
+        type: string
+      main_inflow_ratio:
+        description: 主力净流入/流通市值
+        type: number
+      name:
+        type: string
+      price:
+        type: number
+      r5:
+        description: 近5日涨幅 %
+        type: number
+      r20:
+        description: 近20日涨幅 %
+        type: number
+      r60:
+        description: 近60日涨幅 %
+        type: number
+      score:
+        description: 综合潜力分 0-100
+        type: number
+      score_parts:
+        additionalProperties:
+          format: float64
+          type: number
+        description: 分项得分（便于调参理解）
+        type: object
+      turnover_rate:
+        description: 换手率 %
+        type: number
+      vol_annual:
+        description: 年化波动率
+        type: number
+    type: object
+  zzz_ia.PriceAlert:
+    properties:
+      account_id:
+        type: string
+      alert_type:
+        type: string
+      asset:
+        $ref: '#/definitions/zzz_ia.Asset'
+      asset_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      note:
+        type: string
+      status:
+        type: string
+      target_price:
+        type: number
+      triggered_at:
+        type: string
+      triggered_price:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  zzz_ia.PriceHistory:
+    properties:
+      asset_id:
+        type: string
+      nav:
+        type: number
+      nav_date:
+        type: string
+      source:
+        type: string
+    type: object
+  zzz_ia.QualityStock:
+    properties:
+      change_pct:
+        type: number
+      code:
+        type: string
+      name:
+        type: string
+      pb:
+        type: number
+      pe_dynamic:
+        type: number
+      pe_ttm:
+        type: number
+      price:
+        type: number
+      profit_growth:
+        type: number
+      roe:
+        type: number
+      score:
+        description: 质量分 0-100
+        type: number
+      score_parts:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+      total_mv_yi:
+        type: number
+    type: object
+  zzz_ia.QualityStockResp:
+    properties:
+      filtered:
+        description: 通过硬性过滤的数量
+        type: integer
+      generated_at:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.QualityStock'
+        type: array
+      universe:
+        type: integer
+    type: object
+  zzz_ia.RefreshResult:
+    properties:
+      errors:
+        items:
+          type: string
+        type: array
+      failed:
+        description: 失败数
+        type: integer
+      scanned:
+        description: 扫描的标的数
+        type: integer
+      updated:
+        description: 成功更新市值数
+        type: integer
+    type: object
+  zzz_ia.ReturnsResp:
+    properties:
+      end_date:
+        type: string
+      end_value:
+        description: 含现金
+        type: number
+      flow_count:
+        type: integer
+      money_weighted:
+        description: Modified Dietz
+        type: number
+      net_external_flow:
+        description: 入金-出金（划转不计）
+        type: number
+      note:
+        description: 数据不足等说明
+        type: string
+      scope:
+        type: string
+      simple_return:
+        description: 简单区间收益率
+        type: number
+      start_date:
+        type: string
+      start_value:
+        type: number
+      xirr:
+        description: 年化资金加权收益率
+        type: number
+    type: object
+  zzz_ia.RiskMetricsResp:
+    properties:
+      annual_volatility:
+        type: number
+      concentration:
+        items:
+          $ref: '#/definitions/zzz_ia.ConcentrationItem'
+        type: array
+      concentration_threshold:
+        type: number
+      end_date:
+        type: string
+      hhi:
+        description: Herfindahl 指数，Σ权重²
+        type: number
+      max_drawdown:
+        type: number
+      mdd_peak_date:
+        type: string
+      mdd_trough_date:
+        type: string
+      note:
+        type: string
+      sample_days:
+        type: integer
+      scope:
+        type: string
+      start_date:
+        type: string
+      top1_weight:
+        type: number
+      top5_weight:
+        type: number
+      total_value:
+        type: number
+    type: object
+  zzz_ia.SetPositionTargetReq:
+    properties:
+      account_id:
+        type: string
+      asset_id:
+        type: string
+      stop_loss_price:
+        description: 止损参考价，0=清除
+        type: number
+      target_price:
+        description: 追踪目标价，0=清除
+        type: number
+    required:
+    - account_id
+    - asset_id
+    type: object
+  zzz_ia.SnapshotResult:
+    properties:
+      accounts:
+        description: 含全局行
+        type: integer
+      date:
+        type: string
+      failed:
+        type: integer
+    type: object
+  zzz_ia.TradeAdviceItem:
+    properties:
+      above_ma20:
+        description: 技术面（可得时返回）
+        type: boolean
+      above_ma60:
+        type: boolean
+      account_id:
+        type: string
+      action:
+        description: buy/hold/watch/reduce/sell
+        type: string
+      asset_id:
+        type: string
+      asset_type:
+        type: string
+      code:
+        type: string
+      confidence:
+        description: 建议置信度 0-100
+        type: integer
+      cost_price:
+        description: 买入成本（卖出建议锚点）
+        type: number
+      last_price:
+        type: number
+      maturity_days:
+        description: 存款理财剩余天数（-1=不适用）
+        type: integer
+      name:
+        type: string
+      pnl_ratio:
+        type: number
+      reasons:
+        description: 触发规则说明
+        items:
+          type: string
+        type: array
+      stop_loss_price:
+        description: 止损参考
+        type: number
+      target_price:
+        description: 追踪目标
+        type: number
+      target_progress:
+        description: 向目标推进进度 (last-cost)/(target-cost)
+        type: number
+    type: object
+  zzz_ia.TradeAdviceResp:
+    properties:
+      buy_count:
+        type: integer
+      generated_at:
+        type: string
+      hold_count:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/zzz_ia.TradeAdviceItem'
+        type: array
+      reduce_count:
+        type: integer
+      scope:
+        type: string
+      sell_count:
+        type: integer
+    type: object
+  zzz_ia.TradeReviewBuy:
+    properties:
+      amount:
+        type: number
+      avg_after:
+        type: number
+      avg_before:
+        type: number
+      date:
+        type: string
+      dilution_ratio:
+        description: (新均价-旧均价)/旧均价，负=摊薄
+        type: number
+      perf_since:
+        description: 当前价相对买价涨跌
+        type: number
+      price:
+        type: number
+      shares:
+        type: number
+      tx_id:
+        type: integer
+    type: object
+  zzz_ia.TradeReviewSell:
+    properties:
+      date:
+        type: string
+      net_pnl:
+        type: number
+      opportunity_gap:
+        description: (当前价-卖价)/卖价，正=卖早了
+        type: number
+      price:
+        type: number
+      return_rate:
+        description: 相对卖出成本价
+        type: number
+      shares:
+        type: number
+      tx_id:
+        type: integer
+      win:
+        type: boolean
+    type: object
+  zzz_ia.TradesReviewResp:
+    properties:
+      assets:
+        items:
+          $ref: '#/definitions/zzz_ia.AssetTradeReview'
+        type: array
+      scope:
+        type: string
+      summary:
+        $ref: '#/definitions/zzz_ia.TradesReviewSummary'
+    type: object
+  zzz_ia.TradesReviewSummary:
+    properties:
+      avg_loss_return:
+        type: number
+      avg_win_return:
+        type: number
+      losses:
+        type: integer
+      profit_factor:
+        description: 总盈利/总亏损绝对值
+        type: number
+      total_buys:
+        type: integer
+      total_realized:
+        type: number
+      total_sells:
+        type: integer
+      win_rate:
+        type: number
+      wins:
+        type: integer
+    type: object
+  zzz_ia.Transaction:
+    properties:
+      account_id:
+        type: string
+      amount:
+        type: number
+      asset_id:
+        type: string
+      created_at:
+        type: string
+      fee:
+        type: number
+      fee_detail:
+        description: JSON 明细
+        type: string
+      id:
+        type: integer
+      method:
+        description: 卖出结算成本法快照
+        type: string
+      price:
+        type: number
+      realized_pnl:
+        description: 卖出已实现收益冗余
+        type: number
+      remark:
+        type: string
+      settle_date:
+        description: 确认日期 YYYY-MM-DD
+        type: string
+      shares:
+        type: number
+      status:
+        description: pending / confirmed
+        type: string
+      tax:
+        type: number
+      trade_at:
+        type: string
+      trade_type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  zzz_ia.UpdateAccountReq:
+    properties:
+      broker:
+        type: string
+      cost_method:
+        type: string
+      currency:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        type: string
+      type:
+        type: string
+    type: object
+  zzz_ia.UpdateAlertReq:
+    properties:
+      note:
+        type: string
+      status:
+        description: active(重新武装)/disabled
+        type: string
+      target_price:
+        type: number
+    type: object
+  zzz_ia.UpdateAllocationReq:
+    properties:
+      remark:
+        type: string
+      status:
+        type: string
+      target_ratio:
+        type: number
+      tolerance:
+        type: number
+    type: object
+  zzz_ia.UpdateAssetReq:
+    properties:
+      annual_rate:
+        type: number
+      asset_type:
+        type: string
+      code:
+        type: string
+      currency:
+        type: string
+      issuer:
+        type: string
+      lock_days:
+        type: integer
+      market:
+        type: string
+      maturity_date:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      risk_level:
+        type: string
+      start_date:
+        type: string
+      status:
+        type: string
+      sub_type:
+        type: string
+      tracking_index:
+        type: string
+    type: object
+  zzz_ia.UpdateDCAPlanReq:
+    properties:
+      amount:
+        type: number
+      auto_buy:
+        type: boolean
+      cycle:
+        type: string
+      end_date:
+        type: string
+      exec_day:
+        type: integer
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        type: string
+    type: object
+  zzz_ia.UpsertFxRateReq:
+    properties:
+      base_ccy:
+        maxLength: 8
+        type: string
+      quote_ccy:
+        maxLength: 8
+        type: string
+      rate:
+        type: number
+      rate_date:
+        type: string
+      source:
+        type: string
+    required:
+    - base_ccy
+    - quote_ccy
+    - rate
+    type: object
   zzz_login3rd.Account:
     properties:
       created_at:
@@ -7635,6 +9194,1590 @@ paths:
       summary: 全量同步
       tags:
       - zzz-goodser
+  /zzz-ia/accounts:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 账户类型 broker/bank/fund/other
+        in: query
+        name: type
+        type: string
+      - description: 状态 active/paused
+        in: query
+        name: status
+        type: string
+      - description: 关键词（name/broker）
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.PaginatedResp-zzz_ia_Account'
+              type: object
+      summary: 获取投资账户列表
+      tags:
+      - zzz-ia
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 账户信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.CreateAccountReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.Account'
+              type: object
+      summary: 创建投资账户
+      tags:
+      - zzz-ia
+  /zzz-ia/accounts/{id}:
+    delete:
+      parameters:
+      - description: 账户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除账户（存在持仓/交易时拒绝）
+      tags:
+      - zzz-ia
+    get:
+      parameters:
+      - description: 账户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.Account'
+              type: object
+      summary: 获取账户详情
+      tags:
+      - zzz-ia
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 账户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.UpdateAccountReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.Account'
+              type: object
+      summary: 更新账户
+      tags:
+      - zzz-ia
+  /zzz-ia/advice:
+    get:
+      description: 规则维度：追踪目标达成止盈、止损参考价纪律、浮亏评估线、MA20/MA60 趋势、集中度与配置偏差再平衡；存款理财按到期日给持有建议
+      parameters:
+      - description: 账户 ID（空=全部账户）
+        in: query
+        name: account_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.TradeAdviceResp'
+              type: object
+      summary: 持仓买卖操作建议：买入锚定趋势与目标空间，卖出锚定买入成本/追踪目标/止损纪律
+      tags:
+      - zzz-ia
+  /zzz-ia/alerts:
+    get:
+      parameters:
+      - description: 账户 ID
+        in: query
+        name: account_id
+        type: string
+      - description: 标的 ID
+        in: query
+        name: asset_id
+        type: string
+      - description: active/triggered/disabled
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.PaginatedResp-zzz_ia_PriceAlert'
+              type: object
+      summary: 查询价格告警规则
+      tags:
+      - zzz-ia
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 告警规则
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.CreateAlertReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.PriceAlert'
+              type: object
+      summary: 创建止盈/止损/到价告警规则
+      tags:
+      - zzz-ia
+  /zzz-ia/alerts/{id}:
+    delete:
+      parameters:
+      - description: 告警 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除价格告警
+      tags:
+      - zzz-ia
+    get:
+      parameters:
+      - description: 告警 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.PriceAlert'
+              type: object
+      summary: 获取价格告警详情
+      tags:
+      - zzz-ia
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 告警 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.UpdateAlertReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.PriceAlert'
+              type: object
+      summary: 更新告警（status 置回 active 可重新武装）
+      tags:
+      - zzz-ia
+  /zzz-ia/allocations:
+    get:
+      parameters:
+      - description: 账户 ID（空=全局）
+        in: query
+        name: account_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_ia.AllocationItem'
+                  type: array
+              type: object
+      summary: 查询资产配置目标
+      tags:
+      - zzz-ia
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 目标项
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.CreateAllocationReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.AllocationItem'
+              type: object
+      summary: 创建资产配置目标项
+      tags:
+      - zzz-ia
+  /zzz-ia/allocations/{id}:
+    delete:
+      parameters:
+      - description: 目标项 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除资产配置目标项
+      tags:
+      - zzz-ia
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 目标项 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.UpdateAllocationReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.AllocationItem'
+              type: object
+      summary: 更新资产配置目标项
+      tags:
+      - zzz-ia
+  /zzz-ia/allocations/review:
+    get:
+      parameters:
+      - description: 账户 ID（空=全局）
+        in: query
+        name: account_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.AllocationReviewResp'
+              type: object
+      summary: 实际配比 vs 目标配置对比（含偏差预警）
+      tags:
+      - zzz-ia
+  /zzz-ia/analytics/dca-simulate:
+    get:
+      parameters:
+      - description: 标的 ID（股票/ETF）
+        in: query
+        name: asset_id
+        required: true
+        type: string
+      - description: daily/weekly/biweekly/monthly
+        in: query
+        name: cycle
+        required: true
+        type: string
+      - description: 执行日（周几1-7或几号1-28）
+        in: query
+        name: exec_day
+        required: true
+        type: integer
+      - description: 每期金额
+        in: query
+        name: amount
+        required: true
+        type: number
+      - description: 开始日期 YYYY-MM-DD
+        in: query
+        name: start
+        required: true
+        type: string
+      - description: 结束日期（默认今天）
+        in: query
+        name: end
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.DCASimulateResp'
+              type: object
+      summary: 定投 vs 一次性投入模拟（基于标的历史K线）
+      tags:
+      - zzz-ia
+  /zzz-ia/analytics/dividends:
+    get:
+      parameters:
+      - description: 账户 ID（空=全局）
+        in: query
+        name: account_id
+        type: string
+      - description: 起始日期
+        in: query
+        name: start
+        type: string
+      - description: 结束日期
+        in: query
+        name: end
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.DividendReportResp'
+              type: object
+      summary: 分红标的排行、年度分布、税负合计与近12月股息率(YOC)
+      tags:
+      - zzz-ia
+  /zzz-ia/analytics/equity-curve:
+    get:
+      parameters:
+      - description: 账户 ID（空=全局）
+        in: query
+        name: account_id
+        type: string
+      - description: 起始日期 YYYY-MM-DD
+        in: query
+        name: start
+        type: string
+      - description: 结束日期
+        in: query
+        name: end
+        type: string
+      - description: 基准：CSI300/CSI500/SSE 或 secid，如 1.000300
+        in: query
+        name: benchmark
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.EquityCurveResp'
+              type: object
+      summary: 组合收益曲线（快照驱动），可选叠加基准指数归一化对比
+      tags:
+      - zzz-ia
+  /zzz-ia/analytics/fees:
+    get:
+      parameters:
+      - description: 账户 ID（空=全局）
+        in: query
+        name: account_id
+        type: string
+      - description: 起始日期
+        in: query
+        name: start
+        type: string
+      - description: 结束日期
+        in: query
+        name: end
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.FeesReportResp'
+              type: object
+      summary: 交易费税+独立费用年度分布、分类占比与资产侵蚀度
+      tags:
+      - zzz-ia
+  /zzz-ia/analytics/index-analysis:
+    get:
+      parameters:
+      - description: 逗号分隔：CSI300/CSI500/CSI1000/SSE/SZSE/GEM 或 secid，默认 CSI300,CSI500,SSE
+        in: query
+        name: indexes
+        type: string
+      - description: 回看年数 1-10，默认 3
+        in: query
+        name: years
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.IndexAnalysisResp'
+              type: object
+      summary: 指数均线系统/年内涨幅/窗口分位/年化收益波动回撤分析（多指数并列）
+      tags:
+      - zzz-ia
+  /zzz-ia/analytics/returns:
+    get:
+      parameters:
+      - description: 账户 ID（空=全局）
+        in: query
+        name: account_id
+        type: string
+      - description: 起始日期（默认回溯一年）
+        in: query
+        name: start
+        type: string
+      - description: 结束日期（默认今天）
+        in: query
+        name: end
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.ReturnsResp'
+              type: object
+      summary: 区间收益率：简单收益 + Modified Dietz + 全周期 XIRR
+      tags:
+      - zzz-ia
+  /zzz-ia/analytics/risk:
+    get:
+      parameters:
+      - description: 账户 ID（空=全局）
+        in: query
+        name: account_id
+        type: string
+      - description: 起始日期
+        in: query
+        name: start
+        type: string
+      - description: 结束日期
+        in: query
+        name: end
+        type: string
+      - description: 集中度预警阈值，默认 0.3
+        in: query
+        name: threshold
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.RiskMetricsResp'
+              type: object
+      summary: 最大回撤、年化波动率、单标的集中度（超阈值标记）、HHI
+      tags:
+      - zzz-ia
+  /zzz-ia/analytics/trades-review:
+    get:
+      parameters:
+      - description: 账户 ID（空=全部账户）
+        in: query
+        name: account_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.TradesReviewResp'
+              type: object
+      summary: 每笔加仓摊薄效果/买入后表现、减持盈亏与机会成本、胜率盈亏比汇总
+      tags:
+      - zzz-ia
+  /zzz-ia/assets:
+    get:
+      parameters:
+      - description: 类型 deposit/wealth/fund/stock/etf
+        in: query
+        name: asset_type
+        type: string
+      - description: 市场 CN-SH/CN-SZ/HK/US/OTC/BANK
+        in: query
+        name: market
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      - description: 关键词（code/name/issuer）
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.PaginatedResp-zzz_ia_Asset'
+              type: object
+      summary: 获取标的列表
+      tags:
+      - zzz-ia
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 标的信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.CreateAssetReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.Asset'
+              type: object
+      summary: 创建标的
+      tags:
+      - zzz-ia
+  /zzz-ia/assets/{id}:
+    delete:
+      parameters:
+      - description: 标的 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除标的（存在持仓时拒绝）
+      tags:
+      - zzz-ia
+    get:
+      parameters:
+      - description: 标的 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.Asset'
+              type: object
+      summary: 获取标的详情
+      tags:
+      - zzz-ia
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 标的 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.UpdateAssetReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.Asset'
+              type: object
+      summary: 更新标的
+      tags:
+      - zzz-ia
+  /zzz-ia/cash-flows:
+    get:
+      parameters:
+      - description: 账户 ID
+        in: query
+        name: account_id
+        type: string
+      - description: 类型 deposit/withdraw/transfer_in/transfer_out
+        in: query
+        name: flow_type
+        type: string
+      - description: 起始日期 YYYY-MM-DD
+        in: query
+        name: start
+        type: string
+      - description: 结束日期 YYYY-MM-DD
+        in: query
+        name: end
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.PaginatedResp-zzz_ia_CashFlow'
+              type: object
+      summary: 查询资金流水
+      tags:
+      - zzz-ia
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 资金流水
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.CreateCashFlowReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.CashFlow'
+              type: object
+      summary: 记录入金/出金/划转
+      tags:
+      - zzz-ia
+  /zzz-ia/cash-flows/{id}:
+    delete:
+      parameters:
+      - description: 流水 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除资金流水
+      tags:
+      - zzz-ia
+  /zzz-ia/dca-plans:
+    get:
+      parameters:
+      - description: active/paused/finished
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.PaginatedResp-zzz_ia_DCAPlan'
+              type: object
+      summary: 查询定投计划
+      tags:
+      - zzz-ia
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 计划信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.CreateDCAPlanReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.DCAPlan'
+              type: object
+      summary: 创建定投计划
+      tags:
+      - zzz-ia
+  /zzz-ia/dca-plans/{id}:
+    delete:
+      parameters:
+      - description: 计划 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除定投计划
+      tags:
+      - zzz-ia
+    get:
+      parameters:
+      - description: 计划 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.DCAPlan'
+              type: object
+      summary: 获取定投计划详情
+      tags:
+      - zzz-ia
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 计划 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.UpdateDCAPlanReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.DCAPlan'
+              type: object
+      summary: 更新定投计划
+      tags:
+      - zzz-ia
+  /zzz-ia/fees:
+    get:
+      parameters:
+      - description: 账户 ID
+        in: query
+        name: account_id
+        type: string
+      - description: 费用类型
+        in: query
+        name: fee_type
+        type: string
+      - description: 起始日期
+        in: query
+        name: start
+        type: string
+      - description: 结束日期
+        in: query
+        name: end
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.PaginatedResp-zzz_ia_FeeRecord'
+              type: object
+      summary: 查询独立费用
+      tags:
+      - zzz-ia
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 费用信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.CreateFeeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.FeeRecord'
+              type: object
+      summary: 记录独立费用（管理费/托管费等外扣费用）
+      tags:
+      - zzz-ia
+  /zzz-ia/fees/{id}:
+    delete:
+      parameters:
+      - description: 费用 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除费用记录
+      tags:
+      - zzz-ia
+  /zzz-ia/fx-rates:
+    get:
+      parameters:
+      - description: 基准币种 CNY
+        in: query
+        name: base_ccy
+        type: string
+      - description: 报价币种 USD/HKD
+        in: query
+        name: quote_ccy
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_ia.FxRate'
+                  type: array
+              type: object
+      summary: 查询汇率记录
+      tags:
+      - zzz-ia
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 汇率
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.UpsertFxRateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 录入或更新汇率（同币对同日期覆盖）
+      tags:
+      - zzz-ia
+  /zzz-ia/import/transactions:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: 目标账户 ID
+        in: formData
+        name: account_id
+        type: string
+      - description: 缺失标的是否自动创建，默认 false
+        in: formData
+        name: auto_create
+        type: boolean
+      - description: 自动创建默认类型 stock/fund/etf/deposit/wealth
+        in: formData
+        name: default_type
+        type: string
+      - description: CSV 文件
+        in: formData
+        name: file
+        type: file
+      - description: 或直接传 CSV 文本
+        in: formData
+        name: csv
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.ImportResult'
+              type: object
+      summary: 导入券商对账单 CSV（multipart 文件 file 或 JSON csv 字段二选一）
+      tags:
+      - zzz-ia
+  /zzz-ia/overview:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.OverviewResp'
+              type: object
+      summary: 全局与分账户资产总览
+      tags:
+      - zzz-ia
+  /zzz-ia/positions:
+    get:
+      parameters:
+      - description: 账户 ID
+        in: query
+        name: account_id
+        type: string
+      - description: 资产类型
+        in: query
+        name: asset_type
+        type: string
+      - description: holding/closed，默认 holding
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_ia.PositionView'
+                  type: array
+              type: object
+      summary: 查询实时持仓（含市值/浮盈）
+      tags:
+      - zzz-ia
+  /zzz-ia/positions/target:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 目标设置（传 0 清除对应项）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.SetPositionTargetReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 设置/调整持仓追踪目标价与止损参考价（买入后可随时修改）
+      tags:
+      - zzz-ia
+  /zzz-ia/positions/valuation:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 估值信息
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            account_id:
+              type: string
+            asset_id:
+              type: string
+            price:
+              type: number
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 手工更新持仓最新价/净值（存款理财估值入口）
+      tags:
+      - zzz-ia
+  /zzz-ia/price-history:
+    get:
+      parameters:
+      - description: 标的 ID
+        in: query
+        name: asset_id
+        required: true
+        type: string
+      - description: 返回条数，默认 500，最大 1000
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_ia.PriceHistory'
+                  type: array
+              type: object
+      summary: 查询标的价格/净值历史
+      tags:
+      - zzz-ia
+  /zzz-ia/quotes/refresh:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.RefreshResult'
+              type: object
+      summary: 拉取全部持仓标的最新行情并刷新市值
+      tags:
+      - zzz-ia
+  /zzz-ia/screen/dynamic-potential:
+    get:
+      parameters:
+      - description: 返回条数，默认 20，最大 50
+        in: query
+        name: top
+        type: integer
+      - description: 候选池大小，默认 50，最大 100
+        in: query
+        name: pool_size
+        type: integer
+      - description: 快照页数（每页100只），默认 2，最大 5
+        in: query
+        name: pages
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.DynamicPotentialResp'
+              type: object
+      summary: 两阶段动量+资金流潜力股筛选（快照预选→K线动量评分）
+      tags:
+      - zzz-ia
+  /zzz-ia/screen/quality-stocks:
+    get:
+      parameters:
+      - description: 返回条数，默认 30
+        in: query
+        name: top
+        type: integer
+      - description: 快照页数，默认 3
+        in: query
+        name: pages
+        type: integer
+      - description: ROE 下限 %，默认 10
+        in: query
+        name: min_roe
+        type: number
+      - description: PE-TTM 上限，默认 35
+        in: query
+        name: max_pe
+        type: number
+      - description: PB 上限，默认 8
+        in: query
+        name: max_pb
+        type: number
+      - description: 总市值下限（亿元），默认 50
+        in: query
+        name: min_mv_yi
+        type: number
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.QualityStockResp'
+              type: object
+      summary: ROE/增速/估值/市值多维基本面质量筛选与加权排名
+      tags:
+      - zzz-ia
+  /zzz-ia/tasks/accrue:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.AccrueResult'
+              type: object
+      summary: 立即执行存款/理财自动计息（幂等）
+      tags:
+      - zzz-ia
+  /zzz-ia/tasks/check-alerts:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.AlertCheckResult'
+              type: object
+      summary: 立即执行价格告警检查（幂等）
+      tags:
+      - zzz-ia
+  /zzz-ia/tasks/check-risk:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.RiskMetricsResp'
+              type: object
+      summary: 立即执行集中度与配置偏差巡检（异常时推送 webhook）
+      tags:
+      - zzz-ia
+  /zzz-ia/tasks/maturity-check:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.MaturityCheckResult'
+              type: object
+      summary: 检测临近到期资产并推送提醒
+      tags:
+      - zzz-ia
+  /zzz-ia/tasks/refresh-fx:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.FxRefreshResult'
+              type: object
+      summary: 拉取 CNY→USD/HKD 最新汇率写入 fx_rates（每日 08:10 自动）
+      tags:
+      - zzz-ia
+  /zzz-ia/tasks/snapshot:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.SnapshotResult'
+              type: object
+      summary: 立即生成当日组合快照（幂等覆盖）
+      tags:
+      - zzz-ia
+  /zzz-ia/transactions:
+    get:
+      parameters:
+      - description: 账户 ID
+        in: query
+        name: account_id
+        type: string
+      - description: 标的 ID
+        in: query
+        name: asset_id
+        type: string
+      - description: 类型 buy/sell/dividend_cash/dividend_reinvest/interest/bonus_shares/rights_issue
+        in: query
+        name: trade_type
+        type: string
+      - description: 状态 pending/confirmed
+        in: query
+        name: status
+        type: string
+      - description: 起始日期
+        in: query
+        name: start
+        type: string
+      - description: 结束日期
+        in: query
+        name: end
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.PaginatedResp-zzz_ia_Transaction'
+              type: object
+      summary: 查询交易流水
+      tags:
+      - zzz-ia
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 交易信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_ia.CreateTransactionReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.Transaction'
+              type: object
+      summary: 记录买入/卖出/分红/送转等交易
+      tags:
+      - zzz-ia
+  /zzz-ia/transactions/{id}:
+    delete:
+      parameters:
+      - description: 交易 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除交易记录
+      tags:
+      - zzz-ia
+    get:
+      parameters:
+      - description: 交易 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_ia.Transaction'
+              type: object
+      summary: 获取交易详情
+      tags:
+      - zzz-ia
+  /zzz-ia/transactions/{id}/confirm:
+    post:
+      parameters:
+      - description: 交易 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 确认在途交易（场外申购到账）
+      tags:
+      - zzz-ia
 schemes:
 - http
 - https

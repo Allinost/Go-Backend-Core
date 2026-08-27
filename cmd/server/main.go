@@ -6,6 +6,7 @@ import (
 
 	"github.com/Allinost/go-backend-core/internal/modules/ops"
 	"github.com/Allinost/go-backend-core/zzz/goodser"
+	"github.com/Allinost/go-backend-core/zzz/ia"
 	"github.com/Allinost/go-backend-core/zzz/login3rd"
 	"github.com/Allinost/go-backend-core/zzz/shopchecker"
 	"html/template"
@@ -102,6 +103,7 @@ func main() {
 	modules.Register(&servicenav.Module{})
 	modules.Register(&shopchecker.Module{})
 	modules.Register(&login3rd.Module{})
+	modules.Register(&ia.Module{})
 
 	// 初始化所有模块（调用 Init，不挂载路由）
 	modules.InitAll(cfg)

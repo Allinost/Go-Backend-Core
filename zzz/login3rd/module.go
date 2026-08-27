@@ -52,8 +52,11 @@ func (m *Module) Init(cfg *config.Config) error {
 
 	m.svc = NewService(m.repo, m.whSvc)
 
-	// 注册 Provider
-	m.svc.RegisterProvider(provider.NewJDCollector())
+	// 注册 Provider（七鲜/京东移动版使用京东移动版登录，复用京东 Provider 做 session 验证/刷新）
+	jdProv := provider.NewJDCollector()
+	m.svc.RegisterProvider(jdProv)
+	m.svc.RegisterProviderAs("qixian", jdProv)
+	m.svc.RegisterProviderAs("jdm", jdProv)
 
 	if err := initTables(pool.DB); err != nil {
 		return fmt.Errorf("login3rd: 初始化数据表失败: %w", err)

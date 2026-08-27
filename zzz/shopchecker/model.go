@@ -8,9 +8,11 @@ import (
 type Platform string
 
 const (
-	PlatformJD     Platform = "jd"
-	PlatformTaobao Platform = "taobao"
-	PlatformPDD    Platform = "pdd"
+	PlatformJD       Platform = "jd"
+	PlatformTaobao   Platform = "taobao"
+	PlatformPDD      Platform = "pdd"
+	PlatformQixian   Platform = "qixian"
+	PlatformJDMobile Platform = "jdm"
 )
 
 type ResultSummary string
@@ -59,17 +61,17 @@ type PriceRecord struct {
 
 // NotificationLog 通知日志
 type NotificationLog struct {
-	ID              int64     `json:"id" db:"id"`
-	ProductID       string    `json:"product_id" db:"product_id"`
-	PriceRecordID   int64     `json:"price_record_id" db:"price_record_id"`
-	WebhookIDs      []string  `json:"webhook_ids" db:"webhook_ids"`
-	OldPrice        float64   `json:"old_price" db:"old_price"`
-	NewPrice        float64   `json:"new_price" db:"new_price"`
-	OldStockStatus  string    `json:"old_stock_status" db:"old_stock_status"`
-	NewStockStatus  string    `json:"new_stock_status" db:"new_stock_status"`
-	NotifyType      string    `json:"notify_type" db:"notify_type"`
-	ResultSummary   string    `json:"result_summary" db:"result_summary"`
-	CreatedAt       time.Time `json:"created_at" db:"created_at"`
+	ID             int64     `json:"id" db:"id"`
+	ProductID      string    `json:"product_id" db:"product_id"`
+	PriceRecordID  int64     `json:"price_record_id" db:"price_record_id"`
+	WebhookIDs     []string  `json:"webhook_ids" db:"webhook_ids"`
+	OldPrice       float64   `json:"old_price" db:"old_price"`
+	NewPrice       float64   `json:"new_price" db:"new_price"`
+	OldStockStatus string    `json:"old_stock_status" db:"old_stock_status"`
+	NewStockStatus string    `json:"new_stock_status" db:"new_stock_status"`
+	NotifyType     string    `json:"notify_type" db:"notify_type"`
+	ResultSummary  string    `json:"result_summary" db:"result_summary"`
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 }
 
 type CreateProductReq struct {
@@ -86,17 +88,17 @@ type CreateProductReq struct {
 }
 
 type UpdateProductReq struct {
-	Name             *string   `json:"name"`
-	Platform         *string   `json:"platform"`
-	URL              *string   `json:"url"`
-	ImageURL         *string   `json:"image_url"`
-	TargetPrice      *float64  `json:"target_price"`
-	PriceDropRatio   *float64  `json:"price_drop_ratio"`
-	CheckInterval    *string   `json:"check_interval"`
-	CronExpr         *string   `json:"cron_expr"`
-	CustomWebhookIDs []string  `json:"custom_webhook_ids"`
-	Enabled          *bool     `json:"enabled"`
-	Remark           *string   `json:"remark"`
+	Name             *string  `json:"name"`
+	Platform         *string  `json:"platform"`
+	URL              *string  `json:"url"`
+	ImageURL         *string  `json:"image_url"`
+	TargetPrice      *float64 `json:"target_price"`
+	PriceDropRatio   *float64 `json:"price_drop_ratio"`
+	CheckInterval    *string  `json:"check_interval"`
+	CronExpr         *string  `json:"cron_expr"`
+	CustomWebhookIDs []string `json:"custom_webhook_ids"`
+	Enabled          *bool    `json:"enabled"`
+	Remark           *string  `json:"remark"`
 }
 
 type ListProductsReq struct {
@@ -121,8 +123,8 @@ func (r *ListProductsReq) Offset() int {
 }
 
 type ListPriceRecordsReq struct {
-	Page     int    `form:"page"`
-	PageSize int    `form:"page_size"`
+	Page     int `form:"page"`
+	PageSize int `form:"page_size"`
 }
 
 func (r *ListPriceRecordsReq) Normalize() {
@@ -139,8 +141,8 @@ func (r *ListPriceRecordsReq) Offset() int {
 }
 
 type ListNotificationLogsReq struct {
-	Page     int    `form:"page"`
-	PageSize int    `form:"page_size"`
+	Page     int `form:"page"`
+	PageSize int `form:"page_size"`
 }
 
 func (r *ListNotificationLogsReq) Normalize() {
@@ -157,10 +159,10 @@ func (r *ListNotificationLogsReq) Offset() int {
 }
 
 type DashboardResp struct {
-	TotalProducts   int     `json:"total_products"`
-	EnabledProducts int     `json:"enabled_products"`
-	TodayChecks     int     `json:"today_checks"`
-	TodayNotified   int     `json:"today_notified"`
+	TotalProducts   int        `json:"total_products"`
+	EnabledProducts int        `json:"enabled_products"`
+	TodayChecks     int        `json:"today_checks"`
+	TodayNotified   int        `json:"today_notified"`
 	RecentDrops     []DropItem `json:"recent_drops,omitempty"`
 }
 
@@ -175,7 +177,7 @@ type DropItem struct {
 }
 
 type PaginatedResp[T any] struct {
-	Items   []T   `json:"items"`
-	HasMore bool  `json:"has_more"`
-	Total   int   `json:"total"`
+	Items   []T  `json:"items"`
+	HasMore bool `json:"has_more"`
+	Total   int  `json:"total"`
 }

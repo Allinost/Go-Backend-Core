@@ -7,12 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 
+	"github.com/Allinost/go-backend-core/internal/modules"
 	"github.com/Allinost/go-backend-core/internal/modules/webhook"
+	"github.com/Allinost/go-backend-core/zzz/login3rd"
 	"github.com/Allinost/go-backend-core/zzz/shopchecker/collector"
 )
 
@@ -32,11 +35,39 @@ func NewService(repo *Repository, whSvc *webhook.Service, registry *collector.Re
 	}
 }
 
+// getLogin3rdSvc 懒加载 Login3rd 服务（避免模块初始化顺序依赖）
+func (s *Service) getLogin3rdSvc() *login3rd.Service {
+	mod := modules.Get("login3rd")
+	if mod == nil {
+		return nil
+	}
+	svc, ok := mod.(interface{ GetService() *login3rd.Service })
+	if !ok {
+		return nil
+	}
+	return svc.GetService()
+}
+
+// isPlatformLoginExpired 判断平台下是否有账号已标记登录失效（登录失效时跳过价格检查）
+func (s *Service) isPlatformLoginExpired(ctx context.Context, platformID string) bool {
+	svc := s.getLogin3rdSvc()
+	if svc == nil {
+		return false
+	}
+	expired, err := svc.IsPlatformLoginExpired(ctx, platformID)
+	if err != nil {
+		return false
+	}
+	return expired
+}
+
 // CreateProduct 创建商品监控（校验平台/URL/间隔，计算下次检查时间）
 func (s *Service) CreateProduct(ctx context.Context, req *CreateProductReq) (*Product, error) {
 	if req.Platform != string(PlatformJD) &&
 		req.Platform != string(PlatformTaobao) &&
-		req.Platform != string(PlatformPDD) {
+		req.Platform != string(PlatformPDD) &&
+		req.Platform != string(PlatformQixian) &&
+		req.Platform != string(PlatformJDMobile) {
 		return nil, NewShopCheckerError(ErrInvalidPlatform)
 	}
 	if req.URL == "" {
@@ -127,6 +158,11 @@ func (s *Service) ListProducts(ctx context.Context, req *ListProductsReq) ([]Pro
 // ExecuteCheck 执行单次价格检查核心流程：
 // 抓取价格 → 保存记录 → 判断是否通知（价格/库存变化） → 发送 Webhook → 保存通知日志 → 更新检查结果
 func (s *Service) ExecuteCheck(ctx context.Context, p *Product, col collector.Collector) error {
+	// 渠道登录已失效：在重新登录前跳过价格检查（由 login3rd 同步账号状态）
+	if s.isPlatformLoginExpired(ctx, p.Platform) {
+		return fmt.Errorf("平台 %s 登录已失效，已跳过价格检查，请先登录", p.Platform)
+	}
+
 	// 地址回退：地址为空时自动读取备注中的原始地址
 	fetchURL := p.URL
 	if fetchURL == "" && p.Remark != nil && *p.Remark != "" {
@@ -136,9 +172,14 @@ func (s *Service) ExecuteCheck(ctx context.Context, p *Product, col collector.Co
 	result, err := col.FetchPrice(ctx, fetchURL)
 	if err != nil {
 		errMsg := err.Error()
-		s.repo.SavePriceRecord(ctx, p.ID, 0, "", "unknown", errMsg)
+		pr, _ := s.repo.SavePriceRecord(ctx, p.ID, 0, "", "unknown", errMsg)
 		nextCheck := s.computeNextCheck(time.Now(), p.CheckInterval, p.CronExpr)
 		s.repo.UpdateCheckResult(ctx, p.ID, 0, "unknown", time.Now(), nextCheck)
+
+		// 登录失效/反爬拦截 → 通过商品绑定的 webhook 发送告警（与价格通知同一链路）
+		if isLoginFailure(errMsg) {
+			s.notifyLoginExpired(ctx, p, pr, errMsg)
+		}
 		return err
 	}
 
@@ -250,10 +291,107 @@ func (s *Service) ExecuteCheck(ctx context.Context, p *Product, col collector.Co
 		s.repo.MarkPriceRecordNotified(ctx, pr.ID)
 	}
 
+	// 价格采集成功说明渠道登录态可用，顺延 login3rd 会话有效期，避免频繁检查期间会话失效
+	if svc := s.getLogin3rdSvc(); svc != nil {
+		svc.TouchSession(ctx, p.Platform, 24*time.Hour)
+	}
+
 	nextCheck := s.computeNextCheck(time.Now(), p.CheckInterval, p.CronExpr)
 	s.repo.UpdateCheckResult(ctx, p.ID, newPrice, stockStatus, time.Now(), nextCheck)
 
 	return nil
+}
+
+// isLoginFailure 判断采集错误是否为登录失效/反爬拦截（需要人工重新登录）
+func isLoginFailure(errMsg string) bool {
+	lower := strings.ToLower(errMsg)
+	for _, kw := range []string{"需要登录", "登录已过期", "登录/风险页", "反爬拦截", "session 已失效", "plogin", "passport"} {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+// notifyLoginExpired 登录失效/反爬拦截时：
+// 1) 同步标记 login3rd 账号为失效（后续跳过价格检查，直到重新登录）
+// 2) 通过渠道（账号）绑定的 webhook 发送登录失效告警，内容含登录失效的平台与远程登录地址
+// 3) 渠道 webhook 已发送时不再重复发送第二条商品 webhook；仅当平台没有 login3rd 账号时才回退到商品 webhook
+func (s *Service) notifyLoginExpired(ctx context.Context, p *Product, pr *PriceRecord, errMsg string) {
+	svc := s.getLogin3rdSvc()
+	if svc == nil {
+		// 没有 login3rd 模块时回退到商品 webhook
+		s.doNotifyLoginExpired(ctx, p, pr, errMsg)
+		return
+	}
+
+	notified, acctWebhookIDs := svc.NotifyLoginExpired(ctx, p.Platform, errMsg)
+
+	// 渠道 webhook 已发送：仅记录通知日志，不再发送第二条商品 webhook
+	if notified {
+		s.saveLoginExpiredLog(ctx, p, pr, acctWebhookIDs, SummaryAllSuccess)
+		return
+	}
+
+	// 平台没有 login3rd 账号（或无账号 webhook）时，回退到商品 webhook
+	s.doNotifyLoginExpired(ctx, p, pr, errMsg)
+}
+
+// doNotifyLoginExpired 使用商品 webhook（回退路径）发送登录失效告警，并记录通知日志
+func (s *Service) doNotifyLoginExpired(ctx context.Context, p *Product, pr *PriceRecord, errMsg string) {
+	title := fmt.Sprintf("⚠️ %s 登录已失效 - %s", p.Platform, p.Name)
+	content := fmt.Sprintf(
+		"| 字段 | 值 |\n|---|---|\n| 商品名称 | %s |\n| 平台 | %s |\n| 错误信息 | %s |\n| 查看链接 | [点击前往](%s) |",
+		p.Name, p.Platform, errMsg, p.URL,
+	)
+
+	sendReq := &webhook.SendReq{
+		Source:     "shopchecker",
+		Title:      title,
+		Content:    content,
+		MsgType:    "markdown",
+		WebhookIDs: p.CustomWebhookIDs,
+	}
+	if len(p.CustomWebhookIDs) == 0 {
+		sendReq.Tags = []string{"shopchecker", "login_expired"}
+	}
+
+	sendResult, sendErr := s.whSvc.Send(ctx, sendReq)
+
+	summary := SummaryAllSuccess
+	if sendErr != nil {
+		summary = SummaryAllFailed
+	} else if sendResult.Failed > 0 {
+		if sendResult.Success > 0 {
+			summary = SummaryPartial
+		} else {
+			summary = SummaryAllFailed
+		}
+	}
+
+	s.saveLoginExpiredLog(ctx, p, pr, p.CustomWebhookIDs, summary)
+}
+
+// saveLoginExpiredLog 记录登录失效通知日志
+func (s *Service) saveLoginExpiredLog(ctx context.Context, p *Product, pr *PriceRecord, webhookIDs []string, summary ResultSummary) {
+	priceRecordID := int64(0)
+	if pr != nil {
+		priceRecordID = pr.ID
+	}
+	stockStatus := ""
+	if p.LastStockStatus != "" {
+		stockStatus = p.LastStockStatus
+	}
+	s.repo.SaveNotificationLog(ctx, &NotificationLog{
+		ProductID:      p.ID,
+		PriceRecordID:  priceRecordID,
+		WebhookIDs:     webhookIDs,
+		OldStockStatus: stockStatus,
+		NewStockStatus: stockStatus,
+		NotifyType:     "login_expired",
+		ResultSummary:  string(summary),
+		CreatedAt:      time.Now(),
+	})
 }
 
 // FindDueProductIDs 返回需要检查的商品 ID 列表，用于调度器

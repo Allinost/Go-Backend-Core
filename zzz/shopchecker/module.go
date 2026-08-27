@@ -48,6 +48,8 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.colRegistry.Register(string(PlatformJD), collector.NewJDCollector())
 	m.colRegistry.Register(string(PlatformTaobao), collector.NewTaobaoCollector())
 	m.colRegistry.Register(string(PlatformPDD), collector.NewPDDCollector())
+	m.colRegistry.Register(string(PlatformQixian), collector.NewQixianCollector())
+	m.colRegistry.Register(string(PlatformJDMobile), collector.NewJDMobileCollector())
 
 	whMod := modules.Get("webhook")
 	if whMod == nil {
