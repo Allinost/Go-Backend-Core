@@ -56,6 +56,33 @@ type NetHTTPConfig struct {
 	RetryWaitMax    time.Duration `mapstructure:"retry_wait_max"`
 	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
 	IdleConnTimeout time.Duration `mapstructure:"idle_conn_timeout"`
+	Breaker         BreakerConfig `mapstructure:"breaker"`
+	ScreenBreaker   BreakerConfig `mapstructure:"screen_breaker"`
+}
+
+// BreakerConfig 断路器配置（对应 pkg/net.CircuitBreakerConfig）
+type BreakerConfig struct {
+	FailureThreshold int           `mapstructure:"failure_threshold"`
+	SuccessThreshold int           `mapstructure:"success_threshold"`
+	Timeout          time.Duration `mapstructure:"timeout"`
+}
+
+// DefaultBreakerConfig 返回断路器默认值
+func DefaultBreakerConfig() BreakerConfig {
+	return BreakerConfig{
+		FailureThreshold: 5,
+		SuccessThreshold: 2,
+		Timeout:          30 * time.Second,
+	}
+}
+
+// DefaultScreenBreakerConfig 返回筛选断路器默认值（阈值更高，避免影响主客户端）
+func DefaultScreenBreakerConfig() BreakerConfig {
+	return BreakerConfig{
+		FailureThreshold: 10,
+		SuccessThreshold: 2,
+		Timeout:          60 * time.Second,
+	}
 }
 
 type NetTCPConfig struct {

@@ -7439,6 +7439,7 @@ paths:
     get:
       consumes:
       - application/json
+      description: 返回全局统计数据：监控商品总数、已启用数、今日检查次数、今日通知次数、最近降价列表
       produces:
       - application/json
       responses:
@@ -7467,11 +7468,11 @@ paths:
         in: query
         name: page_size
         type: integer
-      - description: 筛选平台：jd / taobao / pdd
+      - description: 筛选平台：jd（京东桌面版）/ jdm（京东移动版）/ taobao（淘宝）/ pdd（拼多多）/ qixian（七鲜）
         in: query
         name: platform
         type: string
-      - description: 搜索关键词
+      - description: 搜索关键词，匹配商品名称
         in: query
         name: keyword
         type: string
@@ -7497,6 +7498,14 @@ paths:
     post:
       consumes:
       - application/json
+      description: |-
+        创建一个新的商品价格监控任务。支持以下平台和 URL 格式：
+        - platform: jd（京东桌面版）、jdm（京东移动版）、taobao（淘宝/天猫）、pdd（拼多多）、qixian（七鲜）
+        - url: 商品页完整 URL、分享短链接（如 e.tb.cn/xxx）、或含 ID 的链接均可自动识别
+        - check_interval: 检查间隔，如 "1h"（1小时）、"30m"（30分钟）、"24h"（24小时），默认 "1h"
+        - target_price: 目标价格，当现价低于此值时触发通知（淘宝同时支持国补/百亿补贴后价格对比）
+        - price_drop_ratio: 降价百分比阈值，降幅达到此比例时触发通知
+        - cron_expr: cron 表达式，优先级高于 check_interval（如 "0 9 * * *" 表示每天 9 点检查）
       parameters:
       - description: 商品监控配置
         in: body
@@ -7516,6 +7525,14 @@ paths:
                 data:
                   $ref: '#/definitions/zzz_shopchecker.Product'
               type: object
+        "400":
+          description: 参数错误（平台不支持/URL 无效/间隔格式错误）
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: 服务内部错误
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
       summary: 创建商品监控
       tags:
       - shopchecker
@@ -7542,6 +7559,7 @@ paths:
     get:
       consumes:
       - application/json
+      description: 获取单个商品监控的完整配置信息，包含当前价格、上次检查时间、下次检查时间等
       parameters:
       - description: 商品 ID
         in: path
@@ -7560,19 +7578,24 @@ paths:
                 data:
                   $ref: '#/definitions/zzz_shopchecker.Product'
               type: object
+        "404":
+          description: 商品不存在
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
       summary: 获取商品详情
       tags:
       - shopchecker
     put:
       consumes:
       - application/json
+      description: 更新商品监控配置，仅传入需要修改的字段即可（部分更新）
       parameters:
       - description: 商品 ID
         in: path
         name: id
         required: true
         type: string
-      - description: 更新字段
+      - description: 更新字段（仅传入需修改的字段）
         in: body
         name: body
         required: true
@@ -7590,6 +7613,10 @@ paths:
                 data:
                   $ref: '#/definitions/zzz_shopchecker.Product'
               type: object
+        "404":
+          description: 商品不存在
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
       summary: 更新商品监控
       tags:
       - shopchecker
@@ -7597,6 +7624,7 @@ paths:
     post:
       consumes:
       - application/json
+      description: 立即执行一次价格采集，不等待定时调度。返回本次采集到的最新价格记录
       parameters:
       - description: 商品 ID
         in: path
@@ -7615,6 +7643,14 @@ paths:
                 data:
                   $ref: '#/definitions/zzz_shopchecker.PriceRecord'
               type: object
+        "404":
+          description: 商品不存在
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+        "500":
+          description: 采集失败（可能需要登录或反爬拦截）
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
       summary: 手动触发价格检查
       tags:
       - shopchecker
@@ -7622,6 +7658,8 @@ paths:
     get:
       consumes:
       - application/json
+      description: 按时间倒序分页获取商品的通知记录。包含通知类型（price_drop 降价 / target_reached 到达目标价 /
+        stock_restore 补货）、新旧价格、发送结果
       parameters:
       - description: 商品 ID
         in: path
@@ -7655,6 +7693,7 @@ paths:
     get:
       consumes:
       - application/json
+      description: 按时间倒序分页获取商品的历史价格记录。每条记录包含采集时的价格、标题、库存状态和错误信息
       parameters:
       - description: 商品 ID
         in: path

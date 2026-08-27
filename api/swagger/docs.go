@@ -6189,6 +6189,7 @@ const docTemplate = `{
         },
         "/shopchecker/dashboard": {
             "get": {
+                "description": "返回全局统计数据：监控商品总数、已启用数、今日检查次数、今日通知次数、最近降价列表",
                 "consumes": [
                     "application/json"
                 ],
@@ -6248,13 +6249,13 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "筛选平台：jd / taobao / pdd",
+                        "description": "筛选平台：jd（京东桌面版）/ jdm（京东移动版）/ taobao（淘宝）/ pdd（拼多多）/ qixian（七鲜）",
                         "name": "platform",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "搜索关键词",
+                        "description": "搜索关键词，匹配商品名称",
                         "name": "keyword",
                         "in": "query"
                     },
@@ -6287,6 +6288,7 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "description": "创建一个新的商品价格监控任务。支持以下平台和 URL 格式：\n- platform: jd（京东桌面版）、jdm（京东移动版）、taobao（淘宝/天猫）、pdd（拼多多）、qixian（七鲜）\n- url: 商品页完整 URL、分享短链接（如 e.tb.cn/xxx）、或含 ID 的链接均可自动识别\n- check_interval: 检查间隔，如 \"1h\"（1小时）、\"30m\"（30分钟）、\"24h\"（24小时），默认 \"1h\"\n- target_price: 目标价格，当现价低于此值时触发通知（淘宝同时支持国补/百亿补贴后价格对比）\n- price_drop_ratio: 降价百分比阈值，降幅达到此比例时触发通知\n- cron_expr: cron 表达式，优先级高于 check_interval（如 \"0 9 * * *\" 表示每天 9 点检查）",
                 "consumes": [
                     "application/json"
                 ],
@@ -6326,12 +6328,25 @@ const docTemplate = `{
                                 }
                             ]
                         }
+                    },
+                    "400": {
+                        "description": "参数错误（平台不支持/URL 无效/间隔格式错误）",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务内部错误",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
                     }
                 }
             }
         },
         "/shopchecker/products/{id}": {
             "get": {
+                "description": "获取单个商品监控的完整配置信息，包含当前价格、上次检查时间、下次检查时间等",
                 "consumes": [
                     "application/json"
                 ],
@@ -6369,10 +6384,17 @@ const docTemplate = `{
                                 }
                             ]
                         }
+                    },
+                    "404": {
+                        "description": "商品不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
                     }
                 }
             },
             "put": {
+                "description": "更新商品监控配置，仅传入需要修改的字段即可（部分更新）",
                 "consumes": [
                     "application/json"
                 ],
@@ -6392,7 +6414,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "更新字段",
+                        "description": "更新字段（仅传入需修改的字段）",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -6418,6 +6440,12 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    },
+                    "404": {
+                        "description": "商品不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
                         }
                     }
                 }
@@ -6454,6 +6482,7 @@ const docTemplate = `{
         },
         "/shopchecker/products/{id}/check": {
             "post": {
+                "description": "立即执行一次价格采集，不等待定时调度。返回本次采集到的最新价格记录",
                 "consumes": [
                     "application/json"
                 ],
@@ -6491,12 +6520,25 @@ const docTemplate = `{
                                 }
                             ]
                         }
+                    },
+                    "404": {
+                        "description": "商品不存在",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "采集失败（可能需要登录或反爬拦截）",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
                     }
                 }
             }
         },
         "/shopchecker/products/{id}/notification-logs": {
             "get": {
+                "description": "按时间倒序分页获取商品的通知记录。包含通知类型（price_drop 降价 / target_reached 到达目标价 / stock_restore 补货）、新旧价格、发送结果",
                 "consumes": [
                     "application/json"
                 ],
@@ -6552,6 +6594,7 @@ const docTemplate = `{
         },
         "/shopchecker/products/{id}/price-records": {
             "get": {
+                "description": "按时间倒序分页获取商品的历史价格记录。每条记录包含采集时的价格、标题、库存状态和错误信息",
                 "consumes": [
                     "application/json"
                 ],

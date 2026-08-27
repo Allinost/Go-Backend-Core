@@ -9,6 +9,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -52,9 +53,9 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.repo = NewRepository(pool.DB)
 	m.svc = NewService(m.repo)
 
-	// 行情数据源（HTTP 客户端带重试与熔断）
-	httpClient := pkgNet.NewHTTPClient(pkgNet.DefaultHTTPConfigWithBreaker())
-	m.quotes = iaquote.NewRegistry(httpClient)
+	// 行情数据源（HTTP 客户端带重试与熔断，支持 config.yaml 外部化配置）
+	httpClient := pkgNet.NewHTTPClient(iaHTTPConfig(cfg))
+	m.quotes = iaquote.NewRegistryWithConfig(httpClient, cfg)
 	m.svc.AttachQuoteRegistry(m.quotes)
 
 	// webhook 通知（可选：模块未注册时到期提醒仅记录日志）
@@ -496,6 +497,66 @@ func migratePositionTargetCols(db *sql.DB) error {
 		_, _ = db.ExecContext(context.Background(), ddl)
 	}
 	return nil
+}
+
+// iaHTTPConfig 从 config 构建 IA 模块专用 HTTP 配置（含断路器）
+func iaHTTPConfig(cfg *config.Config) pkgNet.HTTPConfig {
+	httpCfg := pkgNet.DefaultHTTPConfig()
+
+	// 从 config.yaml 覆盖基础字段
+	if cfg.Net.HTTP.DefaultTimeout > 0 {
+		httpCfg.Timeout = cfg.Net.HTTP.DefaultTimeout
+	}
+	if cfg.Net.HTTP.MaxRetries > 0 {
+		httpCfg.RetryMax = cfg.Net.HTTP.MaxRetries
+	}
+	if cfg.Net.HTTP.RetryWaitMin > 0 {
+		httpCfg.RetryWaitMin = cfg.Net.HTTP.RetryWaitMin
+	}
+	if cfg.Net.HTTP.RetryWaitMax > 0 {
+		httpCfg.RetryWaitMax = cfg.Net.HTTP.RetryWaitMax
+	}
+
+	// 主断路器配置
+	brk := config.DefaultBreakerConfig()
+	if cfg.Net.HTTP.Breaker.FailureThreshold > 0 {
+		brk.FailureThreshold = cfg.Net.HTTP.Breaker.FailureThreshold
+	}
+	if cfg.Net.HTTP.Breaker.SuccessThreshold > 0 {
+		brk.SuccessThreshold = cfg.Net.HTTP.Breaker.SuccessThreshold
+	}
+	if cfg.Net.HTTP.Breaker.Timeout > 0 {
+		brk.Timeout = cfg.Net.HTTP.Breaker.Timeout
+	}
+	httpCfg.Breaker = pkgNet.NewCircuitBreaker(pkgNet.CircuitBreakerConfig{
+		FailureThreshold: brk.FailureThreshold,
+		SuccessThreshold: brk.SuccessThreshold,
+		Timeout:          brk.Timeout,
+	})
+	return httpCfg
+}
+
+// iaScreenHTTPConfig 构建筛选专用 HTTP 配置（独立断路器）
+func iaScreenHTTPConfig(cfg *config.Config) pkgNet.HTTPConfig {
+	httpCfg := pkgNet.DefaultHTTPConfig()
+	httpCfg.Timeout = 30 * time.Second
+
+	sbrk := config.DefaultScreenBreakerConfig()
+	if cfg.Net.HTTP.ScreenBreaker.FailureThreshold > 0 {
+		sbrk.FailureThreshold = cfg.Net.HTTP.ScreenBreaker.FailureThreshold
+	}
+	if cfg.Net.HTTP.ScreenBreaker.SuccessThreshold > 0 {
+		sbrk.SuccessThreshold = cfg.Net.HTTP.ScreenBreaker.SuccessThreshold
+	}
+	if cfg.Net.HTTP.ScreenBreaker.Timeout > 0 {
+		sbrk.Timeout = cfg.Net.HTTP.ScreenBreaker.Timeout
+	}
+	httpCfg.Breaker = pkgNet.NewCircuitBreaker(pkgNet.CircuitBreakerConfig{
+		FailureThreshold: sbrk.FailureThreshold,
+		SuccessThreshold: sbrk.SuccessThreshold,
+		Timeout:          sbrk.Timeout,
+	})
+	return httpCfg
 }
 
 var _ interface {

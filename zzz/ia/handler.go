@@ -11,6 +11,7 @@ import (
 	appErr "github.com/Allinost/go-backend-core/internal/pkg/errors"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/Allinost/go-backend-core/internal/pkg/response"
+	pkgNet "github.com/Allinost/go-backend-core/pkg/net"
 	"github.com/gin-gonic/gin"
 )
 
@@ -1410,6 +1411,11 @@ func (h *Handler) handleError(c *gin.Context, err error) {
 	}
 	if errors.Is(err, sql.ErrNoRows) {
 		response.Fail(c, appErr.New(appErr.CodeNotFound, "资源不存在"))
+		return
+	}
+	if errors.Is(err, pkgNet.ErrCircuitOpen) {
+		logger.Warn().Err(err).Msg("ia 上游数据源熔断")
+		response.Fail(c, appErr.New(ErrCircuitOpen, "上游数据源暂时不可用，请稍后重试"))
 		return
 	}
 	logger.Error().Err(err).Msg("ia 服务内部错误")

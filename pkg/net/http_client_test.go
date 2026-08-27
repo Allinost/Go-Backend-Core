@@ -166,3 +166,57 @@ func TestHTTPClient_ProxyConfig(t *testing.T) {
 	client := NewHTTPClient(cfg)
 	assert.NotNil(t, client)
 }
+
+func TestHTTPClient_BreakerRetryDecoupling(t *testing.T) {
+	// 验证重试与熔断解耦：retry=3 的连续失败请求只计 1 次 Failure，
+	// 而非之前的每次重试都计数（导致阈值 5 被 1-2 次请求就触发）。
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 模拟网络错误：关闭连接不写任何响应
+		hj, ok := w.(http.Hijacker)
+		if ok {
+			conn, _, _ := hj.Hijack()
+			conn.Close()
+		}
+	}))
+	defer ts.Close()
+
+	breaker := NewCircuitBreaker(CircuitBreakerConfig{
+		FailureThreshold: 3, // 阈值=3
+		SuccessThreshold: 1,
+		Timeout:          1 * time.Hour, // 不会自动恢复
+	})
+
+	client := NewHTTPClient(HTTPConfig{
+		Timeout:      2 * time.Second,
+		RetryMax:     3,
+		RetryWaitMin: 10 * time.Millisecond,
+		RetryWaitMax: 20 * time.Millisecond,
+		Breaker:      breaker,
+	})
+
+	// 第一次请求：3 次重试全部失败，应只计 1 次 Failure
+	_, err := client.Get(context.Background(), ts.URL)
+	assert.Error(t, err)
+	assert.Equal(t, StateClosed, breaker.State(), "1 次 Failure < 阈值 3，breaker 应仍关闭")
+
+	// 第二次请求：再 1 次 Failure（累计 2 次），仍未达阈值
+	_, err = client.Get(context.Background(), ts.URL)
+	assert.Error(t, err)
+	assert.Equal(t, StateClosed, breaker.State(), "累计 2 次 Failure < 阈值 3，breaker 应仍关闭")
+
+	// 第三次请求：再 1 次 Failure（累计 3 次），达到阈值 → 打开
+	_, err = client.Get(context.Background(), ts.URL)
+	assert.Error(t, err)
+	assert.Equal(t, StateOpen, breaker.State(), "累计 3 次 Failure = 阈值 3，breaker 应打开")
+
+	// 第四次请求：breaker 已打开，应立即返回 ErrCircuitOpen（不发 HTTP 请求）
+	attempts := 0
+	ts2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+	}))
+	defer ts2.Close()
+
+	_, err = client.Get(context.Background(), ts2.URL)
+	assert.ErrorIs(t, err, ErrCircuitOpen)
+	assert.Equal(t, 0, attempts, "breaker 打开后不应发送 HTTP 请求")
+}

@@ -29,8 +29,8 @@ func NewHandler(svc *Service, registry *collector.Registry) *Handler {
 // @Produce      json
 // @Param        page      query  int     false  "页码，默认 1"
 // @Param        page_size query  int     false  "每页数量，默认 20，最大 100"
-// @Param        platform  query  string  false  "筛选平台：jd / taobao / pdd"
-// @Param        keyword   query  string  false  "搜索关键词"
+// @Param        platform  query  string  false  "筛选平台：jd（京东桌面版）/ jdm（京东移动版）/ taobao（淘宝）/ pdd（拼多多）/ qixian（七鲜）"
+// @Param        keyword   query  string  false  "搜索关键词，匹配商品名称"
 // @Param        enabled   query  bool    false  "筛选启用状态"
 // @Success      200  {object}  response.Response{data=PaginatedResp[Product]}
 // @Router       /shopchecker/products [get]
@@ -57,8 +57,17 @@ func (h *Handler) ListProducts(c *gin.Context) {
 // @Tags         shopchecker
 // @Accept       json
 // @Produce      json
+// @Description  创建一个新的商品价格监控任务。支持以下平台和 URL 格式：
+// @Description  - platform: jd（京东桌面版）、jdm（京东移动版）、taobao（淘宝/天猫）、pdd（拼多多）、qixian（七鲜）
+// @Description  - url: 商品页完整 URL、分享短链接（如 e.tb.cn/xxx）、或含 ID 的链接均可自动识别
+// @Description  - check_interval: 检查间隔，如 "1h"（1小时）、"30m"（30分钟）、"24h"（24小时），默认 "1h"
+// @Description  - target_price: 目标价格，当现价低于此值时触发通知（淘宝同时支持国补/百亿补贴后价格对比）
+// @Description  - price_drop_ratio: 降价百分比阈值，降幅达到此比例时触发通知
+// @Description  - cron_expr: cron 表达式，优先级高于 check_interval（如 "0 9 * * *" 表示每天 9 点检查）
 // @Param        body  body  CreateProductReq  true  "商品监控配置"
 // @Success      200  {object}  response.Response{data=Product}
+// @Failure      400  {object}  response.Response  "参数错误（平台不支持/URL 无效/间隔格式错误）"
+// @Failure      500  {object}  response.Response  "服务内部错误"
 // @Router       /shopchecker/products [post]
 func (h *Handler) CreateProduct(c *gin.Context) {
 	var req CreateProductReq
@@ -79,8 +88,10 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 // @Tags         shopchecker
 // @Accept       json
 // @Produce      json
+// @Description  获取单个商品监控的完整配置信息，包含当前价格、上次检查时间、下次检查时间等
 // @Param        id   path  string  true  "商品 ID"
 // @Success      200  {object}  response.Response{data=Product}
+// @Failure      404  {object}  response.Response  "商品不存在"
 // @Router       /shopchecker/products/{id} [get]
 func (h *Handler) GetProduct(c *gin.Context) {
 	id := c.Param("id")
@@ -97,9 +108,11 @@ func (h *Handler) GetProduct(c *gin.Context) {
 // @Tags         shopchecker
 // @Accept       json
 // @Produce      json
+// @Description  更新商品监控配置，仅传入需要修改的字段即可（部分更新）
 // @Param        id    path  string           true  "商品 ID"
-// @Param        body  body  UpdateProductReq  true  "更新字段"
+// @Param        body  body  UpdateProductReq  true  "更新字段（仅传入需修改的字段）"
 // @Success      200  {object}  response.Response{data=Product}
+// @Failure      404  {object}  response.Response  "商品不存在"
 // @Router       /shopchecker/products/{id} [put]
 func (h *Handler) UpdateProduct(c *gin.Context) {
 	id := c.Param("id")
@@ -138,8 +151,11 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 // @Tags         shopchecker
 // @Accept       json
 // @Produce      json
+// @Description  立即执行一次价格采集，不等待定时调度。返回本次采集到的最新价格记录
 // @Param        id   path  string  true  "商品 ID"
 // @Success      200  {object}  response.Response{data=PriceRecord}
+// @Failure      404  {object}  response.Response  "商品不存在"
+// @Failure      500  {object}  response.Response  "采集失败（可能需要登录或反爬拦截）"
 // @Router       /shopchecker/products/{id}/check [post]
 func (h *Handler) ManualCheck(c *gin.Context) {
 	id := c.Param("id")
@@ -156,6 +172,7 @@ func (h *Handler) ManualCheck(c *gin.Context) {
 // @Tags         shopchecker
 // @Accept       json
 // @Produce      json
+// @Description  按时间倒序分页获取商品的历史价格记录。每条记录包含采集时的价格、标题、库存状态和错误信息
 // @Param        id        path  string  true  "商品 ID"
 // @Param        page      query  int     false  "页码，默认 1"
 // @Param        page_size query  int     false  "每页数量，默认 20"
@@ -185,6 +202,7 @@ func (h *Handler) ListPriceRecords(c *gin.Context) {
 // @Tags         shopchecker
 // @Accept       json
 // @Produce      json
+// @Description  按时间倒序分页获取商品的通知记录。包含通知类型（price_drop 降价 / target_reached 到达目标价 / stock_restore 补货）、新旧价格、发送结果
 // @Param        id        path  string  true  "商品 ID"
 // @Param        page      query  int     false  "页码，默认 1"
 // @Param        page_size query  int     false  "每页数量，默认 20"
@@ -214,6 +232,7 @@ func (h *Handler) ListNotificationLogs(c *gin.Context) {
 // @Tags         shopchecker
 // @Accept       json
 // @Produce      json
+// @Description  返回全局统计数据：监控商品总数、已启用数、今日检查次数、今日通知次数、最近降价列表
 // @Success      200  {object}  response.Response{data=DashboardResp}
 // @Router       /shopchecker/dashboard [get]
 func (h *Handler) Dashboard(c *gin.Context) {

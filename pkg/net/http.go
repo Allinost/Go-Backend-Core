@@ -147,7 +147,9 @@ func (c *HTTPClient) doRequest(ctx context.Context, method, urlStr string, body 
 	return c.do(req)
 }
 
-// do 执行 HTTP 请求，包含断路器检查、重试逻辑和服务端错误处理
+// do 执行 HTTP 请求，包含断路器检查、重试逻辑和服务端错误处理。
+// 熔断计数与重试解耦：整次 do() 调用最多计 1 次 Failure（所有重试用尽后），
+// 避免 retry=3 时单次请求产生 4 倍失败计数导致阈值提前触发。
 func (c *HTTPClient) do(req *http.Request) (*HTTPResponse, error) {
 	if c.config.Breaker != nil {
 		if !c.config.Breaker.Allow() {
@@ -156,6 +158,7 @@ func (c *HTTPClient) do(req *http.Request) (*HTTPResponse, error) {
 	}
 
 	var lastErr error
+	failed := false
 	for i := 0; i <= c.config.RetryMax; i++ {
 		if i > 0 {
 			waitTime := c.calcBackoff(i)
@@ -169,9 +172,7 @@ func (c *HTTPClient) do(req *http.Request) (*HTTPResponse, error) {
 		resp, err := c.client.Do(req)
 		if err != nil {
 			lastErr = err
-			if c.config.Breaker != nil {
-				c.config.Breaker.Failure()
-			}
+			failed = true
 			recordRetry(req.Method, req.URL.Host)
 			continue
 		}
@@ -180,9 +181,7 @@ func (c *HTTPClient) do(req *http.Request) (*HTTPResponse, error) {
 		resp.Body.Close()
 		if err != nil {
 			lastErr = fmt.Errorf("net: 读取响应失败: %w", err)
-			if c.config.Breaker != nil {
-				c.config.Breaker.Failure()
-			}
+			failed = true
 			recordRetry(req.Method, req.URL.Host)
 			continue
 		}
@@ -195,18 +194,21 @@ func (c *HTTPClient) do(req *http.Request) (*HTTPResponse, error) {
 
 		if resp.StatusCode >= 500 && i < c.config.RetryMax {
 			lastErr = fmt.Errorf("net: 服务端错误 %d", resp.StatusCode)
-			if c.config.Breaker != nil {
-				c.config.Breaker.Failure()
-			}
+			failed = true
 			recordRetry(req.Method, req.URL.Host)
 			continue
 		}
 
+		// 请求成功（含 4xx 等客户端错误，这些不应重试也不应计入熔断）
 		if c.config.Breaker != nil {
 			c.config.Breaker.Success()
 		}
-
 		return result, nil
+	}
+
+	// 所有重试用尽后，只计 1 次失败
+	if c.config.Breaker != nil && failed {
+		c.config.Breaker.Failure()
 	}
 
 	return nil, fmt.Errorf("net: 请求失败（已重试 %d 次）: %w", c.config.RetryMax, lastErr)

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Allinost/go-backend-core/internal/config"
 	pkgNet "github.com/Allinost/go-backend-core/pkg/net"
 )
 
@@ -47,21 +48,69 @@ type Provider interface {
 	Fetch(ctx context.Context, asset AssetInfo) (*Quote, error)
 }
 
-// Registry 行情提供方注册表，按注册顺序匹配第一个支持的数据源
+// Registry 行情提供方注册表，按注册顺序匹配第一个支持的数据源。
+// 内部持有独立的 HTTP 客户端：主客户端用于实时行情/净值，筛选客户端用于全市场快照，
+// 两者拥有独立的断路器，避免筛选拉取失败影响持仓行情刷新。
 type Registry struct {
-	mu         sync.RWMutex
-	httpClient *pkgNet.HTTPClient
-	providers  []Provider
+	mu           sync.RWMutex
+	httpClient   *pkgNet.HTTPClient // 主客户端：实时行情、K线、基金净值、汇率
+	screenClient *pkgNet.HTTPClient // 筛选专用：全市场快照（clist）
+	providers    []Provider
 }
 
-// NewRegistry 创建注册表并内置默认数据源
+// NewRegistry 创建注册表并内置默认数据源。
+// httpClient 为主客户端（可为 nil，内部创建默认配置）；筛选客户端自动创建独立断路器。
 func NewRegistry(httpClient *pkgNet.HTTPClient) *Registry {
 	if httpClient == nil {
 		cfg := pkgNet.DefaultHTTPConfigWithBreaker()
 		cfg.Timeout = 15 * time.Second
 		httpClient = pkgNet.NewHTTPClient(cfg)
 	}
-	r := &Registry{httpClient: httpClient}
+	// 筛选客户端：独立断路器（阈值更高，熔断不影响主客户端）
+	screenCfg := pkgNet.DefaultHTTPConfigWithBreaker()
+	screenCfg.Timeout = 30 * time.Second
+	screenCfg.Breaker = pkgNet.NewCircuitBreaker(pkgNet.CircuitBreakerConfig{
+		FailureThreshold: 10,
+		SuccessThreshold: 2,
+		Timeout:          60 * time.Second,
+	})
+
+	r := &Registry{
+		httpClient:   httpClient,
+		screenClient: pkgNet.NewHTTPClient(screenCfg),
+	}
+	r.Register(NewEastmoneyProvider(httpClient))
+	r.Register(NewFundProvider(httpClient))
+	return r
+}
+
+// NewRegistryWithConfig 创建注册表，筛选客户端断路器从 config 外部化配置读取
+func NewRegistryWithConfig(httpClient *pkgNet.HTTPClient, cfg *config.Config) *Registry {
+	if httpClient == nil {
+		httpClient = pkgNet.NewHTTPClient(pkgNet.DefaultHTTPConfigWithBreaker())
+	}
+	screenCfg := pkgNet.DefaultHTTPConfig()
+	screenCfg.Timeout = 30 * time.Second
+	sbrk := config.DefaultScreenBreakerConfig()
+	if cfg != nil && cfg.Net.HTTP.ScreenBreaker.FailureThreshold > 0 {
+		sbrk.FailureThreshold = cfg.Net.HTTP.ScreenBreaker.FailureThreshold
+	}
+	if cfg != nil && cfg.Net.HTTP.ScreenBreaker.SuccessThreshold > 0 {
+		sbrk.SuccessThreshold = cfg.Net.HTTP.ScreenBreaker.SuccessThreshold
+	}
+	if cfg != nil && cfg.Net.HTTP.ScreenBreaker.Timeout > 0 {
+		sbrk.Timeout = cfg.Net.HTTP.ScreenBreaker.Timeout
+	}
+	screenCfg.Breaker = pkgNet.NewCircuitBreaker(pkgNet.CircuitBreakerConfig{
+		FailureThreshold: sbrk.FailureThreshold,
+		SuccessThreshold: sbrk.SuccessThreshold,
+		Timeout:          sbrk.Timeout,
+	})
+
+	r := &Registry{
+		httpClient:   httpClient,
+		screenClient: pkgNet.NewHTTPClient(screenCfg),
+	}
 	r.Register(NewEastmoneyProvider(httpClient))
 	r.Register(NewFundProvider(httpClient))
 	return r
@@ -74,9 +123,14 @@ func (r *Registry) Register(p Provider) {
 	r.providers = append(r.providers, p)
 }
 
-// HTTP 暴露底层 HTTP 客户端（筛选/汇率等扩展数据源复用）
+// HTTP 暴露主 HTTP 客户端（实时行情、K线、基金净值、汇率复用）
 func (r *Registry) HTTP() *pkgNet.HTTPClient {
 	return r.httpClient
+}
+
+// ScreenHTTP 暴露筛选专用 HTTP 客户端（独立断路器，熔断不影响主客户端）
+func (r *Registry) ScreenHTTP() *pkgNet.HTTPClient {
+	return r.screenClient
 }
 
 // Fetch 按注册顺序匹配数据源并拉取行情

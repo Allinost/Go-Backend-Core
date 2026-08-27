@@ -3,19 +3,71 @@ package ia
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
+	pkgNet "github.com/Allinost/go-backend-core/pkg/net"
 	"github.com/Allinost/go-backend-core/zzz/ia/quote"
 )
 
 // ============================================================================
 // 通用数学辅助（筛选评分用）
 // ============================================================================
+
+// screenSnapshotCache 全市场快照缓存（TTL 10 分钟），避免频繁拉取东财接口，
+// 同时在断路器熔断时可返回最近一次有效数据。
+type screenSnapshotCache struct {
+	mu      sync.RWMutex
+	data    []quote.ScreenRow
+	at      time.Time
+	ttl     time.Duration
+	warning string // 熔断时附加的提示信息
+}
+
+var _snapshotCache = &screenSnapshotCache{ttl: 10 * time.Minute}
+
+// get 获取缓存数据。fresh=true 表示新鲜数据（无熔断）；fresh=false 表示使用了 stale 数据。
+func (c *screenSnapshotCache) get() (data []quote.ScreenRow, fresh bool, warning string) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.data == nil || time.Since(c.at) > c.ttl {
+		return nil, false, ""
+	}
+	return c.data, c.warning == "", c.warning
+}
+
+// set 写入缓存（成功时 warning 为空）
+func (c *screenSnapshotCache) set(data []quote.ScreenRow, warning string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.data = data
+	c.at = time.Now()
+	c.warning = warning
+}
+
+// fetchScreenSnapshot 带缓存的快照拉取：
+//   - 成功时更新缓存
+//   - 失败但有缓存时返回 stale 数据（不报错，调用方静默降级）
+//   - 失败且无缓存时返回错误
+func fetchScreenSnapshot(ctx context.Context, client *pkgNet.HTTPClient, pages int) ([]quote.ScreenRow, error) {
+	data, err := quote.FetchStockSnapshot(ctx, client, pages)
+	if err == nil {
+		_snapshotCache.set(data, "")
+		return data, nil
+	}
+	// 拉取失败，尝试返回缓存的 stale 数据
+	if stale, _, _ := _snapshotCache.get(); stale != nil {
+		logger.Warn().Err(err).Int("stale_count", len(stale)).Msg("快照拉取失败，使用缓存数据")
+		return stale, nil
+	}
+	return nil, err
+}
 
 // clamp 归一化到 [0,1]
 func clamp01(v float64) float64 {
@@ -121,8 +173,11 @@ func (s *Service) DynamicPotential(ctx context.Context, req *DynamicPotentialReq
 		pages = 2
 	}
 
-	universe, err := quote.FetchStockSnapshot(ctx, s.quotes.HTTP(), pages)
+	universe, err := fetchScreenSnapshot(ctx, s.quotes.ScreenHTTP(), pages)
 	if err != nil {
+		if errors.Is(err, pkgNet.ErrCircuitOpen) {
+			return nil, NewIAError(ErrCircuitOpen)
+		}
 		return nil, fmt.Errorf("quote: 快照拉取失败: %w", err)
 	}
 	resp := &DynamicPotentialResp{
@@ -227,8 +282,11 @@ func (s *Service) QualityStockScreen(ctx context.Context, req *QualityStockReq) 
 		minMV = 50
 	}
 
-	universe, err := quote.FetchStockSnapshot(ctx, s.quotes.HTTP(), pages)
+	universe, err := fetchScreenSnapshot(ctx, s.quotes.ScreenHTTP(), pages)
 	if err != nil {
+		if errors.Is(err, pkgNet.ErrCircuitOpen) {
+			return nil, NewIAError(ErrCircuitOpen)
+		}
 		return nil, fmt.Errorf("quote: 快照拉取失败: %w", err)
 	}
 	resp := &QualityStockResp{GeneratedAt: time.Now().Format(time.RFC3339), Universe: len(universe), Items: []QualityStock{}}

@@ -43,6 +43,7 @@ const (
 	ErrQuoteUnavailable = 42300 // 行情数据源未就绪
 	ErrTaskFailed       = 42301 // 定时任务执行失败
 	ErrInsufficientData = 42302 // 分析数据不足
+	ErrCircuitOpen      = 42303 // 上游数据源暂时不可用（断路器熔断）
 
 	// 告警与导入 (42400-42499)
 	ErrAlertNotFound   = 42400 // 告警规则不存在
@@ -55,6 +56,7 @@ var extraMsgs = map[int]string{
 	ErrQuoteUnavailable: "行情数据源未初始化",
 	ErrTaskFailed:       "任务执行失败",
 	ErrInsufficientData: "分析数据不足",
+	ErrCircuitOpen:      "上游数据源暂时不可用，请稍后重试",
 	ErrAlertNotFound:    "告警规则不存在",
 	ErrInvalidAlert:     "无效的告警配置",
 	ErrImportFormat:     "CSV 对账单格式错误（需含表头：trade_date,trade_type,code,market,...）",
