@@ -24,6 +24,7 @@ type HTTPConfig struct {
 	ProxyURL          string
 	TLSConfig         *tls.Config
 	Breaker           *CircuitBreaker
+	DefaultHeaders    map[string]string // 每次请求自动附加的默认头
 }
 
 // DefaultHTTPConfig 返回默认 HTTP 配置（30s 超时，3 次重试，100 最大空闲连接）
@@ -166,6 +167,13 @@ func (c *HTTPClient) do(req *http.Request) (*HTTPResponse, error) {
 			case <-req.Context().Done():
 				return nil, req.Context().Err()
 			case <-time.After(waitTime):
+			}
+		}
+
+		// 附加默认请求头（每次重试都重新设置，避免 header 累积）
+		for k, v := range c.config.DefaultHeaders {
+			if req.Header.Get(k) == "" {
+				req.Header.Set(k, v)
 			}
 		}
 

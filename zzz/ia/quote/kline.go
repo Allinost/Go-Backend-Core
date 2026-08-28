@@ -18,12 +18,18 @@ const (
 
 // 常用基准指数 secid 映射
 var BenchmarkSecids = map[string]string{
+	// A股指数
 	"CSI300":  "1.000300", // 沪深300
 	"CSI500":  "1.000905", // 中证500
 	"CSI1000": "1.000852", // 中证1000
 	"SSE":     "1.000001", // 上证指数
 	"SZSE":    "0.399001", // 深证成指
 	"GEM":     "0.399006", // 创业板指
+	"STAR50":  "1.000688", // 科创50
+	// 美股指数
+	"NASDAQ100": "100.NDX",  // 纳斯达克100
+	"NASDAQ":    "100.IXIC", // 纳斯达克综合
+	"SP500":     "100.SPX",  // 标普500
 }
 
 // ResolveBenchmarkSecid 解析基准标识：支持内置别名或直接传 secid（如 1.000300）
@@ -62,6 +68,11 @@ func FetchKline(ctx context.Context, client *pkgNet.HTTPClient, secid, beg strin
 // Kline 通过注册表的 HTTP 客户端拉取日K线
 func (r *Registry) Kline(ctx context.Context, secid, beg string) ([]KLinePoint, error) {
 	return FetchKline(ctx, r.httpClient, secid, beg)
+}
+
+// KlineWithClient 使用指定 HTTP 客户端拉取日K线（筛选用，绕过主断路器）
+func (r *Registry) KlineWithClient(ctx context.Context, client *pkgNet.HTTPClient, secid, beg string) ([]KLinePoint, error) {
+	return FetchKline(ctx, client, secid, beg)
 }
 
 // ParseKline 解析 kline 接口响应体

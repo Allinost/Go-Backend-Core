@@ -16,6 +16,13 @@ import (
 	"github.com/Allinost/go-backend-core/zzz/ia/quote"
 )
 
+const (
+	screenKlineWorkers = 5  // 并发拉取K线的worker数
+	screenKlineBeg     = 140 // K线回看天数
+	screenKlineMin     = 21  // 最少K线数据点数
+	screenPoolSize     = 50  // 候选池大小
+)
+
 // ============================================================================
 // 通用数学辅助（筛选评分用）
 // ============================================================================
@@ -155,9 +162,8 @@ func returnPct(closes []float64, n int) float64 {
 // ============================================================================
 
 // DynamicPotential 两阶段动态潜力筛选：
-//  1. 全市场快照按成交额取流动性池，剔除 ST/低价股，按主力净流入率预选候选
-//  2. 对候选逐只拉取 120 日 K 线，计算动量(R5/R20/R60)、均线位置、波动率，
-//     加权合成为潜力分（动量 55% / 趋势 25% / 资金 15% / 低波 5%）
+//  1. 全市场快照按流动性池预选，剔除 ST/低价股
+//  2. 并发拉取候选K线，计算动量/均线/波动率，加权合成为潜力分
 func (s *Service) DynamicPotential(ctx context.Context, req *DynamicPotentialReq) (*DynamicPotentialResp, error) {
 	if s.quotes == nil {
 		return nil, NewIAError(ErrQuoteUnavailable)
@@ -167,10 +173,17 @@ func (s *Service) DynamicPotential(ctx context.Context, req *DynamicPotentialReq
 		top = 20
 	}
 	if pool <= 0 || pool > 100 {
-		pool = 50
+		pool = screenPoolSize
 	}
 	if pages <= 0 || pages > 5 {
 		pages = 2
+	}
+
+	// 60秒超时防止挂死
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 60*time.Second)
+		defer cancel()
 	}
 
 	universe, err := fetchScreenSnapshot(ctx, s.quotes.ScreenHTTP(), pages)
@@ -186,57 +199,85 @@ func (s *Service) DynamicPotential(ctx context.Context, req *DynamicPotentialReq
 		Items:       []PotentialStock{},
 	}
 
-	// 预选：主力净流入率降序
-	sort.Slice(universe, func(i, j int) bool { return universe[i].MainInflowRatio > universe[j].MainInflowRatio })
-	candidates := universe
-	if len(candidates) > pool {
-		candidates = candidates[:pool]
+	// 预选：按换手率+市值加权评分，确保流动性
+	poolScores := make([]float64, len(universe))
+	for i, r := range universe {
+		poolScores[i] = 0.5*clamp01(r.TurnoverRate/5) + 0.3*clamp01(r.TotalMVYi/500) + 0.2*clamp01(r.MainInflowRatio*100)
+	}
+	poolIdx := make([]int, len(universe))
+	for i := range poolIdx {
+		poolIdx[i] = i
+	}
+	sort.Slice(poolIdx, func(i, j int) bool { return poolScores[poolIdx[i]] > poolScores[poolIdx[j]] })
+	candidates := make([]quote.ScreenRow, 0, pool)
+	for _, idx := range poolIdx {
+		candidates = append(candidates, universe[idx])
+		if len(candidates) >= pool {
+			break
+		}
 	}
 
+	// 并发拉取K线（screenClient 独立断路器，不阻塞主客户端）
 	type cand struct {
 		row   quote.ScreenRow
 		item  PotentialStock
 		score float64
 	}
 	results := make([]cand, 0, len(candidates))
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, screenKlineWorkers)
+	beg := begForDays(screenKlineBeg)
 
 	for i := range candidates {
 		row := candidates[i]
-		points, err := s.quotes.Kline(ctx, secidOfRow(row), begForDays(140))
-		if err != nil || len(points) < 21 {
-			continue // 历史不足或获取失败跳过
-		}
-		closes := klineCloses(points)
-		it := PotentialStock{
-			Code: row.Code, Name: row.Name, Price: row.Price,
-			ChangePct: row.ChangePct, TurnoverRate: row.TurnoverRate,
-			MainInflowRatio: round6(row.MainInflowRatio),
-			R5:              round2(returnPct(closes, 5)),
-			R20:             round2(returnPct(closes, 20)),
-			R60:             round2(returnPct(closes, minInt(60, len(closes)-1))),
-			AboveMA20:       closes[len(closes)-1] >= movingAverage(closes, 20),
-			AboveMA60:       closes[len(closes)-1] >= movingAverage(closes, minInt(60, len(closes))),
-			VolAnnual:       round4(AnnualVolatility(closes[len(closes)-61:])),
-		}
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
 
-		// 分项打分
-		momentum := 0.5*clamp01(it.R20/15+0.5) + 0.3*clamp01(it.R60/30+0.5) + 0.2*clamp01(it.R5/8+0.5)
-		trendScore := 0.0
-		if it.AboveMA20 {
-			trendScore += 0.6
-		}
-		if it.AboveMA60 {
-			trendScore += 0.4
-		}
-		fundScore := clamp01(it.MainInflowRatio * 100) // 净流入率 ≥1% 得满分
-		volPenalty := clamp01(1 - it.VolAnnual/0.8)    // 年化波动 80% 以上零分
-		it.ScoreParts = map[string]float64{
-			"momentum": round4(momentum), "trend": round4(trendScore),
-			"funds": round4(fundScore), "low_vol": round4(volPenalty),
-		}
-		score := 55*momentum + 25*trendScore + 15*fundScore + 5*volPenalty
-		results = append(results, cand{row: row, item: it, score: score})
+			secid := secidOfRow(row)
+			points, err := s.quotes.KlineWithClient(ctx, s.quotes.ScreenHTTP(), secid, beg)
+			if err != nil || len(points) < screenKlineMin {
+				return // 历史不足或获取失败跳过
+			}
+			closes := klineCloses(points)
+			it := PotentialStock{
+				Code: row.Code, Name: row.Name, Price: row.Price,
+				ChangePct: row.ChangePct, TurnoverRate: row.TurnoverRate,
+				MainInflowRatio: round6(row.MainInflowRatio),
+				R5:              round2(returnPct(closes, 5)),
+				R20:             round2(returnPct(closes, 20)),
+				R60:             round2(returnPct(closes, minInt(60, len(closes)-1))),
+				AboveMA20:       closes[len(closes)-1] >= movingAverage(closes, 20),
+				AboveMA60:       closes[len(closes)-1] >= movingAverage(closes, minInt(60, len(closes))),
+				VolAnnual:       round4(AnnualVolatility(closes[minInt(61, len(closes)):])),
+			}
+
+			// 分项打分
+			momentum := 0.5*clamp01(it.R20/15+0.5) + 0.3*clamp01(it.R60/30+0.5) + 0.2*clamp01(it.R5/8+0.5)
+			trendScore := 0.0
+			if it.AboveMA20 {
+				trendScore += 0.6
+			}
+			if it.AboveMA60 {
+				trendScore += 0.4
+			}
+			fundScore := clamp01(it.MainInflowRatio * 100)
+			volPenalty := clamp01(1 - it.VolAnnual/0.8)
+			it.ScoreParts = map[string]float64{
+				"momentum": round4(momentum), "trend": round4(trendScore),
+				"funds": round4(fundScore), "low_vol": round4(volPenalty),
+			}
+			score := 55*momentum + 25*trendScore + 15*fundScore + 5*volPenalty
+
+			mu.Lock()
+			results = append(results, cand{row: row, item: it, score: score})
+			mu.Unlock()
+		}()
 	}
+	wg.Wait()
 
 	sort.Slice(results, func(i, j int) bool { return results[i].score > results[j].score })
 	if len(results) > top {
@@ -351,7 +392,7 @@ func reverseNorm(norm []float64) []float64 {
 // 指数分析
 // ============================================================================
 
-var defaultIndexes = []string{"CSI300", "CSI500", "SSE"}
+var defaultIndexes = []string{"NASDAQ100", "NASDAQ", "SP500", "STAR50", "CSI300"}
 
 // IndexAnalysis 指数技术面与区间风险收益分析（支持多指数并列）
 func (s *Service) IndexAnalysis(ctx context.Context, req *IndexAnalysisReq) (*IndexAnalysisResp, error) {
@@ -542,4 +583,15 @@ func truncateStr(s string, n int) string {
 		return s
 	}
 	return s[:n] + "..."
+}
+
+// warmScreenCache 预热快照缓存，模块启动时调用，避免首次请求冷启动失败
+func warmScreenCache(ctx context.Context, client *pkgNet.HTTPClient) {
+	snapCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if _, err := fetchScreenSnapshot(snapCtx, client, 2); err != nil {
+		logger.Warn().Err(err).Msg("zzz-ia: 快照缓存预热失败")
+	} else {
+		logger.Info().Msg("zzz-ia: 快照缓存预热成功")
+	}
 }

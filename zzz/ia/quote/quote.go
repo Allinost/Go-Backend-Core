@@ -61,9 +61,14 @@ type Registry struct {
 // NewRegistry 创建注册表并内置默认数据源。
 // httpClient 为主客户端（可为 nil，内部创建默认配置）；筛选客户端自动创建独立断路器。
 func NewRegistry(httpClient *pkgNet.HTTPClient) *Registry {
+	defaultHeaders := map[string]string{
+		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+		"Referer":    "https://quote.eastmoney.com/",
+	}
 	if httpClient == nil {
 		cfg := pkgNet.DefaultHTTPConfigWithBreaker()
 		cfg.Timeout = 15 * time.Second
+		cfg.DefaultHeaders = defaultHeaders
 		httpClient = pkgNet.NewHTTPClient(cfg)
 	}
 	// 筛选客户端：独立断路器（阈值更高，熔断不影响主客户端）
@@ -74,6 +79,7 @@ func NewRegistry(httpClient *pkgNet.HTTPClient) *Registry {
 		SuccessThreshold: 2,
 		Timeout:          60 * time.Second,
 	})
+	screenCfg.DefaultHeaders = defaultHeaders
 
 	r := &Registry{
 		httpClient:   httpClient,
@@ -86,11 +92,18 @@ func NewRegistry(httpClient *pkgNet.HTTPClient) *Registry {
 
 // NewRegistryWithConfig 创建注册表，筛选客户端断路器从 config 外部化配置读取
 func NewRegistryWithConfig(httpClient *pkgNet.HTTPClient, cfg *config.Config) *Registry {
+	defaultHeaders := map[string]string{
+		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+		"Referer":    "https://quote.eastmoney.com/",
+	}
 	if httpClient == nil {
-		httpClient = pkgNet.NewHTTPClient(pkgNet.DefaultHTTPConfigWithBreaker())
+		cfg0 := pkgNet.DefaultHTTPConfigWithBreaker()
+		cfg0.DefaultHeaders = defaultHeaders
+		httpClient = pkgNet.NewHTTPClient(cfg0)
 	}
 	screenCfg := pkgNet.DefaultHTTPConfig()
 	screenCfg.Timeout = 30 * time.Second
+	screenCfg.DefaultHeaders = defaultHeaders
 	sbrk := config.DefaultScreenBreakerConfig()
 	if cfg != nil && cfg.Net.HTTP.ScreenBreaker.FailureThreshold > 0 {
 		sbrk.FailureThreshold = cfg.Net.HTTP.ScreenBreaker.FailureThreshold

@@ -160,6 +160,32 @@ func (h *Handler) ListAssets(c *gin.Context) {
 	response.Success(c, PaginatedResp[Asset]{Items: nonNil(items), HasMore: hasMore, Total: total})
 }
 
+// ResolveAssetCode 根据证券代码自动拉取名称、市场、行情等信息
+// @Summary      解析证券代码（自动补全）
+// @Description  输入证券代码，自动识别市场并拉取名称、最新价、PE/PB 等信息
+// @Tags         zzz-ia-标的
+// @Accept       json
+// @Produce      json
+// @Param        code   query  string  true   "证券代码，如 600519、00700、AAPL"
+// @Param        market query  string  false  "市场提示：CN-SH/CN-SZ/HK/US（空则自动识别）"
+// @Success      200  {object}  response.Response{data=AssetResolveResp}
+// @Failure      400  {object}  response.Response
+// @Router       /zzz-ia/assets/resolve [get]
+func (h *Handler) ResolveAssetCode(c *gin.Context) {
+	code := c.Query("code")
+	if code == "" {
+		h.handleError(c, NewIAError(ErrInvalidParams))
+		return
+	}
+	market := c.Query("market")
+	resp, err := h.svc.ResolveAssetCode(c.Request.Context(), code, market)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, resp)
+}
+
 // CreateAsset 创建标的
 // @Summary      创建标的
 // @Tags         zzz-ia
@@ -961,7 +987,7 @@ func (h *Handler) TriggerMaturityCheck(c *gin.Context) {
 // @Param        account_id  query  string  false  "账户 ID（空=全局）"
 // @Param        start       query  string  false  "起始日期 YYYY-MM-DD"
 // @Param        end         query  string  false  "结束日期"
-// @Param        benchmark   query  string  false  "基准：CSI300/CSI500/SSE 或 secid，如 1.000300"
+// @Param        benchmark   query  string  false  "基准：NASDAQ100/NASDAQ/SP500/STAR50/CSI300 或 secid，如 100.SPX"
 // @Success      200  {object}  response.Response{data=EquityCurveResp}
 // @Router       /zzz-ia/analytics/equity-curve [get]
 func (h *Handler) AnalyticsEquityCurve(c *gin.Context) {
@@ -1368,7 +1394,7 @@ func (h *Handler) ScreenQualityStocks(c *gin.Context) {
 // @Summary      指数均线系统/年内涨幅/窗口分位/年化收益波动回撤分析（多指数并列）
 // @Tags         zzz-ia
 // @Produce      json
-// @Param        indexes  query  string  false  "逗号分隔：CSI300/CSI500/CSI1000/SSE/SZSE/GEM 或 secid，默认 CSI300,CSI500,SSE"
+// @Param        indexes  query  string  false  "逗号分隔：NASDAQ100/NASDAQ/SP500/STAR50/CSI300/CSI500/CSI1000/SSE/SZSE/GEM 或 secid，默认 NASDAQ100,NASDAQ,SP500,STAR50,CSI300"
 // @Param        years    query  int     false  "回看年数 1-10，默认 3"
 // @Success      200  {object}  response.Response{data=IndexAnalysisResp}
 // @Router       /zzz-ia/analytics/index-analysis [get]

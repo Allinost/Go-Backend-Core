@@ -191,6 +191,40 @@ type Asset struct {
 	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
 }
 
+// AssetResolveResp 标的代码解析结果（自动补全用）
+type AssetResolveResp struct {
+	// 基础信息
+	Code      string `json:"code"`                // 证券代码
+	Name      string `json:"name"`                // 证券名称
+	Market    string `json:"market"`              // CN-SH / CN-SZ / HK / US
+	Currency  string `json:"currency"`            // CNY / HKD / USD
+	AssetType string `json:"asset_type"`          // stock / etf / fund
+	SubType   string `json:"sub_type,omitempty"`  // equity / index / qdii 等
+
+	// 行情数据
+	Price        float64 `json:"price,omitempty"`         // 最新价
+	ChangePct    float64 `json:"change_pct,omitempty"`    // 涨跌幅 %
+	ChangeAmt    float64 `json:"change_amt,omitempty"`    // 涨跌额
+	PrevClose    float64 `json:"prev_close,omitempty"`    // 昨收
+	Open         float64 `json:"open,omitempty"`          // 开盘价
+	High         float64 `json:"high,omitempty"`          // 最高价
+	Low          float64 `json:"low,omitempty"`           // 最低价
+	Volume       float64 `json:"volume,omitempty"`        // 成交量（手）
+	Turnover     float64 `json:"turnover,omitempty"`      // 成交额
+	TurnoverRate float64 `json:"turnover_rate,omitempty"` // 换手率 %
+	HighLimit    float64 `json:"high_limit,omitempty"`    // 涨停价
+	LowLimit     float64 `json:"low_limit,omitempty"`     // 跌停价
+
+	// 估值指标
+	PE        float64 `json:"pe,omitempty"`         // 市盈率(TTM)
+	PEDynamic float64 `json:"pe_dynamic,omitempty"` // 市盈率(动态)
+	PB        float64 `json:"pb,omitempty"`         // 市净率
+
+	// 市值
+	TotalMVYi float64 `json:"total_mv_yi,omitempty"` // 总市值（亿元）
+	FloatMVYi float64 `json:"float_mv_yi,omitempty"` // 流通市值（亿元）
+}
+
 // CashFlow 资金流水（入金/出金/划转），对应 zzz_ia_cash_flows 表
 type CashFlow struct {
 	ID            int64     `json:"id" db:"id"`
@@ -1178,7 +1212,7 @@ type QualityStockResp struct {
 
 // IndexAnalysisReq 指数分析请求
 type IndexAnalysisReq struct {
-	Indexes string `form:"indexes"` // 逗号分隔别名或 secid，默认 CSI300,CSI500,SSE
+	Indexes string `form:"indexes"` // 逗号分隔别名或 secid，默认 NASDAQ100,NASDAQ,SP500,STAR50,CSI300
 	Years   int    `form:"years"`   // 回看年数 1-10，默认 3
 }
 

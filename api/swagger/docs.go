@@ -10024,7 +10024,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "基准：CSI300/CSI500/SSE 或 secid，如 1.000300",
+                        "description": "基准：NASDAQ100/NASDAQ/SP500/STAR50/CSI300 或 secid，如 100.SPX",
                         "name": "benchmark",
                         "in": "query"
                     }
@@ -10114,7 +10114,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "逗号分隔：CSI300/CSI500/CSI1000/SSE/SZSE/GEM 或 secid，默认 CSI300,CSI500,SSE",
+                        "description": "逗号分隔：NASDAQ100/NASDAQ/SP500/STAR50/CSI300/CSI500/CSI1000/SSE/SZSE/GEM 或 secid，默认 NASDAQ100,NASDAQ,SP500,STAR50,CSI300",
                         "name": "indexes",
                         "in": "query"
                     },
@@ -10389,6 +10389,62 @@ const docTemplate = `{
                                     }
                                 }
                             ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-ia/assets/resolve": {
+            "get": {
+                "description": "输入证券代码，自动识别市场并拉取名称、最新价、PE/PB 等信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "zzz-ia-标的"
+                ],
+                "summary": "解析证券代码（自动补全）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "证券代码，如 600519、00700、AAPL",
+                        "name": "code",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场提示：CN-SH/CN-SZ/HK/US（空则自动识别）",
+                        "name": "market",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_ia.AssetResolveResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
                         }
                     }
                 }
@@ -14564,6 +14620,103 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "zzz_ia.AssetResolveResp": {
+            "type": "object",
+            "properties": {
+                "asset_type": {
+                    "description": "stock / etf / fund",
+                    "type": "string"
+                },
+                "change_amt": {
+                    "description": "涨跌额",
+                    "type": "number"
+                },
+                "change_pct": {
+                    "description": "涨跌幅 %",
+                    "type": "number"
+                },
+                "code": {
+                    "description": "基础信息",
+                    "type": "string"
+                },
+                "currency": {
+                    "description": "CNY / HKD / USD",
+                    "type": "string"
+                },
+                "float_mv_yi": {
+                    "description": "流通市值（亿元）",
+                    "type": "number"
+                },
+                "high": {
+                    "description": "最高价",
+                    "type": "number"
+                },
+                "high_limit": {
+                    "description": "涨停价",
+                    "type": "number"
+                },
+                "low": {
+                    "description": "最低价",
+                    "type": "number"
+                },
+                "low_limit": {
+                    "description": "跌停价",
+                    "type": "number"
+                },
+                "market": {
+                    "description": "CN-SH / CN-SZ / HK / US",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "证券名称",
+                    "type": "string"
+                },
+                "open": {
+                    "description": "开盘价",
+                    "type": "number"
+                },
+                "pb": {
+                    "description": "市净率",
+                    "type": "number"
+                },
+                "pe": {
+                    "description": "估值指标",
+                    "type": "number"
+                },
+                "pe_dynamic": {
+                    "description": "市盈率(动态)",
+                    "type": "number"
+                },
+                "prev_close": {
+                    "description": "昨收",
+                    "type": "number"
+                },
+                "price": {
+                    "description": "行情数据",
+                    "type": "number"
+                },
+                "sub_type": {
+                    "description": "equity / index / qdii 等",
+                    "type": "string"
+                },
+                "total_mv_yi": {
+                    "description": "市值",
+                    "type": "number"
+                },
+                "turnover": {
+                    "description": "成交额",
+                    "type": "number"
+                },
+                "turnover_rate": {
+                    "description": "换手率 %",
+                    "type": "number"
+                },
+                "volume": {
+                    "description": "成交量（手）",
+                    "type": "number"
                 }
             }
         },

@@ -75,6 +75,10 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.registerSchedulerTask()
 
 	m.h = NewHandler(m.svc)
+
+	// 预热快照缓存（后台异步，不阻塞启动）
+	go warmScreenCache(context.Background(), m.quotes.ScreenHTTP())
+
 	return nil
 }
 
@@ -133,6 +137,7 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 
 	// 标的
 	r.GET("/assets", m.h.ListAssets)
+	r.GET("/assets/resolve", m.h.ResolveAssetCode)
 	r.POST("/assets", m.h.CreateAsset)
 	r.GET("/assets/:id", m.h.GetAsset)
 	r.PUT("/assets/:id", m.h.UpdateAsset)
@@ -533,6 +538,10 @@ func iaHTTPConfig(cfg *config.Config) pkgNet.HTTPConfig {
 		SuccessThreshold: brk.SuccessThreshold,
 		Timeout:          brk.Timeout,
 	})
+	httpCfg.DefaultHeaders = map[string]string{
+		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+		"Referer":    "https://quote.eastmoney.com/",
+	}
 	return httpCfg
 }
 
@@ -556,6 +565,10 @@ func iaScreenHTTPConfig(cfg *config.Config) pkgNet.HTTPConfig {
 		SuccessThreshold: sbrk.SuccessThreshold,
 		Timeout:          sbrk.Timeout,
 	})
+	httpCfg.DefaultHeaders = map[string]string{
+		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+		"Referer":    "https://quote.eastmoney.com/",
+	}
 	return httpCfg
 }
 

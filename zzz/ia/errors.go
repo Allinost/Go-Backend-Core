@@ -28,6 +28,7 @@ const (
 	ErrInvalidDate         = 42109
 	ErrInvalidRatio        = 42110
 	ErrInvalidCurrencyCode = 42111
+	ErrInvalidParams       = 42112 // 通用参数错误
 
 	// 业务规则冲突 (42200-42299)
 	ErrDuplicateAsset      = 42200 // 标的 code+market 重复
@@ -87,6 +88,7 @@ var errMsgs = map[int]string{
 	ErrInvalidDate:         "日期格式错误，应为 YYYY-MM-DD",
 	ErrInvalidRatio:        "比例取值错误，应为 0-1 之间",
 	ErrInvalidCurrencyCode: "无效的币种代码",
+	ErrInvalidParams:       "参数错误",
 
 	ErrDuplicateAsset:      "标的已存在（code+market 重复）",
 	ErrAccountHasPositions: "账户存在持仓或流水，禁止删除",

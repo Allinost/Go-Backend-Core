@@ -126,6 +126,130 @@ var validCurrencies = map[string]bool{"CNY": true, "USD": true, "HKD": true}
 
 func validCurrency(c string) bool { return validCurrencies[c] }
 
+// ResolveAssetCode 根据证券代码自动识别市场并拉取行情信息，用于新建标的时自动补全
+func (s *Service) ResolveAssetCode(ctx context.Context, code string, marketHint string) (*AssetResolveResp, error) {
+	if s.quotes == nil {
+		return nil, NewIAError(ErrQuoteUnavailable)
+	}
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return nil, NewIAError(ErrInvalidParams)
+	}
+
+	// 确定市场
+	market := marketHint
+	if market == "" {
+		market = detectMarket(code)
+	}
+	if market == "" {
+		return nil, NewIAError(ErrInvalidMarket)
+	}
+
+	// 确定币种
+	currency := "CNY"
+	switch market {
+	case "HK":
+		currency = "HKD"
+	case "US":
+		currency = "USD"
+	}
+
+	// 推断资产类型
+	assetType := inferAssetType(code, market)
+
+	// 用单股端点直接拉取完整行情（push2 单股端点通常不被反爬封锁）
+	secid := secidForMarket(code, market)
+	detail, err := quote.FetchStockDetail(ctx, s.quotes.HTTP(), secid)
+	if err != nil {
+		// 行情拉取失败也返回基础信息，让用户手动补全
+		return &AssetResolveResp{
+			Code: code, Market: market, Currency: currency, AssetType: assetType,
+		}, nil
+	}
+
+	resp := &AssetResolveResp{
+		Code:       code,
+		Name:       detail.Name,
+		Market:     market,
+		Currency:   currency,
+		AssetType:  assetType,
+		Price:      detail.Price,
+		ChangePct:  detail.ChangePct,
+		TurnoverRate: detail.TurnoverRate,
+		PE:         detail.PETTM,
+		PEDynamic:  detail.PEDynamic,
+		TotalMVYi:  detail.TotalMV / 1e8,
+		FloatMVYi:  detail.FloatMV / 1e8,
+		High:       detail.High,
+		Low:        detail.Low,
+		Open:       detail.Open,
+		PrevClose:  detail.PrevClose,
+		Volume:     detail.Volume,
+		Turnover:   detail.Turnover,
+	}
+	return resp, nil
+}
+
+// secidForMarket 根据市场推断东财 secid
+func secidForMarket(code, market string) string {
+	switch market {
+	case "CN-SH":
+		return "1." + code
+	case "CN-SZ":
+		return "0." + code
+	case "HK":
+		return "116." + code
+	case "US":
+		return "105." + code
+	}
+	return "0." + code
+}
+
+// inferAssetType 根据代码/名称推断资产类型
+func inferAssetType(code, market string) string {
+	// 科创板
+	if market == "CN-SH" && len(code) == 6 && code[:3] == "688" {
+		return "stock"
+	}
+	// 创业板
+	if market == "CN-SZ" && len(code) == 6 && code[:3] == "300" {
+		return "stock"
+	}
+	// 默认股票
+	return "stock"
+}
+
+// detectMarket 根据代码格式推断市场
+func detectMarket(code string) string {
+	// 纯数字
+	if len(code) == 6 && isDigitStr(code) {
+		switch {
+		case code[0] == '6' || code[0] == '9':
+			return "CN-SH" // 沪市主板/科创板B股
+		case code[0] == '0' || code[0] == '3':
+			return "CN-SZ" // 深市主板/创业板
+		}
+	}
+	// 港股：5位数字
+	if len(code) == 5 && isDigitStr(code) {
+		return "HK"
+	}
+	// 美股：字母开头
+	if len(code) > 0 && code[0] >= 'A' && code[0] <= 'Z' || len(code) > 0 && code[0] >= 'a' && code[0] <= 'z' {
+		return "US"
+	}
+	return ""
+}
+
+func isDigitStr(s string) bool {
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 // CreateAsset 创建标的
 func (s *Service) CreateAsset(ctx context.Context, req *CreateAssetReq) (*Asset, error) {
 	if !validAssetTypes[req.AssetType] {
