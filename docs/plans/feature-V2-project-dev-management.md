@@ -9,12 +9,12 @@
 | # | 议题 | 决策 |
 |---|---|---|
 | Q1 | 模块命名 | **`developmentManager`**：目录 `zzz/developmentManager`，Go 包名小写 `developmentmanager`，路由前缀见 Q1a |
-| Q2 | 建表方式 | **统一走 `migrations/` 迁移**（mysql 与 postgres 双份 DDL，由 migrate 模块管理版本/checksum）；**并将以前模块的 `initTables()` 陆续改造为规范迁移**（列入 P8 见 §6） |
+| Q2 | 建表方式 | **统一走 `migrations/` 迁移**（由 migrate 模块管理版本/checksum，DDL 方言见 Q6）；**并将以前模块的 `initTables()` 陆续改造为规范迁移**（列入 P8 见 §6） |
 | Q3 | 生成引擎 | 第一版**模板/手工生成为主线**；**AI 作为可选项接入末尾**，`engine=ai\|template\|manual` 可选，内建 AI 不可用时任务仍能用其他方式完成（自动降级模板引擎） |
 | Q4 | 表前缀 | **`zzz_development_manager_`**，与现有 `zzz_ia_*`、`zzz_shopchecker_*`、`zzz_goodser_*` 规范一致，不使用 `pdm` |
 | Q1a | 命名细节 | 目录 `zzz/developmentManager`（驼峰），Go 包名小写 `developmentmanager`，**路由前缀全小写 `/api/v1/developmentmanager`** |
 | Q5 | 代码生成边界 | 产物为 patch/分支草案；**生成请求提供 `auto_commit` 开关**，允许配置是否自动提交（默认关闭；开启时提交到特性分支，仍不落主干） |
-| Q6 | 数据库 | **项目选定 mysql 或 pg，DDL 按选定数据库方言产出**；migrate 模块按活动适配器自动选用 `migrations/mysql` 或 `migrations/postgres` 目录。本基座当前主库为 **mysql（`mysql.main`）**，P1 先产 mysql 方言，切 pg 时再补 |
+| Q6 | 数据库 | **仅 MySQL**：以前的模块全部是 mysql、没有 pg；本模块沿用现状，**DDL 只写 `migrations/mysql/NNN_*.sql`（MySQL 方言）**，连接池用 `database.DB.MySQL["main"]`；pg 支持不在本期范围（基座的 `postgres.nas` 属 NAS 用途，与业务模块无关），日后确有需要再补 pg 方言 |
 | Q7 | 前端范围 | **先制作 Web**（Go-Frontend-Core）；小程序/移动端**后续等排期**，复用同一 API |
 | Q8 | 现有文档与 Pages | **只记录索引、文件不动**（对 GitHub Pages 100% 兼容，旧链接不失效）；新增文档直接写入 `docs/projects/<key>/` |
 | Q9 | 权限 | 现有 rbac 的 read/write/admin 三点**不够**，扩展为**资源 × 动作权限矩阵**（草案见 §4.1，已按草案执行） |
@@ -89,7 +89,7 @@ docs/
 
 > 表前缀 **`zzz_development_manager_`**（对齐现有 `zzz_ia_*` 规范，见 §0-Q4；规范已落档 `docs/data-model.md`）；
 > 建表时同步写明**表用途、每个字段的含义**（本模块自身满足 1.2 的规范要求）。
-> 建表方式：**统一走 `migrations/` 迁移**（§0-Q2）。**DDL 方言按项目选定的数据库（mysql 或 pg）编写**（§0-Q6）：选定 mysql → `migrations/mysql/NNN_*.sql`，选定 pg → `migrations/postgres/NNN_*.sql`；运行时 migrate 模块按活动适配器自动选用对应目录（如需双库支持则两目录都写）。本节各表即迁移文件的内容草案。
+> 建表方式：**统一走 `migrations/mysql/NNN_*.sql`，MySQL 方言**（§0-Q2、§0-Q6：现状所有模块均为 MySQL、无 pg），由 migrate 模块统一执行。本节各表即迁移文件的内容草案。
 
 ### 3.1 项目与关联
 
@@ -195,8 +195,8 @@ zzz/developmentManager/            # 包名 developmentmanager；路由前缀 /a
 
 要点：
 - **注册**：`cmd/server/main.go` 增加 `modules.Register(&developmentmanager.Module{})`；
-- **建表**：模块自身**不建表**，DDL 落在 `migrations/mysql|postgres/NNN_*.sql`，由 migrate 模块统一执行（§0-Q2）；
-- **DB**：按项目选定的数据库取连接池（本基座当前为 `database.DB.MySQL["main"]`，选定 pg 则用对应 pg 池，§0-Q6），repository 层以选定方言编写 SQL；
+- **建表**：模块自身**不建表**，DDL 落在 `migrations/mysql/NNN_*.sql`（MySQL 方言，§0-Q6），由 migrate 模块统一执行（§0-Q2）；
+- **DB**：`database.DB.MySQL["main"]`，与现有 zzz 模块一致，SQL 按 MySQL 方言编写（§0-Q6，仅 MySQL）；
 - **权限**：复用 `middleware.RequirePermission(rbac, resource, action)`（资源 × 动作），三点式 read/write/admin 不够用，扩展为**权限矩阵**（见 §4.1）；
 - **审计**：写操作接 `services/audit`；
 - **调度**：备份状态刷新、生成任务重试用 `modules.Get("scheduler")` 注册；
