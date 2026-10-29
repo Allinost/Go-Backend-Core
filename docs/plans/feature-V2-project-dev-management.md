@@ -20,6 +20,7 @@
 | Q9 | 权限 | 现有 rbac 的 read/write/admin 三点**不够**，扩展为**资源 × 动作权限矩阵**（草案见 §4.1，已按草案执行） |
 | Q9a | 角色与权限管理 | **允许动态增加角色与权限，并允许 admin 分配**：直接复用基座 auth 模块现成的 `/api/v1/auth/admin/*`（权限 CRUD、角色 CRUD、`roles/:name/permissions` 配置、`users/:id/roles` 分配），**不另造管理接口**；§4.1 的 admin/editor/viewer 与权限点仅作**初始幂等播种**，可增删改 |
 | — | 前缀规范落档 | 已写入 `docs/data-model.md` §命名规范（基座独立库、基座表无前缀、模块表带模块前缀 `zzz_*`） |
+| Q10 | 部署建模 | 采用 **A 行式**，但**端口、反代、访问地址、白名单合并为 `access_point` 一张表**（绑定链，行粒度 = 端口 × 地址，仍可 SQL 过滤）；白名单存 **JSON 数组列 `allow_containers`**；资源分配保持**独立 `resource_alloc` 表**（1:1）。部署 5 表，全模块 **13 张表** |
 
 ---
 
@@ -118,29 +119,30 @@ docs/
 | deleted, deleted_at | 软删除标记（删除项目时同步置位） |
 | UK(from,to,type) | 防重复关联 |
 
-### 3.2 部署资产（1.2）
+### 3.2 部署资产（1.2）（定稿：行式建模 + 网络四合一，§0-Q10）
+
+> 原则：**端口、反代、访问地址、白名单是一条绑定链**，合并为 `access_point` 一张表（行粒度 = 端口 × 访问地址），一行看全"容器端口 → 反代 → 暴露地址 → 白名单"，同时保留 SQL 过滤能力；其余按行式独立建表。
 
 **zzz_development_manager_container — 项目关联容器（一个项目可关联多个容器）**
-`id, project_id, container_name, image, compose_ref(docker-compose 文件/服务名), replicas, network_mode, env_notes(json), status_note, deleted`
+`id, project_id, container_name(项目内唯一键), image, compose_ref(docker-compose 文件/服务名), replicas, network_mode, env_notes(json), status_note, deleted`
 
-**zzz_development_manager_container_port — 容器端口（记录端口映射与内外网暴露）**
-`id, container_id, listen_port(容器内端口), host_port(宿主端口，可空=不映射), protocol(tcp/udp), purpose(用途), exposure(none/intranet/extranet)`
-
-**zzz_development_manager_reverse_proxy — 反向代理配置（记录域名到上游容器的反代规则）**
-`id, project_id, container_id(可空), proxy_type(nginx/caddy/traefik/other), domain, upstream_url, listen_port, tls(0/1), notes`
-
-**zzz_development_manager_proxy_access — 代理网访问地址（可多个；url 留空即不可达）**
-`id, project_id, container_id(可空), name, network_zone(intranet/extranet/proxy_net), url(可空 → 不可达), reachable(tinyint，与 url 一致性由服务层保证), notes`
-> 语义：`url IS NULL` ⇒ 该地址不可达，前端显示"不可达"。
-
-**zzz_development_manager_proxy_access_allow — 访问地址的容器白名单（一条地址允许多个容器访问）**
-`id, access_id, container_id, note`
-
-**zzz_development_manager_resource_alloc — 资源分配（按容器记录 CPU/内存/存储配额）**
-`id, container_id, cpu_limit, cpu_shares, mem_limit, mem_reservation, gpu_note, storage_quota, notes`
+**zzz_development_manager_resource_alloc — 资源分配（容器 1:1，独立表）**
+`id, container_id UK, cpu_limit, cpu_shares, mem_limit, mem_reservation, gpu_note, storage_quota, notes`
 
 **zzz_development_manager_volume_mapping — 卷映射（记录宿主目录与容器目录挂载关系）**
-`id, container_id, host_path, container_path, mode(rw/ro), purpose(用途), in_backup(是否纳入备份)`
+`id, container_id, host_path, container_path, mode(rw/ro), purpose(用途), in_backup(是否纳入备份), deleted`
+
+**zzz_development_manager_access_point — 网络接入点（端口 + 反代 + 代理访问地址 + 容器白名单 四合一）**
+| 段 | 字段 | 含义 |
+|---|---|---|
+| 宿主 | `id, project_id, container_id, remark, deleted` + 审计字段 | 归属项目与宿主容器 |
+| 端口 | `listen_port, host_port(空=不映射), protocol(tcp/udp), purpose, exposure(none/intranet/extranet)` | 端口映射与内外网暴露 |
+| 反代 | `proxy_type(nginx/caddy/traefik/other), domain, upstream_url, tls` | **可空 = 无反代直连** |
+| 地址 | `network_zone(intranet/extranet/proxy_net), url, reachable, notes` | **`url IS NULL` ⇒ 不可达**，前端置灰 |
+| 白名单 | `allow_containers JSON` | 允许访问该地址的容器名数组，如 `["api","worker"]`（服务层校验存在性与改名同步） |
+
+- 行粒度 = **端口 × 访问地址**：同一端口有内网+外网两个地址 → 2 行；多端口共用同一反代域名 → 多行按 `domain` 归组；地址未分配 → 照样 1 行且 `url = NULL`；
+- 典型查询仍是 SQL：`url IS NULL` 查不可达、`exposure='extranet'` 查外网暴露、按 `domain` 分组查反代。
 
 **zzz_development_manager_backup — 备份情况（记录备份策略与最近执行结果）**
 `id, project_id, container_id(可空), volume_id(可空), backup_type(full/db/volume), strategy_cron, destination, retention_days, last_run_at, last_status(success/failed/running), last_error, restore_note, enabled`
@@ -211,7 +213,7 @@ zzz/developmentManager/            # 包名 developmentmanager；路由前缀 /a
 |---|---|---|
 | `dm.project` | read / create / update / **delete** / restore | 项目台账；delete 级联标记关联，restore 恢复软删除 |
 | `dm.relation` | read / create / delete | 项目关联的增删与查看 |
-| `dm.deployment` | read / create / update / delete | 部署资产全域：容器、端口、反代、代理访问(+白名单)、资源、卷、备份 |
+| `dm.deployment` | read / create / update / delete | 部署资产全域：容器、网络接入点（端口+反代+地址+白名单）、资源、卷、备份 |
 | `dm.dictionary` | read / create / update / delete / **scan** | 数据表字典；scan = 触发从库扫描导入 |
 | `dm.requirement` | read / create / update / delete / **approve** | 需求；approve = 状态流转/评审通过（draft→approved 等） |
 | `dm.generation` | read / execute / **autocommit** | 生成任务；execute = 触发生成；**autocommit = 允许自动提交产物（与 Q5 开关配套的独立权限）** |
@@ -235,8 +237,8 @@ GET|POST        /projects                      列表(筛选 type/status/deleted
 GET|PUT|DELETE  /projects/:id                  详情、更新、软删除（级联标记关联）
 GET|POST        /projects/:id/relations        关联列表、新增关联
 GET|POST        /projects/:id/containers       容器
-POST            /containers/:id/ports|proxy-access|resources|volumes
-GET|POST        /projects/:id/proxy-access     代理访问地址（含 allow 容器）
+POST            /containers/:id/resources|volumes
+GET|POST|PUT|DELETE /projects/:id/access-points 网络接入点（端口+反代+地址+白名单 一条绑定链）
 GET|POST        /projects/:id/backups          备份情况
 GET|POST        /projects/:id/tables           数据表字典（含 columns 子资源）
 POST            /tables/:id/scan-import        从库扫描导入初稿
@@ -259,7 +261,7 @@ GET             /permissions/meta              本模块权限点元数据（供
 - **项目列表页**：按类型分组的卡片/表格，支持筛选、软删除恢复；
 - **项目详情页 Tab**：
   1. 概览（基本信息、关联项目关系图）
-  2. 部署（容器 / 端口 / 反代 / 代理访问（不可达置灰） / 资源 / 卷 / 备份）
+  2. 部署（容器 / 网络接入点：端口+反代+访问地址+白名单，`url` 空置灰显示"不可达" / 资源 / 卷 / 备份）
   3. 数据字典（表 → 字段级联表格，表用途、字段含义列）
   4. 需求（看板 + 列表，增改更新删、版本历史抽屉、状态流转）
   5. 生成（触发方案/代码/文档生成，任务进度与产物链接，engine 可选 ai/template/manual）
@@ -275,7 +277,7 @@ GET             /permissions/meta              本模块权限点元数据（供
 |---|---|---|
 | **P0 规划核对** | 本文件 + 用户订正 | 用户确认规划（本阶段） |
 | **P1 骨架 + 项目台账** | `zzz/developmentManager` 模块骨架、project/relation/asset 表迁移（migrations）、CRUD、软删除级联、seed 登记现有项目、`main.go` 注册 | 接口可建/删项目与关联，删除后关联带 deleted 标记 |
-| **P2 部署资产** | container/port/proxy/proxy_access(+allow)/resource/volume/backup 七组实体与 API | 一个项目可完整录入 1.2 所列全部部署信息 |
+| **P2 部署资产** | container / resource_alloc / volume_mapping / **access_point（端口+反代+地址+白名单四合一）** / backup 五组实体与 API | 一个项目可完整录入 1.2 所列全部部署信息，接入点一行看全绑定链 |
 | **P3 数据字典** | db_table/db_column + 扫描导入 + 手工维护 | 表用途、字段含义可录入并展示 |
 | **P4 需求管理** | requirement/version、状态流转、软删除快照 | 增改更新删 + 版本历史全部可回溯 |
 | **P5 生成流程** | generation 任务、plan/doc 模板生成为主 → **末尾接入 services/ai 作为可选 engine（含降级）**；code 产出 patch/分支草案，**`auto_commit` 开关（默认关，受 `dm.generation:autocommit` 权限约束）** | 由需求一键生成方案与文档，AI 关闭时仍可完成，失败可重试 |
