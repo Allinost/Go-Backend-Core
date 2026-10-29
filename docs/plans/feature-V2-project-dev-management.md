@@ -1,17 +1,24 @@
 # Feature-V2 规划：项目开发管理（developmentManager）
 
 > 分支：`feature-V2`（基于 `feature-goodser` @ 22b5c23）
-> 状态：**已核对一轮，决策记录见 §0；剩余细节待确认（§8）**
+> 状态：**已核对两轮，决策记录见 §0；剩余仅 §8（权限矩阵核对）**
 > 关联仓库：`Go-Backend-Core`（后端基座，本仓库）、`Go-Frontend-Core`（NKUI 前端基座）、`NKUI`（前端模板）
 
 ## 0. 已确认决策（2026-10-29 第一轮核对）
 
 | # | 议题 | 决策 |
 |---|---|---|
-| Q1 | 模块命名 | **`developmentManager`**：目录 `zzz/developmentManager`，路由前缀 `/api/v1/developmentManager`（Go 包名按规范取小写 `developmentmanager`，见 §8-Q1a） |
+| Q1 | 模块命名 | **`developmentManager`**：目录 `zzz/developmentManager`，Go 包名小写 `developmentmanager`，路由前缀见 Q1a |
 | Q2 | 建表方式 | **统一走 `migrations/` 迁移**（mysql 与 postgres 双份 DDL，由 migrate 模块管理版本/checksum）；**并将以前模块的 `initTables()` 陆续改造为规范迁移**（列入 P8 见 §6） |
 | Q3 | 生成引擎 | 第一版**模板/手工生成为主线**；**AI 作为可选项接入末尾**，`engine=ai\|template\|manual` 可选，内建 AI 不可用时任务仍能用其他方式完成（自动降级模板引擎） |
 | Q4 | 表前缀 | **`zzz_development_manager_`**，与现有 `zzz_ia_*`、`zzz_shopchecker_*`、`zzz_goodser_*` 规范一致，不使用 `pdm` |
+| Q1a | 命名细节 | 目录 `zzz/developmentManager`（驼峰），Go 包名小写 `developmentmanager`，**路由前缀全小写 `/api/v1/developmentmanager`** |
+| Q5 | 代码生成边界 | 产物为 patch/分支草案；**生成请求提供 `auto_commit` 开关**，允许配置是否自动提交（默认关闭；开启时提交到特性分支，仍不落主干） |
+| Q6 | 数据库 | **项目选定 mysql 或 pg，DDL 按选定数据库方言产出**；migrate 模块按活动适配器自动选用 `migrations/mysql` 或 `migrations/postgres` 目录。本基座当前主库为 **mysql（`mysql.main`）**，P1 先产 mysql 方言，切 pg 时再补 |
+| Q7 | 前端范围 | **先制作 Web**（Go-Frontend-Core）；小程序/移动端**后续等排期**，复用同一 API |
+| Q8 | 现有文档与 Pages | **只记录索引、文件不动**（对 GitHub Pages 100% 兼容，旧链接不失效）；新增文档直接写入 `docs/projects/<key>/` |
+| Q9 | 权限 | 现有 rbac 的 read/write/admin 三点**不够**，扩展为**资源 × 动作权限矩阵**（草案见 §4.1，待核对） |
+| — | 前缀规范落档 | 已写入 `docs/data-model.md` §命名规范（基座独立库、基座表无前缀、模块表带模块前缀 `zzz_*`） |
 
 ---
 
@@ -73,15 +80,15 @@ docs/
 
 - 代码类资产记录 `repo + branch + path`，不复制代码；
 - 文件类资产（附件、截图、导出包）走 `services/fileref` + `services/storage`；
-- 现有 `docs/modules/*` 在 P1 阶段做一次映射迁移（不删除旧目录，只登记索引，避免破坏现有 Pages；是否物理迁移见 §8-Q8）。
+- 现有 `docs/modules/*` **只登记索引、文件不动**（§0-Q8，对 GitHub Pages 100% 兼容）；新文档一律写入 `docs/projects/<key>/`。
 
 ---
 
 ## 3. 数据模型（DDL 草案）
 
-> 表前缀 **`zzz_development_manager_`**（对齐现有 `zzz_ia_*` 规范，已确认，见 §0-Q4）；
+> 表前缀 **`zzz_development_manager_`**（对齐现有 `zzz_ia_*` 规范，见 §0-Q4；规范已落档 `docs/data-model.md`）；
 > 建表时同步写明**表用途、每个字段的含义**（本模块自身满足 1.2 的规范要求）。
-> 建表方式：**统一走 `migrations/mysql/NNN_*.sql` 与 `migrations/postgres/NNN_*.sql` 双份 DDL**（§0-Q2），本节各表即迁移文件的内容草案。
+> 建表方式：**统一走 `migrations/` 迁移**（§0-Q2）。**DDL 方言按项目选定的数据库（mysql 或 pg）编写**（§0-Q6）：选定 mysql → `migrations/mysql/NNN_*.sql`，选定 pg → `migrations/postgres/NNN_*.sql`；运行时 migrate 模块按活动适配器自动选用对应目录（如需双库支持则两目录都写）。本节各表即迁移文件的内容草案。
 
 ### 3.1 项目与关联
 
@@ -157,7 +164,7 @@ docs/
 > 增=初始版本；改=新增版本；删=软删除 + 生成"已删除"快照版本，保证可回溯。
 
 **zzz_development_manager_generation — 生成任务（按需求生成方案/代码/文档的任务记录）**
-`id, requirement_id, project_id, kind(plan/code/doc), engine(ai/template/manual), status(pending/running/success/failed), input_snapshot(json), output_ref(文档路径/分支+commit/PR 链接), error, operator, started_at, finished_at`
+`id, requirement_id, project_id, kind(plan/code/doc), engine(ai/template/manual), auto_commit(tinyint 是否自动提交产物，默认 0 关；仅对 kind=code 生效), status(pending/running/success/failed), input_snapshot(json), output_ref(文档路径/分支+commit/PR 链接), error, operator, started_at, finished_at`
 
 **zzz_development_manager_project_asset — 归类资产索引（需求/代码/文档/资产按项目归档的索引）**
 `id, project_id, category(requirement/code/doc/asset), title, uri(仓库相对路径或 fileref id), format, version, size, checksum, note, deleted`
@@ -169,9 +176,9 @@ docs/
 严格沿用 `zzz/*` 分层模式：
 
 ```
-zzz/developmentManager/            # 包名 developmentmanager（Go 规范小写）
-├── module.go        # 实现 modules.Module，Name()="developmentManager"，Init 中初始化 repo/服务 + 注册调度任务
-├── handler.go       # Gin handlers + swag 注解（路由挂载 /api/v1/developmentManager/*）
+zzz/developmentManager/            # 包名 developmentmanager；路由前缀 /api/v1/developmentmanager（全小写）
+├── module.go        # 实现 modules.Module，Name()="developmentmanager"，Init 中初始化 repo/服务 + 注册调度任务
+├── handler.go       # Gin handlers + swag 注解（路由挂载 /api/v1/developmentmanager/*）
 ├── service.go       # 业务编排（软删除级联、关联校验、生成流程）
 ├── repository.go    # 数据访问
 ├── model.go         # 上述实体
@@ -188,14 +195,32 @@ zzz/developmentManager/            # 包名 developmentmanager（Go 规范小写
 要点：
 - **注册**：`cmd/server/main.go` 增加 `modules.Register(&developmentmanager.Module{})`；
 - **建表**：模块自身**不建表**，DDL 落在 `migrations/mysql|postgres/NNN_*.sql`，由 migrate 模块统一执行（§0-Q2）；
-- **DB**：`database.DB.MySQL["main"]`（与现有 zzz 模块一致；Pg 适配见 §8-Q6）；
-- **权限**：复用 `middleware` 的 auth/rbac；新增权限点 `developmentManager:read / developmentManager:write / developmentManager:admin`（删除、生成任务需要 admin，见 §8-Q9）；
+- **DB**：按项目选定的数据库取连接池（本基座当前为 `database.DB.MySQL["main"]`，选定 pg 则用对应 pg 池，§0-Q6），repository 层以选定方言编写 SQL；
+- **权限**：复用 `middleware.RequirePermission(rbac, resource, action)`（资源 × 动作），三点式 read/write/admin 不够用，扩展为**权限矩阵**（见 §4.1）；
 - **审计**：写操作接 `services/audit`；
 - **调度**：备份状态刷新、生成任务重试用 `modules.Get("scheduler")` 注册；
 - **生成引擎**：主线为模板/手工生成；`engine=ai` 时走 `services/ai`（OpenAI/Ollama Provider 已具备），AI 不可用则任务自动降级为模板引擎完成（§0-Q3）；
 - **关联项目读取**：只读登记 Go-Frontend-Core / NKUI，不扫描其文件系统（跨仓库内容通过资产索引 uri 记录）。
 
-### API 概要（前缀 `/api/v1/developmentManager`）
+### 4.1 权限矩阵（§0-Q9：RBAC 三点式不够，按资源 × 动作扩展；**草案待核对**）
+
+挂载方式：`middleware.RequirePermission(rbac, resource, action)`，action 统一用 `read / create / update / delete`，特例动作单列。
+
+| 资源 resource | 动作 action | 说明 |
+|---|---|---|
+| `dm.project` | read / create / update / **delete** / restore | 项目台账；delete 级联标记关联，restore 恢复软删除 |
+| `dm.relation` | read / create / delete | 项目关联的增删与查看 |
+| `dm.deployment` | read / create / update / delete | 部署资产全域：容器、端口、反代、代理访问(+白名单)、资源、卷、备份 |
+| `dm.dictionary` | read / create / update / delete / **scan** | 数据表字典；scan = 触发从库扫描导入 |
+| `dm.requirement` | read / create / update / delete / **approve** | 需求；approve = 状态流转/评审通过（draft→approved 等） |
+| `dm.generation` | read / execute / **autocommit** | 生成任务；execute = 触发生成；**autocommit = 允许自动提交产物（与 Q5 开关配套的独立权限）** |
+| `dm.asset` | read / create / delete | 归类资产索引 |
+
+- 权限点注册：开发时按上表批量调用 `rbac.CreatePermission(name, resource, action)` 幂等播种；
+- 默认角色映射（建议）：`admin` → 全部（含 delete/approve/autocommit）；`editor` → 各资源 read/create/update + requirement:approve；`viewer` → 各资源 read；
+- 敏感动作双保险：`dm.generation:autocommit` 与请求体 `auto_commit` 开关**同时满足**才会自动提交。
+
+### API 概要（前缀 `/api/v1/developmentmanager`）
 
 ```
 GET|POST        /projects                      列表(筛选 type/status/deleted)、新建
@@ -210,7 +235,7 @@ POST            /tables/:id/scan-import        从库扫描导入初稿
 GET|POST|PUT    /projects/:id/requirements     需求 CRUD（PUT 自动产生 version）
 DELETE          /requirements/:id              软删除 + 快照版本
 GET             /requirements/:id/versions     修订历史
-POST            /requirements/:id/generations  触发生成 plan/code/doc
+POST            /requirements/:id/generations  触发生成，body={kind: plan|code|doc, engine: ai|template|manual, auto_commit: 0|1}
 GET             /generations/:id               任务状态与产物引用
 GET|POST        /projects/:id/assets           归类资产索引
 GET             /stats                         仪表盘统计
@@ -231,7 +256,7 @@ GET             /stats                         仪表盘统计
   5. 生成（触发方案/代码/文档生成，任务进度与产物链接，engine 可选 ai/template/manual）
   6. 资产（文档/代码/附件索引）
 - **需求编辑器**：Markdown 编辑 + 版本对比（基于 versions）。
-- 端：先 Web；移动端/小程序复用同一 API，P6 不做（见 §8-Q7）。
+- 端：**先制作 Web**（§0-Q7）；小程序/移动端后续等排期，届时复用同一 API。
 
 ---
 
@@ -244,7 +269,7 @@ GET             /stats                         仪表盘统计
 | **P2 部署资产** | container/port/proxy/proxy_access(+allow)/resource/volume/backup 七组实体与 API | 一个项目可完整录入 1.2 所列全部部署信息 |
 | **P3 数据字典** | db_table/db_column + 扫描导入 + 手工维护 | 表用途、字段含义可录入并展示 |
 | **P4 需求管理** | requirement/version、状态流转、软删除快照 | 增改更新删 + 版本历史全部可回溯 |
-| **P5 生成流程** | generation 任务、plan/doc 模板生成为主 → **末尾接入 services/ai 作为可选 engine（含降级）**；code 产出 patch/分支草案 | 由需求一键生成方案与文档，AI 关闭时仍可完成，失败可重试 |
+| **P5 生成流程** | generation 任务、plan/doc 模板生成为主 → **末尾接入 services/ai 作为可选 engine（含降级）**；code 产出 patch/分支草案，**`auto_commit` 开关（默认关，受 `dm.generation:autocommit` 权限约束）** | 由需求一键生成方案与文档，AI 关闭时仍可完成，失败可重试 |
 | **P6 前端模块** | Go-Frontend-Core 中 developmentManager 模块（Web） | 全流程可视化操作走通 |
 | **P7 收尾** | Swagger(`make swagger`)、docs/projects 归档、测试、发布说明 | 通过 golangci-lint + 单测，文档齐全 |
 | **P8 历史模块规范化**（P1 之后穿插） | 将现有 `zzz/ia`、`zzz/goodser`、`zzz/shopchecker`、`zzz/login3rd` 等的 `initTables()` DDL 迁移到 `migrations/` 统一迁移，并登记进数据字典 | 各模块启动不再自建表，迁移版本表可见全部 DDL（独立提交，不阻塞 P2-P7） |
@@ -264,14 +289,9 @@ GET             /stats                         仪表盘统计
 
 ---
 
-## 8. 待确认问题（请核对订正）
+## 8. 剩余待确认（其余已全部并入 §0 决策）
 
-> Q1–Q4（命名、建表方式、生成引擎、表前缀）已在 §0 确认，以下为剩余项。
+- **Q9a 权限矩阵核对**：§4.1 的 7 个资源域 × 动作（含 `scan` / `approve` / `autocommit` 特例动作）与默认角色映射（admin/editor/viewer）——是否符合预期？可增删资源域或动作（例如是否把 `dm.deployment` 拆成容器/代理/备份三个资源域）。
+- **Q4a 表名长度（默认执行项）**：`zzz_development_manager_` 24 字符，最长表 `..._proxy_access_allow` 共 42 字符（MySQL 上限 64），按此执行；如觉冗长可缩为 `zzz_devmgr_`。
 
-- **Q1a 命名细节**：目录 `zzz/developmentManager` 保留驼峰（与 `docs/` 命名一致），但 Go 包名取小写 `developmentmanager`；路由前缀建议统一小写 `/api/v1/developmentmanager`（Gin 路径与 Swagger 更规范）——是否接受？
-- **Q4a 表名长度**：`zzz_development_manager_` 共 24 字符，最长表 `..._proxy_access_allow` 共 42 字符（MySQL 上限 64），确认可用；如觉冗长可缩为 `zzz_devmgr_`，默认按 `zzz_development_manager_` 执行。
-- **Q5 代码生成边界**：`kind=code` 的产物形态——(a) 仅生成方案级代码骨架文档、(b) 产出 patch 文件、(c) 自动开分支提交？建议 (b) 起步。
-- **Q6 数据库**：表默认建在 `mysql.main`，迁移同时产出 postgres 版 DDL；运行时是否需要支持 pg 连接读写（影响 repository 层实现）？
-- **Q7 前端范围**：P6 只做 Web 端（Go-Frontend-Core），移动/小程序后续再用同一 API 接入，是否同意？
-- **Q8 现有文档迁移**：`docs/modules/*` 是"只登记索引不移动文件"（建议，不破坏现有 Pages），还是物理迁移到 `docs/projects/<key>/`？
-- **Q9 权限粒度**：复用现有 rbac 中间件，新增 `developmentManager:read/write/admin` 三个权限点，是否够用？
+> 以上确认后即启动 **P1（模块骨架 + 项目台账）**。

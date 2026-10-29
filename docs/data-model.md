@@ -118,11 +118,24 @@ CREATE TABLE s2_products (
 
 ## 命名规范
 
+### 数据库与表前缀规范（2026-10-29 确认）
+
+1. **基座独立成库**：后端基座（如 Go-Backend-Core）单独建数据库；**基座自身的数据表不加前缀约束**（如 `users`、`roles`、`permissions`、`schema_migrations` 等公共服务表）。
+2. **模块表进基座库、必须带模块前缀**：业务模块的表建在基座数据库中，**按规定设置模块前缀**——本项目统一为 `zzz`，即 `{模块前缀}_{模块名}_{实体}`：
+   - `zzz_ia_positions`、`zzz_goodser_products`、`zzz_shopchecker_price_records`
+   - `zzz_development_manager_project`（项目开发管理模块）
+   - `login3rd_*` 属历史遗留，后续随 P8 规范化一并改为 `zzz_login3rd_*`
+3. **模块前缀与模块目录/路由对应**：模块目录 `zzz/<name>` → 表前缀 `zzz_<name 小写蛇形>_` → 路由前缀 `/api/v1/<name>`（目录允许驼峰，表名与包名取小写蛇形）。
+4. **新建表一律走 `migrations/{mysql,postgres}/NNN_*.sql` 统一迁移**，不再在模块内 `initTables()` 自建（存量模块按 feature-V2 P8 陆续改造）。
+5. 表全名不得超过 64 字符（MySQL 上限）；建表 DDL 必须注明**表用途**，每个字段注明**含义**（登记进数据字典）。
+
+### 通用命名
+
 | 类型 | 规范 | 示例 |
 |------|------|------|
 | 数据库 | 小写蛇形 | `go_backend_core` |
 | 表名 | 复数蛇形 | `users`, `user_devices` |
-| 业务表前缀 | `{模块名}_` | `s1_orders`, `s2_products` |
+| 业务表前缀 | `{模块前缀}_{模块名}_`（见上） | `zzz_ia_positions`, `zzz_development_manager_project` |
 | 主键 | `id` (BIGINT AUTO_INCREMENT) | - |
 | 创建时间 | `created_at` | - |
 | 更新时间 | `updated_at` | - |
