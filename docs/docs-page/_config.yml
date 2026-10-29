@@ -8,7 +8,7 @@ aux_links:
   "GitHub Repository":
     - "https://github.com/Allinost/go-backend-core"
 
-footer_content: "Copyright &copy; 2026 Allinost. Distributed by an MIT license."
+footer_content: "Copyright &copy; 2026 Allinost. Distributed under the Apache License 2.0."
 
 # 导航配置
 just_the_docs:

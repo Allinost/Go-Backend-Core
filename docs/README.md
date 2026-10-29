@@ -1,0 +1,67 @@
+# 文档索引
+
+> Go-Backend-Core 项目的统一文档导航入口。
+> **本目录（`docs/`）是文档的唯一事实源**；[`docs-page/`](docs-page/) 仅为 Jekyll 导航站点，正文不再维护（见文末说明）。
+
+---
+
+## 1. 架构与设计
+
+| 文档 | 内容 |
+|------|------|
+| [architecture.md](architecture.md) | 整体架构图、启动流程、模块体系（15 个模块）、目录结构 |
+| [tech-stack.md](tech-stack.md) | 技术选型与依赖说明 |
+| [module-design.md](module-design.md) | 模块接口、注册表机制、三层结构、各模块设计（95KB，最详尽） |
+| [data-model.md](data-model.md) | 数据库策略、表设计、命名规范 |
+| [deployment.md](deployment.md) | 部署方案与环境管理 |
+| [test.md](test.md) | 测试规范（单元/集成/覆盖率） |
+| [development-plan.md](development-plan.md) | 开发规划与阶段安排 |
+| [social-login.md](social-login.md) | 第三方 OAuth 登录接入方案 |
+| [login3rd-plan.md](login3rd-plan.md) | 第三方登录模块实施计划 |
+
+---
+
+## 2. 业务模块文档
+
+按模块目录组织，标准套件为 `index + 01~04`（架构总览 / 数据模型 / API 设计 / 模块结构）：
+
+| 模块 | 代码位置 | 路由前缀 | 文档 |
+|------|----------|----------|------|
+| 投资分析 | `zzz/ia` | `/api/v1/zzz-ia` | [modules/ia/](modules/ia/) ✅ |
+| 第三方登录 | `zzz/login3rd` | `/api/v1/login3rd` | [modules/login3rd/](modules/login3rd/) ✅ |
+| 店铺采集 | `zzz/shopchecker` | `/api/v1/shopchecker` | [modules/shopChecker/](modules/shopChecker/) ✅ |
+| 商品服务 | `zzz/goodser` | `/api/v1/goodser` | [modules/goodser/dev/](modules/goodser/dev/) ✅ |
+| 服务导航 | `internal/modules/servicenav` | `/api/v1/servicenav` | [modules/servicenav/](modules/servicenav/) ✅ |
+| Webhook | `internal/modules/webhook` | `/api/v1/webhook` | [modules/webhook/](modules/webhook/) ✅ |
+| 认证 / 运维 / 迁移等 | `internal/modules/{auth,ops,migrate,s0,s1,s2}` | `/api/v1/{name}` | ⬜ 暂无独立文档，见 [API/index.md](API/index.md) |
+
+---
+
+## 3. API 文档
+
+- **交互式 API 文档**：启动服务后访问 `http://localhost:29092/swagger/index.html`（调试端口，支持环境预设切换）
+- **静态索引**：[API/index.md](API/index.md)（通用约定、统一响应格式、错误码、模块路由表）
+
+---
+
+## 4. 过程文档
+
+| 目录 | 内容 |
+|------|------|
+| [release/](release/) | 发布记录（P0~P17 里程碑清单） |
+| [weekly/](weekly/) | 周报与迭代总结 |
+| [docs-page/](docs-page/) | Jekyll 导航站点（仅导航，正文已指向本文档） |
+
+---
+
+## 5. 维护约定
+
+1. **单一事实源**：文档正文只在本目录（`docs/`）维护；`docs-page/` 下的同名文档是说明页，不放正文。
+2. **模块文档规范**：新模块按 `docs/modules/{name}/` 建目录，包含：
+   - `index.md` — 文档目录 + 关键设计决策
+   - `01-architecture-overview.md` — 模块定位、分层架构、命名空间、依赖关系
+   - `02-data-model.md` — 表结构、Go 模型、DTO
+   - `03-api-design.md` — 路由表、请求/响应、业务错误码
+   - `04-module-structure.md` — 文件组织、生命周期、已知限制
+3. **同步要求**：模块代码发生结构性变更（新增路由、改表、改错误码）时同步更新对应文档。
+4. **新增文档时**：在本索引的对应表格中登记。
