@@ -1,7 +1,7 @@
 # Feature-V2 规划：项目开发管理（developmentManager）
 
 > 分支：`feature-V2`（基于 `feature-goodser` @ 22b5c23）
-> 状态：**已核对两轮，决策记录见 §0；剩余仅 §8（权限矩阵核对）**
+> 状态：**已核对完毕（全部决策见 §0），前缀规范已落档 `docs/data-model.md`**
 > 关联仓库：`Go-Backend-Core`（后端基座，本仓库）、`Go-Frontend-Core`（NKUI 前端基座）、`NKUI`（前端模板）
 
 ## 0. 已确认决策（2026-10-29 第一轮核对）
@@ -17,7 +17,8 @@
 | Q6 | 数据库 | **项目选定 mysql 或 pg，DDL 按选定数据库方言产出**；migrate 模块按活动适配器自动选用 `migrations/mysql` 或 `migrations/postgres` 目录。本基座当前主库为 **mysql（`mysql.main`）**，P1 先产 mysql 方言，切 pg 时再补 |
 | Q7 | 前端范围 | **先制作 Web**（Go-Frontend-Core）；小程序/移动端**后续等排期**，复用同一 API |
 | Q8 | 现有文档与 Pages | **只记录索引、文件不动**（对 GitHub Pages 100% 兼容，旧链接不失效）；新增文档直接写入 `docs/projects/<key>/` |
-| Q9 | 权限 | 现有 rbac 的 read/write/admin 三点**不够**，扩展为**资源 × 动作权限矩阵**（草案见 §4.1，待核对） |
+| Q9 | 权限 | 现有 rbac 的 read/write/admin 三点**不够**，扩展为**资源 × 动作权限矩阵**（草案见 §4.1，已按草案执行） |
+| Q9a | 角色与权限管理 | **允许动态增加角色与权限，并允许 admin 分配**：直接复用基座 auth 模块现成的 `/api/v1/auth/admin/*`（权限 CRUD、角色 CRUD、`roles/:name/permissions` 配置、`users/:id/roles` 分配），**不另造管理接口**；§4.1 的 admin/editor/viewer 与权限点仅作**初始幂等播种**，可增删改 |
 | — | 前缀规范落档 | 已写入 `docs/data-model.md` §命名规范（基座独立库、基座表无前缀、模块表带模块前缀 `zzz_*`） |
 
 ---
@@ -202,7 +203,7 @@ zzz/developmentManager/            # 包名 developmentmanager；路由前缀 /a
 - **生成引擎**：主线为模板/手工生成；`engine=ai` 时走 `services/ai`（OpenAI/Ollama Provider 已具备），AI 不可用则任务自动降级为模板引擎完成（§0-Q3）；
 - **关联项目读取**：只读登记 Go-Frontend-Core / NKUI，不扫描其文件系统（跨仓库内容通过资产索引 uri 记录）。
 
-### 4.1 权限矩阵（§0-Q9：RBAC 三点式不够，按资源 × 动作扩展；**草案待核对**）
+### 4.1 权限矩阵（§0-Q9/Q9a：资源 × 动作扩展；角色与权限**动态可增、admin 可分配**）
 
 挂载方式：`middleware.RequirePermission(rbac, resource, action)`，action 统一用 `read / create / update / delete`，特例动作单列。
 
@@ -216,9 +217,16 @@ zzz/developmentManager/            # 包名 developmentmanager；路由前缀 /a
 | `dm.generation` | read / execute / **autocommit** | 生成任务；execute = 触发生成；**autocommit = 允许自动提交产物（与 Q5 开关配套的独立权限）** |
 | `dm.asset` | read / create / delete | 归类资产索引 |
 
-- 权限点注册：开发时按上表批量调用 `rbac.CreatePermission(name, resource, action)` 幂等播种；
-- 默认角色映射（建议）：`admin` → 全部（含 delete/approve/autocommit）；`editor` → 各资源 read/create/update + requirement:approve；`viewer` → 各资源 read；
-- 敏感动作双保险：`dm.generation:autocommit` 与请求体 `auto_commit` 开关**同时满足**才会自动提交。
+- **权限点播种**：模块 `Init()` 时按上表批量调用 `rbac.CreatePermission(name, resource, action)` **幂等播种**（重复启动不重复插入）；
+- **角色与权限动态管理（§0-Q9a）**：
+  - 允许**新增角色、新增权限**，由 **admin 通过基座现成接口分配与维护**，本模块不另造管理 API：
+    - 权限：`GET|POST /api/v1/auth/admin/permissions`、`PUT|DELETE .../permissions/:id`
+    - 角色：`GET|POST /api/v1/auth/admin/roles`、`PUT|DELETE .../roles/:name`
+    - 角色 ↔ 权限：`GET|PUT /api/v1/auth/admin/roles/:name/permissions`
+    - 用户 ↔ 角色：`POST /api/v1/auth/admin/roles/assign`、`GET|PUT|DELETE .../users/:id/roles`
+  - 本模块额外提供只读元数据接口 `GET /api/v1/developmentmanager/permissions/meta`，列出本模块全部权限点（resource/action/中文说明），供前端权限管理页展示与勾选分配；
+- **默认角色映射（仅初始播种，可改可增）**：`admin` → 全部（含 delete/approve/autocommit/scan）；`editor` → 各资源 read/create/update + `dm.requirement:approve`；`viewer` → 各资源 read；
+- 敏感动作双保险：`dm.generation:autocommit` 权限与请求体 `auto_commit` 开关**同时满足**才会自动提交。
 
 ### API 概要（前缀 `/api/v1/developmentmanager`）
 
@@ -239,6 +247,7 @@ POST            /requirements/:id/generations  触发生成，body={kind: plan|c
 GET             /generations/:id               任务状态与产物引用
 GET|POST        /projects/:id/assets           归类资产索引
 GET             /stats                         仪表盘统计
+GET             /permissions/meta              本模块权限点元数据（供 admin 分配，只读）
 ```
 
 ---
@@ -289,9 +298,8 @@ GET             /stats                         仪表盘统计
 
 ---
 
-## 8. 剩余待确认（其余已全部并入 §0 决策）
+## 8. 确认状态
 
-- **Q9a 权限矩阵核对**：§4.1 的 7 个资源域 × 动作（含 `scan` / `approve` / `autocommit` 特例动作）与默认角色映射（admin/editor/viewer）——是否符合预期？可增删资源域或动作（例如是否把 `dm.deployment` 拆成容器/代理/备份三个资源域）。
-- **Q4a 表名长度（默认执行项）**：`zzz_development_manager_` 24 字符，最长表 `..._proxy_access_allow` 共 42 字符（MySQL 上限 64），按此执行；如觉冗长可缩为 `zzz_devmgr_`。
+**全部决策已并入 §0（Q1–Q4、Q1a、Q5–Q9a），规划已核对完毕。** 表前缀规范已独立落档至 `docs/data-model.md`。
 
-> 以上确认后即启动 **P1（模块骨架 + 项目台账）**。
+> 下一步：启动 **P1（模块骨架 + 项目台账）**。
