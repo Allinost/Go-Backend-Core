@@ -1039,6 +1039,254 @@ definitions:
     - TaskTypeCron
     - TaskTypeOnce
     - TaskTypeInterval
+  zzz_developmentManager.CreateAssetReq:
+    properties:
+      category:
+        type: string
+      checksum:
+        type: string
+      format:
+        type: string
+      note:
+        type: string
+      size:
+        type: integer
+      title:
+        type: string
+      uri:
+        type: string
+      version:
+        type: string
+    required:
+    - category
+    - title
+    - uri
+    type: object
+  zzz_developmentManager.CreateProjectReq:
+    properties:
+      default_branch:
+        type: string
+      description:
+        type: string
+      name:
+        type: string
+      project_key:
+        type: string
+      repo_path:
+        type: string
+      repo_url:
+        type: string
+      status:
+        type: string
+      tech_stack:
+        items:
+          type: string
+        type: array
+      type:
+        type: string
+    required:
+    - name
+    - project_key
+    - type
+    type: object
+  zzz_developmentManager.CreateRelationReq:
+    properties:
+      note:
+        type: string
+      relation_type:
+        type: string
+      to_project_id:
+        type: integer
+    required:
+    - relation_type
+    - to_project_id
+    type: object
+  zzz_developmentManager.PaginatedResp-zzz_developmentManager_Project:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zzz_developmentManager.Project'
+        type: array
+      total:
+        type: integer
+    type: object
+  zzz_developmentManager.PaginatedResp-zzz_developmentManager_ProjectAsset:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zzz_developmentManager.ProjectAsset'
+        type: array
+      total:
+        type: integer
+    type: object
+  zzz_developmentManager.PaginatedResp-zzz_developmentManager_ProjectRelation:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zzz_developmentManager.ProjectRelation'
+        type: array
+      total:
+        type: integer
+    type: object
+  zzz_developmentManager.PermSpec:
+    properties:
+      action:
+        type: string
+      desc:
+        type: string
+      name:
+        type: string
+      resource:
+        type: string
+    type: object
+  zzz_developmentManager.Project:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      default_branch:
+        type: string
+      deleted:
+        type: boolean
+      deleted_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      project_key:
+        type: string
+      repo_path:
+        type: string
+      repo_url:
+        type: string
+      status:
+        type: string
+      tech_stack:
+        description: JSON 列，扫描后解析
+        items:
+          type: string
+        type: array
+      type:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
+  zzz_developmentManager.ProjectAsset:
+    properties:
+      category:
+        type: string
+      checksum:
+        type: string
+      created_at:
+        type: string
+      deleted:
+        type: boolean
+      format:
+        type: string
+      id:
+        type: integer
+      note:
+        type: string
+      project_id:
+        type: integer
+      size:
+        type: integer
+      title:
+        type: string
+      updated_at:
+        type: string
+      uri:
+        type: string
+      version:
+        type: string
+    type: object
+  zzz_developmentManager.ProjectRelation:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted:
+        type: boolean
+      from_project_id:
+        type: integer
+      from_project_key:
+        type: string
+      from_project_name:
+        type: string
+      id:
+        type: integer
+      note:
+        type: string
+      relation_type:
+        type: string
+      to_project_id:
+        type: integer
+      to_project_key:
+        type: string
+      to_project_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  zzz_developmentManager.StatsResp:
+    properties:
+      assets_total:
+        type: integer
+      projects_by_status:
+        additionalProperties:
+          type: integer
+        type: object
+      projects_by_type:
+        additionalProperties:
+          type: integer
+        type: object
+      projects_deleted:
+        type: integer
+      projects_total:
+        type: integer
+      relations_active:
+        type: integer
+    type: object
+  zzz_developmentManager.UpdateProjectReq:
+    properties:
+      default_branch:
+        type: string
+      description:
+        type: string
+      name:
+        type: string
+      project_key:
+        type: string
+      repo_path:
+        type: string
+      repo_url:
+        type: string
+      status:
+        type: string
+      tech_stack:
+        items:
+          type: string
+        type: array
+      type:
+        type: string
+    required:
+    - name
+    - project_key
+    - type
+    type: object
   zzz_goodser.AddStatusCodeReq:
     properties:
       code:
@@ -5144,6 +5392,389 @@ paths:
       summary: 哈希计算
       tags:
       - crypto
+  /developmentmanager/permissions/meta:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_developmentManager.PermSpec'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取本模块权限点元数据
+      tags:
+      - developmentManager
+  /developmentmanager/projects:
+    get:
+      parameters:
+      - description: 页码，默认 1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认 20，最大 100
+        in: query
+        name: page_size
+        type: integer
+      - description: 项目类型 base/template/backend_module/frontend_module
+        in: query
+        name: type
+        type: string
+      - description: 状态 active/archived
+        in: query
+        name: status
+        type: string
+      - description: 关键词，匹配名称/唯一键/简介
+        in: query
+        name: keyword
+        type: string
+      - description: 是否查询已删除（默认否）
+        in: query
+        name: deleted
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.PaginatedResp-zzz_developmentManager_Project'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目列表
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateProjectReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Project'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 新建项目
+      tags:
+      - developmentManager
+  /developmentmanager/projects/{id}:
+    delete:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 强制删除（存在被依赖关联时需为 1）
+        in: query
+        name: force
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除项目
+      tags:
+      - developmentManager
+    get:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Project'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目详情
+      tags:
+      - developmentManager
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 项目信息（全量）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.UpdateProjectReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Project'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新项目
+      tags:
+      - developmentManager
+  /developmentmanager/projects/{id}/assets:
+    get:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 类别 requirement/code/doc/asset
+        in: query
+        name: category
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.PaginatedResp-zzz_developmentManager_ProjectAsset'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目资产索引
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 资产信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateAssetReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.ProjectAsset'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 登记项目资产索引
+      tags:
+      - developmentManager
+  /developmentmanager/projects/{id}/assets/{asset_id}:
+    delete:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 资产 ID
+        in: path
+        name: asset_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除项目资产索引
+      tags:
+      - developmentManager
+  /developmentmanager/projects/{id}/relations:
+    get:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 关联类型筛选
+        in: query
+        name: type
+        type: string
+      - description: 是否查询已删除
+        in: query
+        name: deleted
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.PaginatedResp-zzz_developmentManager_ProjectRelation'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目关联列表
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 发起方项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 关联信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateRelationReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.ProjectRelation'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 新建项目关联
+      tags:
+      - developmentManager
+  /developmentmanager/projects/{id}/relations/{rel_id}:
+    delete:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 关联 ID
+        in: path
+        name: rel_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除项目关联
+      tags:
+      - developmentManager
+  /developmentmanager/stats:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.StatsResp'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取仪表盘统计
+      tags:
+      - developmentManager
   /login3rd/accounts:
     get:
       consumes:

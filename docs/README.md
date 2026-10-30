@@ -31,6 +31,7 @@
 | 第三方登录 | `zzz/login3rd` | `/api/v1/login3rd` | [modules/login3rd/](modules/login3rd/) ✅ |
 | 店铺采集 | `zzz/shopchecker` | `/api/v1/shopchecker` | [modules/shopChecker/](modules/shopChecker/) ✅ |
 | 商品服务 | `zzz/goodser` | `/api/v1/goodser` | [modules/goodser/dev/](modules/goodser/dev/) ✅ |
+| 项目开发管理 | `zzz/developmentManager` | `/api/v1/developmentmanager` | [modules/developmentManager/](modules/developmentManager/) ✅（P1，规划见 [plans/feature-V2-project-dev-management.md](plans/feature-V2-project-dev-management.md)） |
 | 服务导航 | `internal/modules/servicenav` | `/api/v1/servicenav` | [modules/servicenav/](modules/servicenav/) ✅ |
 | Webhook | `internal/modules/webhook` | `/api/v1/webhook` | [modules/webhook/](modules/webhook/) ✅ |
 | 认证 / 运维 / 迁移等 | `internal/modules/{auth,ops,migrate,s0,s1,s2}` | `/api/v1/{name}` | ⬜ 暂无独立文档，见 [API/index.md](API/index.md) |

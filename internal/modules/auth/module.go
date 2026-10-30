@@ -1465,6 +1465,12 @@ func (m *Module) AuthMiddleware() gin.HandlerFunc {
 	return middleware.AuthRequiredWithBlacklist(m.svc, m.blacklist)
 }
 
+// RBAC 暴露 RBAC 服务，供其他模块挂载权限中间件（middleware.RequirePermission）
+// 与幂等播种权限点（feature-V2 项目开发管理模块引入）
+func (m *Module) RBAC() *auth.RBACService {
+	return m.rbac
+}
+
 var _ interface {
 	Name() string
 	Init(*config.Config) error

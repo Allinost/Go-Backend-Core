@@ -32,6 +32,7 @@ import (
 	"github.com/Allinost/go-backend-core/internal/services/eventbus"
 	netmodule "github.com/Allinost/go-backend-core/internal/services/net"
 	"github.com/Allinost/go-backend-core/internal/services/scheduler"
+	developmentmanager "github.com/Allinost/go-backend-core/zzz/developmentManager"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -104,6 +105,7 @@ func main() {
 	modules.Register(&shopchecker.Module{})
 	modules.Register(&login3rd.Module{})
 	modules.Register(&ia.Module{})
+	modules.Register(&developmentmanager.Module{})
 
 	// 初始化所有模块（调用 Init，不挂载路由）
 	modules.InitAll(cfg)

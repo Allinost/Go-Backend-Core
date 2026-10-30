@@ -1,0 +1,71 @@
+# developmentManager API 设计
+
+> 路由前缀：`/api/v1/developmentmanager`（全小写）。**全部路由**挂 auth 登录中间件 + 逐路由 `RequirePermission`（资源 × 动作，规划 §4.1）。响应统一走 `internal/pkg/response`（`code/message/data`）。
+
+## P1 已实现路由
+
+### 项目台账（`dm.project`）
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| GET | `/projects` | dm.project:read | 列表。query：`page`、`page_size`（缺省 20，最大 100）、`type`、`status`、`keyword`（匹配名称/唯一键/简介）、`deleted`（默认只查未删除） |
+| POST | `/projects` | dm.project:create | 新建。body：`project_key`（必填，`^[a-z0-9][a-z0-9-]{1,63}$`）、`name`（必填，2-128 字符）、`type`（必填，四选一）、`description`、`repo_url`、`repo_path`、`default_branch`（缺省 main）、`tech_stack`（字符串数组）、`status`（缺省 active） |
+| GET | `/projects/:id` | dm.project:read | 详情（含已删除项，`deleted` 字段区分） |
+| PUT | `/projects/:id` | dm.project:update | 全量更新（body 同创建；唯一键未变时跳过查重） |
+| DELETE | `/projects/:id` | dm.project:delete | 软删除 + 事务级联标记关联与资产。query：`force=1` 时忽略被依赖保护 |
+
+### 项目关联（`dm.relation`）
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| GET | `/projects/:id/relations` | dm.relation:read | 关联列表（from 或 to 命中即返回，含两端 key/名称）。query：`page`/`page_size`/`type`/`deleted` |
+| POST | `/projects/:id/relations` | dm.relation:create | 新建关联。body：`to_project_id`（必填）、`relation_type`（必填，四选一）、`note`。校验：目标存在且未删除、非自关联、同两端同类型未删除关联不重复 |
+| DELETE | `/projects/:id/relations/:rel_id` | dm.relation:delete | 软删除关联 |
+
+### 归类资产索引（`dm.asset`）
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| GET | `/projects/:id/assets` | dm.asset:read | 资产索引列表。query：`page`/`page_size`/`category`/`deleted` |
+| POST | `/projects/:id/assets` | dm.asset:create | 登记资产。body：`category`（必填，四选一）、`title`（必填）、`uri`（必填）、`format`、`version`、`size`、`checksum`、`note` |
+| DELETE | `/projects/:id/assets/:asset_id` | dm.asset:delete | 软删除资产索引 |
+
+### 统计与权限元数据
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| GET | `/stats` | dm.project:read | 仪表盘统计：项目总数/已删数/按类型/按状态、启用关联数、资产数 |
+| GET | `/permissions/meta` | dm.project:read | 本模块 28 个权限点元数据（resource/action/中文说明），供 admin 权限管理页勾选分配（只读） |
+
+> 角色与权限的增删分配**复用基座现成接口** `/api/v1/auth/admin/*`（roles/permissions/assign），本模块不另造管理 API。
+
+## 业务错误码（46001+ 区段）
+
+模块错误类型 `DevelopmentManagerError{Code, Message, Detail}`；handler 按码映射 HTTP 状态（非 release 模式才透出 `Detail`）。
+
+| 码 | HTTP | 含义 |
+|---|---|---|
+| 46001 | 404 | 项目不存在 |
+| 46002 | 404 | 项目关联不存在 |
+| 46003 | 404 | 资产不存在 |
+| 46100 | 400 | 无效的项目唯一键 |
+| 46101 | 400 | 无效的项目类型/状态 |
+| 46102 | 409 | 项目唯一键已存在（关联重复时复用此冲突语义） |
+| 46103 | 400 | 无效的关联类型 |
+| 46104 | 409 | 不能将项目关联到自身 |
+| 46105 | 404 | 关联目标项目不存在或已删除 |
+| 46106 | 409 | 项目存在启用中的被依赖关联，需 `force=1` |
+| 46107 | 400 | 无效的资产类别 |
+| 46108 | 400 | 项目名称为空或长度不合法 |
+
+鉴权失败/无权限走基座标准错误（`CodeUnauth`/`CodeForbidden`）。
+
+## 通用约定
+
+- 分页响应：`data = { items: [], has_more: bool, total: int }`，空列表返回 `[]` 而非 `null`。
+- 写操作（create/update/delete）审计写入 `services/audit`（记录失败仅告警，不阻断业务）。
+- 所有 ID 为正整数路径参数，非法直接 400。
+
+## P2~P5 规划路由（规划 §4 API 概要）
+
+容器 `/projects/:id/containers`、资源 `/containers/:id/resources`、卷 `/containers/:id/volumes`、接入点 `/projects/:id/access-points`、白名单组 `/projects/:id/whitelists`、备份 `/projects/:id/backups`、数据表 `/projects/:id/tables`（含 columns 子资源与 `POST /tables/:id/scan-import`）、需求 `/projects/:id/requirements`（PUT 自动产生版本、`/requirements/:id/versions` 修订历史）、生成 `POST /requirements/:id/generations`（body：`kind`/`engine`/`auto_commit`）与 `GET /generations/:id`。
