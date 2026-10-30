@@ -73,12 +73,11 @@ func (s *Service) CreateProduct(ctx context.Context, req *CreateProductReq) (*Pr
 	if req.URL == "" {
 		return nil, NewShopCheckerError(ErrInvalidURL)
 	}
-	if req.CheckInterval == "" {
-		req.CheckInterval = "1h"
+	interval, err := normalizeCheckInterval(req.CheckInterval)
+	if err != nil {
+		return nil, err
 	}
-	if _, err := time.ParseDuration(req.CheckInterval); err != nil {
-		return nil, NewShopCheckerError(ErrInvalidInterval)
-	}
+	req.CheckInterval = interval
 	if req.CronExpr != "" {
 		if _, err := cron.ParseStandard(req.CronExpr); err != nil {
 			return nil, NewShopCheckerError(ErrInvalidCronExpr)
@@ -128,10 +127,12 @@ func (s *Service) GetProduct(ctx context.Context, id string) (*Product, error) {
 
 // UpdateProduct 更新商品监控配置
 func (s *Service) UpdateProduct(ctx context.Context, id string, req *UpdateProductReq) (*Product, error) {
-	if req.CheckInterval != nil && *req.CheckInterval != "" {
-		if _, err := time.ParseDuration(*req.CheckInterval); err != nil {
-			return nil, NewShopCheckerError(ErrInvalidInterval)
+	if req.CheckInterval != nil {
+		interval, err := normalizeCheckInterval(*req.CheckInterval)
+		if err != nil {
+			return nil, err
 		}
+		*req.CheckInterval = interval
 	}
 	if req.CronExpr != nil && *req.CronExpr != "" {
 		if _, err := cron.ParseStandard(*req.CronExpr); err != nil {
@@ -456,6 +457,19 @@ func (s *Service) ListNotificationLogs(ctx context.Context, productID string, re
 // Dashboard 获取仪表盘统计数据
 func (s *Service) Dashboard(ctx context.Context) (*DashboardResp, error) {
 	return s.repo.GetDashboardStats(ctx)
+}
+
+// normalizeCheckInterval 校验检查间隔：空值默认 1h，必须为正时长
+func normalizeCheckInterval(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "1h", nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return "", NewShopCheckerError(ErrInvalidInterval)
+	}
+	return raw, nil
 }
 
 // shouldNotify 判断是否需要发送降价/达标通知

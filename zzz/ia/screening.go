@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	screenKlineWorkers = 5  // 并发拉取K线的worker数
+	screenKlineWorkers = 5   // 并发拉取K线的worker数
 	screenKlineBeg     = 140 // K线回看天数
 	screenKlineMin     = 21  // 最少K线数据点数
 	screenPoolSize     = 50  // 候选池大小

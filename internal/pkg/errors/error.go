@@ -4,10 +4,10 @@ import "fmt"
 
 // AppError 应用层业务错误，包含错误码、用户提示和内部调试信息
 type AppError struct {
-	Code    int    `json:"code"`               // 业务错误码
-	Message string `json:"message"`            // 用户可见的提示信息
-	Detail  string `json:"detail,omitempty"`   // 详细错误描述（开发环境可见）
-	Err     error  `json:"-"`                  // 内部原始错误（不序列化到响应）
+	Code    int    `json:"code"`             // 业务错误码
+	Message string `json:"message"`          // 用户可见的提示信息
+	Detail  string `json:"detail,omitempty"` // 详细错误描述（开发环境可见）
+	Err     error  `json:"-"`                // 内部原始错误（不序列化到响应）
 }
 
 func (e *AppError) Error() string {

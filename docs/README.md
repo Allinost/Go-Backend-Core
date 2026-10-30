@@ -16,6 +16,7 @@
 | [deployment.md](deployment.md) | 部署方案与环境管理 |
 | [test.md](test.md) | 测试规范（单元/集成/覆盖率） |
 | [development-plan.md](development-plan.md) | 开发规划与阶段安排 |
+| [module-sop.md](module-sop.md) | 模块开发 SOP 自检清单（建表/测试/Swagger/文档） |
 | [social-login.md](social-login.md) | 第三方 OAuth 登录接入方案 |
 | [login3rd-plan.md](login3rd-plan.md) | 第三方登录模块实施计划 |
 
@@ -72,6 +73,7 @@
    - **开发**：分阶段实施、每阶段可独立验收、小步提交可追溯；
    - **文档**：与代码同提交（模块四件套 / 数据字典 / Swagger / 发布说明），不留事后补。
    - 首个执行范例：[plans/feature-V2-project-dev-management.md](plans/feature-V2-project-dev-management.md)（§0.1 SOP、§0.2 原始需求、§0.3 追溯表）。
+   - 自检门禁：[module-sop.md](module-sop.md)，执行 `make sop-check`（gofmt / initTables / 文档索引 / vet / 短测）。
 6. **开发环境（Windows）**：命令行统一使用 **Git Bash**（`& "C:\Program Files\Git\bin\bash.exe" -lc "<cmd>"`），不再用 PowerShell 执行开发命令。
    - 原因：PowerShell 默认编码/重定向会破坏中文（`Set-Content` 写出 ANSI、`>` 重定向乱码），且不支持三元运算符；Git Bash 原生 UTF-8，`go`/`git`/`grep`/`sed` 等命令与 Linux CI 一致。
    - 约定：写中文文件一律用编辑器工具或 heredoc（`cat > file <<'EOF'`）；禁止用 `Set-Content`/`Out-File` 改写含中文的源码与文档。

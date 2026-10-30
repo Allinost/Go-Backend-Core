@@ -154,6 +154,17 @@ func (s *Service) UpdateProduct(ctx context.Context, req *UpdateProductReq) (*Pr
 	return product, nil
 }
 
+// resolveInboundQty 解析入库数量：缺省为 1，非正数视为非法
+func resolveInboundQty(q *int) (int, error) {
+	if q == nil {
+		return 1, nil
+	}
+	if *q <= 0 {
+		return 0, NewGoodserError(ErrInvalidQuantity)
+	}
+	return *q, nil
+}
+
 // imageKeyFromURL 从 S3 预签名 URL 中解析出对象存储 key
 func imageKeyFromURL(imageURL string) string {
 	if imageURL == "" {
@@ -239,15 +250,16 @@ func (s *Service) InboundSingle(ctx context.Context, req *InboundSingleReq) (*Pr
 		useSeq = seq
 	}
 
+	qty, err := resolveInboundQty(req.Quantity)
+	if err != nil {
+		return nil, err
+	}
+
 	code := fmt.Sprintf("%s-%s-%04d-%04d-%s", req.MainZone, req.SubZone, useSeq, 0, req.StatusCode)
 	product, err := s.repo.FindProductByCode(ctx, req.InventoryID, code)
 	var result *Product
 
 	if err == sql.ErrNoRows {
-		qty := 0
-		if req.Quantity != nil {
-			qty = *req.Quantity
-		}
 		createReq := &CreateProductReq{
 			InventoryID:     req.InventoryID,
 			Code:            code,
@@ -276,10 +288,6 @@ func (s *Service) InboundSingle(ctx context.Context, req *InboundSingleReq) (*Pr
 	} else if err != nil {
 		return nil, err
 	} else {
-		qty := 1
-		if req.Quantity != nil {
-			qty = *req.Quantity
-		}
 		if err := s.repo.AddProductQuantityTx(ctx, tx, product.ID, qty); err != nil {
 			return nil, err
 		}
@@ -291,7 +299,7 @@ func (s *Service) InboundSingle(ctx context.Context, req *InboundSingleReq) (*Pr
 		ProductID:   result.ID,
 		ProductName: result.Name,
 		ProductCode: result.Code,
-		Quantity:    result.Quantity,
+		Quantity:    qty,
 	}})
 	if _, err := s.repo.CreateInboundLogItemTx(ctx, tx, req.InventoryID, "single", items); err != nil {
 		return nil, err
@@ -312,6 +320,7 @@ func (s *Service) InboundBatch(ctx context.Context, req *InboundBatchReq) (*Inbo
 	defer tx.Rollback()
 
 	var results []Product
+	var orderItems []OrderItem
 	for _, item := range req.Items {
 		// 优先复用回收序号
 		seq, err := s.repo.PopRecycledSeq(ctx, tx, req.InventoryID, item.MainZone, item.SubZone)
@@ -323,13 +332,14 @@ func (s *Service) InboundBatch(ctx context.Context, req *InboundBatchReq) (*Inbo
 			useSeq = seq
 		}
 
+		qty, err := resolveInboundQty(item.Quantity)
+		if err != nil {
+			return nil, err
+		}
+
 		code := fmt.Sprintf("%s-%s-%04d-%04d-%s", item.MainZone, item.SubZone, useSeq, 0, item.StatusCode)
 		product, err := s.repo.FindProductByCode(ctx, req.InventoryID, code)
 		if err == sql.ErrNoRows {
-			qty := 0
-			if item.Quantity != nil {
-				qty = *item.Quantity
-			}
 			createReq := &CreateProductReq{
 				InventoryID:     req.InventoryID,
 				Code:            code,
@@ -356,22 +366,24 @@ func (s *Service) InboundBatch(ctx context.Context, req *InboundBatchReq) (*Inbo
 				return nil, err
 			}
 			results = append(results, *p)
+			orderItems = append(orderItems, OrderItem{
+				ProductID: p.ID, ProductName: p.Name, ProductCode: p.Code, Quantity: qty,
+			})
 		} else if err != nil {
 			return nil, err
 		} else {
-			qty := 1
-			if item.Quantity != nil {
-				qty = *item.Quantity
-			}
 			if err := s.repo.AddProductQuantityTx(ctx, tx, product.ID, qty); err != nil {
 				return nil, err
 			}
 			product.Quantity += qty
 			results = append(results, *product)
+			orderItems = append(orderItems, OrderItem{
+				ProductID: product.ID, ProductName: product.Name, ProductCode: product.Code, Quantity: qty,
+			})
 		}
 	}
 
-	itemsJSON, _ := json.Marshal(results)
+	itemsJSON, _ := json.Marshal(orderItems)
 	if _, err := s.repo.CreateInboundLogItemTx(ctx, tx, req.InventoryID, "batch", itemsJSON); err != nil {
 		return nil, err
 	}
@@ -391,7 +403,11 @@ func (s *Service) InboundSearchImport(ctx context.Context, req *InboundSearchImp
 	defer tx.Rollback()
 
 	var results []Product
+	var orderItems []OrderItem
 	for _, item := range req.Items {
+		if item.Quantity <= 0 {
+			return nil, NewGoodserError(ErrInvalidQuantity)
+		}
 		product, err := s.repo.GetProductForUpdateTx(ctx, tx, item.ProductID)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -404,9 +420,12 @@ func (s *Service) InboundSearchImport(ctx context.Context, req *InboundSearchImp
 		}
 		product.Quantity += item.Quantity
 		results = append(results, *product)
+		orderItems = append(orderItems, OrderItem{
+			ProductID: product.ID, ProductName: product.Name, ProductCode: product.Code, Quantity: item.Quantity,
+		})
 	}
 
-	itemsJSON, _ := json.Marshal(results)
+	itemsJSON, _ := json.Marshal(orderItems)
 	if _, err := s.repo.CreateInboundLogItemTx(ctx, tx, req.InventoryID, "search", itemsJSON); err != nil {
 		return nil, err
 	}

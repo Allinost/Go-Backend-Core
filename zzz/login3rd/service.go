@@ -553,6 +553,9 @@ func toModelSession(s *provider.SessionData) *SessionData {
 			Name: c.Name, Value: c.Value, Domain: c.Domain,
 			Path: c.Path, Secure: c.Secure, HTTPOnly: c.HTTPOnly,
 		}
+		if c.Expires > 0 {
+			cookies[i].Expires = time.Unix(c.Expires, 0)
+		}
 	}
 	var expiresAt *time.Time
 	if s.ExpiresAt > 0 {

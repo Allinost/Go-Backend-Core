@@ -300,10 +300,10 @@ func TestAdminListUsers(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	var resp struct {
 		Data struct {
-			Data  []any  `json:"data"`
-			Total int    `json:"total"`
-			Page  int    `json:"page"`
-			Size  int    `json:"size"`
+			Data  []any `json:"data"`
+			Total int   `json:"total"`
+			Page  int   `json:"page"`
+			Size  int   `json:"size"`
 		} `json:"data"`
 	}
 	json.Unmarshal(w.Body.Bytes(), &resp)

@@ -186,6 +186,7 @@ func (h *Handler) DeleteInventory(c *gin.Context) {
 // @Success      200  {object}  response.Response{data=Product}
 // @Failure      400  {object}  response.Response
 // @Router       /zzz-goodser/legacy/createProduct [post]
+// @Router       /zzz-goodser/inventories/{id}/products [post]
 func (h *Handler) CreateProduct(c *gin.Context) {
 	var req CreateProductReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -278,6 +279,7 @@ func (h *Handler) DeleteProductREST(c *gin.Context) {
 // @Param        body  body  AllocateSeqReq  true  "分配参数"
 // @Success      200  {object}  response.Response{data=AllocateSeqResp}
 // @Router       /zzz-goodser/legacy/allocateSeq [post]
+// @Router       /zzz-goodser/inventories/{id}/allocate-seq [post]
 func (h *Handler) AllocateSeq(c *gin.Context) {
 	var req AllocateSeqReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -301,6 +303,7 @@ func (h *Handler) AllocateSeq(c *gin.Context) {
 // @Param        body  body  InboundSingleReq  true  "入库信息"
 // @Success      200  {object}  response.Response{data=Product}
 // @Router       /zzz-goodser/legacy/inboundSingle [post]
+// @Router       /zzz-goodser/inventories/{id}/inbound/single [post]
 func (h *Handler) InboundSingle(c *gin.Context) {
 	var req InboundSingleReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -325,6 +328,7 @@ func (h *Handler) InboundSingle(c *gin.Context) {
 // @Success      200  {object}  response.Response{data=InboundBatchResp}
 // @Failure      400  {object}  response.Response
 // @Router       /zzz-goodser/legacy/inboundBatch [post]
+// @Router       /zzz-goodser/inventories/{id}/inbound/batch [post]
 func (h *Handler) InboundBatch(c *gin.Context) {
 	var req InboundBatchReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -349,6 +353,7 @@ func (h *Handler) InboundBatch(c *gin.Context) {
 // @Success      200  {object}  response.Response{data=InboundSearchImportResp}
 // @Failure      400  {object}  response.Response
 // @Router       /zzz-goodser/legacy/inboundSearchImport [post]
+// @Router       /zzz-goodser/inventories/{id}/inbound/search-import [post]
 func (h *Handler) InboundSearchImport(c *gin.Context) {
 	var req InboundSearchImportReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -401,6 +406,7 @@ func (h *Handler) LoadOutboundOrders(c *gin.Context) {
 // @Param        body  body  CreateOutboundReq  true  "出库信息"
 // @Success      200  {object}  response.Response{data=OutboundOrder}
 // @Router       /zzz-goodser/legacy/createOutbound [post]
+// @Router       /zzz-goodser/inventories/{id}/outbound-orders [post]
 func (h *Handler) CreateOutbound(c *gin.Context) {
 	var req CreateOutboundReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -498,6 +504,7 @@ func (h *Handler) LoadInboundLogs(c *gin.Context) {
 // @Produce      json
 // @Success      200  {object}  response.Response{data=[]Tag}
 // @Router       /zzz-goodser/legacy/loadTags [post]
+// @Router       /zzz-goodser/settings/tags [get]
 func (h *Handler) LoadTags(c *gin.Context) {
 	items, err := h.svc.ListTags(c.Request.Context())
 	if err != nil {
@@ -539,6 +546,7 @@ func (h *Handler) CreateTag(c *gin.Context) {
 // @Produce      json
 // @Success      200  {object}  response.Response{data=[]StatusCode}
 // @Router       /zzz-goodser/legacy/loadStatusCodes [post]
+// @Router       /zzz-goodser/settings/status-codes [get]
 func (h *Handler) LoadStatusCodes(c *gin.Context) {
 	items, err := h.svc.ListStatusCodes(c.Request.Context())
 	if err != nil {

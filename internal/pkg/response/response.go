@@ -10,11 +10,11 @@ import (
 
 // Response 统一 JSON 响应结构
 type Response struct {
-	Code    int         `json:"code"`              // 业务错误码（0 表示成功）
-	Message string      `json:"message"`           // 提示信息
+	Code    int         `json:"code"`               // 业务错误码（0 表示成功）
+	Message string      `json:"message"`            // 提示信息
 	Data    interface{} `json:"data,omitempty"`     // 响应数据
-	Detail  string      `json:"detail,omitempty"`  // 错误详情（仅开发环境可见）
-	TraceID string      `json:"trace_id,omitempty"`// 请求追踪 ID
+	Detail  string      `json:"detail,omitempty"`   // 错误详情（仅开发环境可见）
+	TraceID string      `json:"trace_id,omitempty"` // 请求追踪 ID
 }
 
 // Success 成功响应

@@ -14,7 +14,7 @@ type mockSender struct {
 	fail    bool
 }
 
-func (m *mockSender) Name() string { return m.name }
+func (m *mockSender) Name() string     { return m.name }
 func (m *mockSender) Channel() Channel { return m.channel }
 func (m *mockSender) Send(ctx context.Context, msg Message) (*Result, error) {
 	if m.fail {

@@ -194,12 +194,12 @@ type Asset struct {
 // AssetResolveResp 标的代码解析结果（自动补全用）
 type AssetResolveResp struct {
 	// 基础信息
-	Code      string `json:"code"`                // 证券代码
-	Name      string `json:"name"`                // 证券名称
-	Market    string `json:"market"`              // CN-SH / CN-SZ / HK / US
-	Currency  string `json:"currency"`            // CNY / HKD / USD
-	AssetType string `json:"asset_type"`          // stock / etf / fund
-	SubType   string `json:"sub_type,omitempty"`  // equity / index / qdii 等
+	Code      string `json:"code"`               // 证券代码
+	Name      string `json:"name"`               // 证券名称
+	Market    string `json:"market"`             // CN-SH / CN-SZ / HK / US
+	Currency  string `json:"currency"`           // CNY / HKD / USD
+	AssetType string `json:"asset_type"`         // stock / etf / fund
+	SubType   string `json:"sub_type,omitempty"` // equity / index / qdii 等
 
 	// 行情数据
 	Price        float64 `json:"price,omitempty"`         // 最新价

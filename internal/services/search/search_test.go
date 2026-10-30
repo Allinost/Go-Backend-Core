@@ -102,7 +102,7 @@ func TestWithLimitOffset(t *testing.T) {
 	ctx := context.Background()
 	for i := 0; i < 10; i++ {
 		e.Index(ctx, Document{
-			ID:      string(rune('a'+i)),
+			ID:      string(rune('a' + i)),
 			Content: "test document number",
 		})
 	}

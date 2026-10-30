@@ -11258,6 +11258,32 @@ paths:
       summary: 更新目录
       tags:
       - zzz-goodser
+  /zzz-goodser/inventories/{id}/allocate-seq:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 分配参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_goodser.AllocateSeqReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_goodser.AllocateSeqResp'
+              type: object
+      summary: 分配序号
+      tags:
+      - zzz-goodser-legacy
   /zzz-goodser/inventories/{id}/inbound-logs:
     get:
       parameters:
@@ -11289,6 +11315,95 @@ paths:
       summary: 获取入库日志
       tags:
       - zzz-goodser
+  /zzz-goodser/inventories/{id}/inbound/batch:
+    post:
+      consumes:
+      - application/json
+      description: 批量创建或增加商品库存，已存在的按 code 匹配叠加数量
+      parameters:
+      - description: 入库项列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_goodser.InboundBatchReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_goodser.InboundBatchResp'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 批量入库
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/inventories/{id}/inbound/search-import:
+    post:
+      consumes:
+      - application/json
+      description: 将搜索结果中的商品批量导入（按 product_id 叠加库存）
+      parameters:
+      - description: 导入项列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_goodser.InboundSearchImportReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_goodser.InboundSearchImportResp'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 搜索导入入库
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/inventories/{id}/inbound/single:
+    post:
+      consumes:
+      - application/json
+      description: 创 build 或叠加商品库存，写入库日志
+      parameters:
+      - description: 入库信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_goodser.InboundSingleReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_goodser.Product'
+              type: object
+      summary: 单品入库
+      tags:
+      - zzz-goodser-legacy
   /zzz-goodser/inventories/{id}/outbound-orders:
     get:
       parameters:
@@ -11320,6 +11435,31 @@ paths:
       summary: 获取出库单
       tags:
       - zzz-goodser
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 出库信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_goodser.CreateOutboundReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_goodser.OutboundOrder'
+              type: object
+      summary: 创建出库单
+      tags:
+      - zzz-goodser-legacy
   /zzz-goodser/inventories/{id}/products:
     get:
       parameters:
@@ -11351,6 +11491,36 @@ paths:
       summary: 获取商品列表
       tags:
       - zzz-goodser
+    post:
+      consumes:
+      - application/json
+      description: 直接创建一个新商品，需先通过 allocateSeq 获取序号
+      parameters:
+      - description: 商品信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_goodser.CreateProductReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_goodser.Product'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 创建商品
+      tags:
+      - zzz-goodser-legacy
   /zzz-goodser/legacy/addStatusCode:
     post:
       consumes:
@@ -12283,6 +12453,48 @@ paths:
       summary: 更新商品
       tags:
       - zzz-goodser
+  /zzz-goodser/settings/status-codes:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_goodser.StatusCode'
+                  type: array
+              type: object
+      summary: 获取状态编码
+      tags:
+      - zzz-goodser-legacy
+  /zzz-goodser/settings/tags:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_goodser.Tag'
+                  type: array
+              type: object
+      summary: 获取标签
+      tags:
+      - zzz-goodser-legacy
   /zzz-goodser/syncAll:
     post:
       consumes:

@@ -10,7 +10,7 @@ BINARY ?= server
 SCRIPTS := scripts
 SWAGGER_OUT := api/swagger
 
-.PHONY: build release run test lint clean docker-build coverage coverage-html swagger
+.PHONY: build release run test lint sop-check clean docker-build coverage coverage-html swagger
 
 swagger: ## 生成 Swagger API 文档
 	swag init -g cmd/server/docs.go -o $(SWAGGER_OUT) --parseDependency --parseInternal
@@ -41,6 +41,9 @@ coverage-html: ## 生成并打开覆盖率 HTML 报告
 
 lint: ## 运行 golangci-lint
 	@bash $(SCRIPTS)/lint.sh
+
+sop-check: ## 模块开发 SOP 自检（gofmt/initTables/文档/vet/短测）
+	@bash $(SCRIPTS)/sop-check.sh
 
 clean: ## 清理构建产物
 	@bash $(SCRIPTS)/clean.sh

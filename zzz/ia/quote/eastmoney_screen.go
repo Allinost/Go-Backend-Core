@@ -142,10 +142,10 @@ func fetchSingleFallback(ctx context.Context, client *pkgNet.HTTPClient, secid, 
 	}
 	var raw struct {
 		Data *struct {
-			F43  flexFloat `json:"f43"` // 最新价
-			F57  string    `json:"f57"` // 代码
-			F58  string    `json:"f58"` // 名称
-			F60  flexFloat `json:"f60"` // 昨收
+			F43  flexFloat `json:"f43"`  // 最新价
+			F57  string    `json:"f57"`  // 代码
+			F58  string    `json:"f58"`  // 名称
+			F60  flexFloat `json:"f60"`  // 昨收
 			F116 flexFloat `json:"f116"` // 总市值
 			F117 flexFloat `json:"f117"` // 流通市值
 			F162 flexFloat `json:"f162"` // PE 动态

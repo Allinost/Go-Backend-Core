@@ -139,10 +139,10 @@ func (m *Module) Health(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{
-		"status":   overall,
-		"version":  m.cfg.Server.Version,
-		"uptime":   time.Since(m.startTime).String(),
-		"checks":   results,
+		"status":  overall,
+		"version": m.cfg.Server.Version,
+		"uptime":  time.Since(m.startTime).String(),
+		"checks":  results,
 	})
 }
 
@@ -181,16 +181,16 @@ func (m *Module) Echo(c *gin.Context) {
 // @Router       /s0/info [get]
 func (m *Module) Info(c *gin.Context) {
 	response.Success(c, gin.H{
-		"name":        m.cfg.Server.Name,
-		"version":     m.cfg.Server.Version,
-		"mode":        m.cfg.Server.Mode,
-		"uptime":      time.Since(m.startTime).String(),
-		"start_time":  m.startTime.Format(time.RFC3339),
-		"go_version":  runtime.Version(),
-		"go_os":       runtime.GOOS,
-		"go_arch":     runtime.GOARCH,
-		"goroutines":  runtime.NumGoroutine(),
-		"modules":     modules.List(),
+		"name":         m.cfg.Server.Name,
+		"version":      m.cfg.Server.Version,
+		"mode":         m.cfg.Server.Mode,
+		"uptime":       time.Since(m.startTime).String(),
+		"start_time":   m.startTime.Format(time.RFC3339),
+		"go_version":   runtime.Version(),
+		"go_os":        runtime.GOOS,
+		"go_arch":      runtime.GOARCH,
+		"goroutines":   runtime.NumGoroutine(),
+		"modules":      modules.List(),
 		"config_watch": m.cfg.Config.Watch,
 	})
 }
