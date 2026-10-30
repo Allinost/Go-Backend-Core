@@ -5,7 +5,7 @@
 - **数据库**: MySQL `main` 连接池（`database.DB.MySQL["main"]`）
 - **表名**: `zzz_ia_{表名}`，共 **13 张**
 - **建表方式**: `migrations/mysql/008_legacy_modules_schema.sql` 统一 `CREATE TABLE IF NOT EXISTS`（P8 收敛，模块启动不再建表）
-- **存量迁移**: `migratePositionTargetCols`（`module.go:494-505`）静默补齐 `positions` 的目标价列（忽略 Duplicate column）
+- **列兼容**: 目标价列已包含在 `migrations/mysql/008_legacy_modules_schema.sql` 的建表 DDL 中（P8 统一处理）
 - **ORM**: 不用 GORM；repository 为原生 `database/sql` + 手写 SQL，model 用 `db:`/`json:` tag
 
 ---
@@ -14,7 +14,7 @@
 
 ### 2.1 账户与标的
 
-**`zzz_ia_accounts`** — 账户（`module.go:250`）
+**`zzz_ia_accounts`** — 账户
 
 | 字段 | 说明 |
 |------|------|
@@ -23,7 +23,7 @@
 | cost_method | 成本核算方法：`wa`（加权平均）/ `fifo` |
 | status | 状态 |
 
-**`zzz_ia_assets`** — 标的（`module.go:266`）
+**`zzz_ia_assets`** — 标的
 
 | 字段 | 说明 |
 |------|------|
@@ -34,7 +34,7 @@
 | risk_level | R1–R5 |
 | issuer / tracking_index | 发行人 / 跟踪指数 |
 
-**`zzz_ia_cash_flows`** — 资金流水（`module.go:291`）
+**`zzz_ia_cash_flows`** — 资金流水
 
 | 字段 | 说明 |
 |------|------|
@@ -43,7 +43,7 @@
 
 ### 2.2 交易与持仓
 
-**`zzz_ia_transactions`** — 交易记录（`module.go:306`）
+**`zzz_ia_transactions`** — 交易记录
 
 | 字段 | 说明 |
 |------|------|
@@ -64,7 +64,7 @@
 | status | holding / closed |
 | （动态）asset / market_value / unreal_pnl / pnl_ratio | `db:"-"`，查询时计算 |
 
-**`zzz_ia_realized_pnl`** — 已实现收益（`module.go:397`）
+**`zzz_ia_realized_pnl`** — 已实现收益
 
 | 字段 | 说明 |
 |------|------|
@@ -74,21 +74,21 @@
 
 ### 2.3 计划、汇率与配比
 
-**`zzz_ia_dca_plans`** — 定投计划（`module.go:418`）：cycle（daily/weekly/biweekly/monthly）、exec_day、next_exec_date、status、auto_buy
+**`zzz_ia_dca_plans`** — 定投计划：cycle（daily/weekly/biweekly/monthly）、exec_day、next_exec_date、status、auto_buy
 
-**`zzz_ia_fx_rates`** — 汇率（`module.go:439`）：base_ccy/quote_ccy/rate/rate_date，唯一键 `(pair, date)`；`rate` = 1 单位 quote 兑换 base 所需 CNY 数
+**`zzz_ia_fx_rates`** — 汇率：base_ccy/quote_ccy/rate/rate_date，唯一键 `(pair, date)`；`rate` = 1 单位 quote 兑换 base 所需 CNY 数
 
-**`zzz_ia_allocations`** — 资产配比目标（`module.go:450`）：account_id 空 = 全局、category（stock/etf/fund/deposit/wealth/cash）、target_ratio（0–1）、tolerance 容差
+**`zzz_ia_allocations`** — 资产配比目标：account_id 空 = 全局、category（stock/etf/fund/deposit/wealth/cash）、target_ratio（0–1）、tolerance 容差
 
 ### 2.4 快照、费用与告警
 
-**`zzz_ia_portfolio_snapshots`** — 每日快照（`module.go:382`）：snap_date、account_id 空 = 全局、total_cost/value/pnl、cash_amount、by_type/by_currency（JSON）
+**`zzz_ia_portfolio_snapshots`** — 每日快照：snap_date、account_id 空 = 全局、total_cost/value/pnl、cash_amount、by_type/by_currency（JSON）
 
-**`zzz_ia_fees`** — 独立费用（`module.go:331`）：fee_type（management/custody/sales_service/account/guarantee/other）、charge_date、period
+**`zzz_ia_fees`** — 独立费用：fee_type（management/custody/sales_service/account/guarantee/other）、charge_date、period
 
-**`zzz_ia_price_alerts`** — 价格告警（`module.go:465`）：alert_type（take_profit/stop_loss/target_price）、target_price、status（active/triggered/disabled）、triggered_at/triggered_price
+**`zzz_ia_price_alerts`** — 价格告警：alert_type（take_profit/stop_loss/target_price）、target_price、status（active/triggered/disabled）、triggered_at/triggered_price
 
-**`zzz_ia_price_history`** — 价格/净值历史（`module.go:371`）：asset_id、nav_date、nav、source；唯一键 `(asset_id, nav_date)`，由行情刷新与快照写入
+**`zzz_ia_price_history`** — 价格/净值历史：asset_id、nav_date、nav、source；唯一键 `(asset_id, nav_date)`，由行情刷新与快照写入
 
 ### 2.5 ER 概览
 

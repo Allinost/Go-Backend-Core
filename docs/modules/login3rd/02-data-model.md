@@ -12,7 +12,7 @@
 
 ## 2. 表结构
 
-### 2.1 `zzz_login3rd_platforms` — 平台（`module.go:162-173`）
+### 2.1 `zzz_login3rd_platforms` — 平台
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
