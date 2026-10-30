@@ -6,7 +6,7 @@
 
 | 文件 | 职责 | 测试 |
 |------|------|------|
-| `module.go` | 模块入口：Name/Init/Close/RegisterRoutes、自动建表与平台 seed、scheduler 任务注册 | ❌ |
+| `module.go` | 模块入口：Name/Init/Close/RegisterRoutes、平台 seed、scheduler 任务注册（建表已移至 migrations 008） | ❌ |
 | `handler.go` | HTTP 层：15 个 handler、统一错误处理、远程/本地登录页内嵌 HTML、WebSocket 指令转发 | ❌ |
 | `service.go` | 业务层：账号 CRUD、加密、登录/验证/刷新/登出、webhook 通知、远程会话编排、Provider 注册 | ❌ |
 | `repository.go` | 数据访问：原生 SQL（平台/账号 CRUD、session 更新、状态标记）、seed 数据 | ❌ |
@@ -60,7 +60,7 @@ Init(cfg):                                             // module.go:37-74
   3. modules.Get("webhook") → GetService()   // ⚠️ 强依赖，缺失则 Init 失败
   4. NewService(repo, whSvc)
   5. provider.NewJDCollector()，以 jd / qixian / jdm 三个平台 ID 注册同一实例
-  6. initTables(pool.DB)  // 2 张表 DDL（module.go:159-210）
+  6. SeedPlatforms      // 平台 seed（建表由 migrations 008 管理）
      repo.SeedPlatforms   // 7 个平台，ON DUPLICATE KEY UPDATE 幂等
   7. NewHandler(m.svc)
   8. sessionCheckSvc = m.svc            // 供 scheduler handler 使用

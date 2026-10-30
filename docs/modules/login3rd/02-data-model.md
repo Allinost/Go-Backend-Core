@@ -4,7 +4,7 @@
 
 - **数据库**: MySQL `main` 连接池（`database.DB.MySQL["main"]`）
 - **表名**: `login3rd_platforms` / `login3rd_accounts`（2 张）
-- **建表方式**: 模块启动时 `initTables()`（`module.go:159-210`）幂等 `CREATE TABLE IF NOT EXISTS`，随后 `repo.SeedPlatforms` 写入 7 个平台
+- **建表方式**: `migrations/mysql/008_legacy_modules_schema.sql` 统一建表（P8），模块启动时 `repo.SeedPlatforms` 幂等写入平台数据
 - **ORM**: 不用 GORM；原生 `database/sql` + 手写 SQL，model 用 `db:`/`json:` tag
 - **不走 `migrations/` 目录**（与 `ia` 模块一致）
 

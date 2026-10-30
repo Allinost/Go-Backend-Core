@@ -471,6 +471,26 @@ func (r *Repository) ListAssets(ctx context.Context, projectID int64, req *ListA
 	return items, hasMore, total, nil
 }
 
+// ListDirectoryAssets 查询项目下目录型资产（format=dir）
+func (r *Repository) ListDirectoryAssets(ctx context.Context, projectID int64) ([]ProjectAsset, error) {
+	rows, err := r.db.QueryContext(ctx,
+		"SELECT "+assetColumns+" FROM "+tableAsset+
+			" WHERE project_id = ? AND deleted = 0 AND format = 'dir' ORDER BY id ASC", projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ProjectAsset
+	for rows.Next() {
+		a, err := scanAsset(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *a)
+	}
+	return items, rows.Err()
+}
+
 // GetAsset 查询单条资产索引
 func (r *Repository) GetAsset(ctx context.Context, id int64) (*ProjectAsset, error) {
 	a, err := scanAsset(r.db.QueryRowContext(ctx,

@@ -5,7 +5,6 @@ package login3rd
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/Allinost/go-backend-core/internal/config"
@@ -58,8 +57,9 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.svc.RegisterProviderAs("qixian", jdProv)
 	m.svc.RegisterProviderAs("jdm", jdProv)
 
-	if err := initTables(pool.DB); err != nil {
-		return fmt.Errorf("login3rd: 初始化数据表失败: %w", err)
+	// 平台 seed（表由 migrations 管理，未应用迁移时仅告警，不阻断启动）
+	if err := m.repo.SeedPlatforms(context.Background()); err != nil {
+		logger.Warn().Err(err).Msg("login3rd: 平台 seed 未就绪（请先应用 migrations）")
 	}
 
 	m.h = NewHandler(m.svc)
@@ -153,60 +153,6 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/remote/session/:token", m.h.RemoteSessionPage)
 	r.GET("/remote/session/:token/status", m.h.RemoteSessionStatus)
 	r.GET("/remote/session/:token/ws", m.h.RemoteSessionWS)
-}
-
-// initTables 自动建表 + seed 数据
-func initTables(db *sql.DB) error {
-	ctx := context.Background()
-	tables := []string{
-		`CREATE TABLE IF NOT EXISTS login3rd_platforms (
-			id            VARCHAR(64)  PRIMARY KEY,
-			name          VARCHAR(128) NOT NULL,
-			category      VARCHAR(32)  NOT NULL,
-			login_type    VARCHAR(32)  NOT NULL DEFAULT 'browser',
-			has_auto      BOOLEAN      NOT NULL DEFAULT FALSE,
-			login_url     TEXT,
-			home_url      TEXT,
-			form_config   JSON,
-			icon_url      TEXT,
-			created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-		`CREATE TABLE IF NOT EXISTS login3rd_accounts (
-			id                  BIGINT       AUTO_INCREMENT PRIMARY KEY,
-			platform_id         VARCHAR(64)  NOT NULL,
-			label               VARCHAR(128) NOT NULL,
-			username            VARCHAR(255),
-			encrypted_password  TEXT,
-			encrypted_token     TEXT,
-			webhook_ids         JSON,
-			session_data        JSON,
-			login_method        VARCHAR(32),
-			session_expires_at  TIMESTAMP    NULL,
-			last_verified_at    TIMESTAMP    NULL,
-			verified_status     VARCHAR(32)  DEFAULT 'unknown',
-			status              VARCHAR(32)  NOT NULL DEFAULT 'active',
-			last_login_at       TIMESTAMP    NULL,
-			last_error          TEXT,
-			created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			FOREIGN KEY (platform_id) REFERENCES login3rd_platforms(id)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-	}
-	for _, ddl := range tables {
-		if _, err := db.ExecContext(ctx, ddl); err != nil {
-			return err
-		}
-	}
-
-	// Seed 平台数据
-	repo := NewRepository(db)
-	if err := repo.SeedPlatforms(ctx); err != nil {
-		return err
-	}
-
-	logger.Info().Msg("login3rd: 数据表初始化完成")
-	return nil
 }
 
 var _ interface {

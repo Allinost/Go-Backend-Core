@@ -4,7 +4,7 @@
 
 ```
 internal/modules/servicenav/
-├── module.go              # Module 接口实现（自动建表 + 路由注册）
+├── module.go              # Module 接口实现（依赖装配 + 路由注册）
 ├── handler.go             # HTTP 处理器（类型/条目 API + swagger 注释）
 ├── service.go             # 业务逻辑（名称唯一、类型校验、删除保护）
 ├── repository.go          # 数据访问层（MySQL，含排序白名单、项目/容器 JOIN）
@@ -33,9 +33,7 @@ func (m *Module) Init(cfg *config.Config) error {
     if pool == nil {
         return fmt.Errorf("servicenav: MySQL 连接不可用")
     }
-    if err := initTables(pool.DB); err != nil {
-        return fmt.Errorf("servicenav: 初始化数据表失败: %w", err)
-    }
+    // 建表由 migrations/mysql/008_legacy_modules_schema.sql 统一管理
     m.repo = NewRepository(pool.DB)
     m.svc = NewService(m.repo)
     m.h = NewHandler(m.svc)
@@ -56,7 +54,7 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 }
 ```
 
-自动建表语句见 `module.go#initTables`：`CREATE TABLE IF NOT EXISTS services_nav_item / services_nav_type`。
+建表语句见 `migrations/mysql/008_legacy_modules_schema.sql`：`services_nav_item / services_nav_type`（P8 收敛）。
 
 ---
 

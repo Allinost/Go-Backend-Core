@@ -4,7 +4,7 @@
 
 - **数据库**: MySQL `main` 连接池（`database.DB.MySQL["main"]`）
 - **表名**: `zzz_ia_{表名}`，共 **13 张**
-- **建表方式**: 模块启动时 `initTables()` 幂等 `CREATE TABLE IF NOT EXISTS`（`module.go:246-491`），**不走 `migrations/` 目录**
+- **建表方式**: `migrations/mysql/008_legacy_modules_schema.sql` 统一 `CREATE TABLE IF NOT EXISTS`（P8 收敛，模块启动不再建表）
 - **存量迁移**: `migratePositionTargetCols`（`module.go:494-505`）静默补齐 `positions` 的目标价列（忽略 Duplicate column）
 - **ORM**: 不用 GORM；repository 为原生 `database/sql` + 手写 SQL，model 用 `db:`/`json:` tag
 

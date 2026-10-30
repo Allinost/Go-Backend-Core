@@ -2,18 +2,16 @@
 package webhook
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/redis/go-redis/v9"
 
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/Allinost/go-backend-core/internal/database"
-	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/Allinost/go-backend-core/internal/modules/webhook/dedup"
 	"github.com/Allinost/go-backend-core/internal/modules/webhook/limiter"
 	"github.com/Allinost/go-backend-core/internal/modules/webhook/sender"
+	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/gin-gonic/gin"
 )
 
@@ -54,10 +52,6 @@ func (m *Module) Init(cfg *config.Config) error {
 
 	m.svc = NewService(m.repo, senderFactory, rateLimiter, deduper)
 
-	if err := initTables(pool.DB); err != nil {
-		return fmt.Errorf("webhook: 初始化数据表失败: %w", err)
-	}
-
 	m.h = NewHandler(m.svc)
 	return nil
 }
@@ -90,73 +84,6 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 
 	r.GET("/stats", m.h.Stats)
 	r.GET("/configs/:id/stats", m.h.ConfigStats)
-}
-
-// initTables 自动建表：zzz_webhook_configs（配置表）和 zzz_webhook_delivery_logs（投递日志表）
-func initTables(db *sql.DB) error {
-	ctx := context.Background()
-	tables := []string{
-		`CREATE TABLE IF NOT EXISTS webhook_configs (
-			id VARCHAR(36) PRIMARY KEY,
-			name VARCHAR(100) NOT NULL,
-			type VARCHAR(20) NOT NULL,
-			url VARCHAR(2048) NOT NULL,
-			status VARCHAR(10) NOT NULL DEFAULT 'active',
-			tags JSON DEFAULT NULL,
-			description VARCHAR(500) DEFAULT '',
-			source VARCHAR(50) NOT NULL DEFAULT 'system',
-			app VARCHAR(50) DEFAULT '',
-			signing_key VARCHAR(255) DEFAULT '',
-			access_token VARCHAR(255) DEFAULT '',
-			auth_type VARCHAR(20) DEFAULT '',
-			auth_value TEXT DEFAULT NULL,
-			custom_headers JSON DEFAULT NULL,
-			whitelist_keywords JSON DEFAULT NULL,
-			whitelist_mode VARCHAR(10) DEFAULT 'any',
-			max_per_minute INT DEFAULT 60,
-			max_per_hour INT DEFAULT 1000,
-			dedup_window INT DEFAULT 0,
-			max_retries INT DEFAULT 3,
-			retry_interval INT DEFAULT 30,
-			timeout_ms INT DEFAULT 10000,
-			last_sent_at DATETIME DEFAULT NULL,
-			last_success_at DATETIME DEFAULT NULL,
-			last_error VARCHAR(500) DEFAULT '',
-			total_sent INT DEFAULT 0,
-			total_failed INT DEFAULT 0,
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX idx_status (status),
-			INDEX idx_type (type),
-			INDEX idx_source_app (source, app)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-		`CREATE TABLE IF NOT EXISTS webhook_delivery_logs (
-			id BIGINT AUTO_INCREMENT PRIMARY KEY,
-			webhook_id VARCHAR(36) NOT NULL,
-			source VARCHAR(50) NOT NULL,
-			title VARCHAR(255) DEFAULT '',
-			content_hash VARCHAR(64) NOT NULL,
-			status VARCHAR(20) NOT NULL DEFAULT 'pending',
-			request_body TEXT DEFAULT NULL,
-			response_code INT DEFAULT 0,
-			response_body TEXT DEFAULT NULL,
-			error_msg VARCHAR(500) DEFAULT '',
-			retry_count INT DEFAULT 0,
-			duration_ms INT DEFAULT 0,
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			INDEX idx_webhook_status (webhook_id, status),
-			INDEX idx_content_hash (content_hash, created_at),
-			INDEX idx_created (created_at)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-	}
-	for _, ddl := range tables {
-		if _, err := db.ExecContext(ctx, ddl); err != nil {
-			return err
-		}
-	}
-	logger.Info().Msg("webhook: 数据表初始化完成")
-	return nil
 }
 
 var _ interface {

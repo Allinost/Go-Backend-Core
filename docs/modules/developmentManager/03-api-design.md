@@ -28,7 +28,15 @@
 |---|---|---|---|
 | GET | `/projects/:id/assets` | dm.asset:read | 资产索引列表。query：`page`/`page_size`/`category`/`deleted` |
 | POST | `/projects/:id/assets` | dm.asset:create | 登记资产。body：`category`（必填，四选一）、`title`（必填）、`uri`（必填）、`format`、`version`、`size`、`checksum`、`note` |
+| POST | `/projects/:id/assets/expand` | dm.asset:create | 展开单个目录型资产。body：`asset_id`；递归登记文件级资产，已存在 URI 跳过；返回 `{scanned,created,skipped,failed}` |
+| POST | `/projects/:id/assets/expand-all` | dm.asset:create | 展开项目下全部 `format=dir` 资产，返回汇总计数 |
 | DELETE | `/projects/:id/assets/:asset_id` | dm.asset:delete | 软删除资产索引 |
+
+目录展开规则：
+- 路径按「后端仓库根 → 项目 `repo_path`（如 `../NKUI`）」依次解析，且不得越出根目录；
+- 跳过 `.git`、`node_modules`、`dist` 与隐藏目录/隐藏文件；单目录上限 2000 文件；
+- 文件标题为目录内相对路径，格式取扩展名，大小取文件字节数，备注记录父资产；
+- 幂等：同项目同 URI 已存在则计入 skipped。
 
 ### 统计与权限元数据
 
@@ -146,6 +154,7 @@
 | 46106 | 409 | 项目存在启用中的被依赖关联，需 `force=1` |
 | 46107 | 400 | 无效的资产类别 |
 | 46108 | 400 | 项目名称为空或长度不合法 |
+| 46109 | 400 | 资产目录不存在、不可访问或超出允许范围 |
 | 46004 | 404 | 容器不存在 |
 | 46005 | 404 | 容器资源分配不存在 |
 | 46006 | 404 | 卷映射不存在 |

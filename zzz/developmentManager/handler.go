@@ -69,7 +69,7 @@ func statusForCode(code int) int {
 		ErrAutoCommitUnsafe, ErrGenerationAlreadySuccess:
 		return 409
 	case ErrInvalidProjectKey, ErrInvalidProjectType, ErrInvalidRelationType,
-		ErrInvalidAssetCategory, ErrInvalidProjectName,
+		ErrInvalidAssetCategory, ErrInvalidProjectName, ErrAssetDirectoryInvalid,
 		ErrInvalidContainerName, ErrInvalidPort, ErrInvalidProtocol, ErrInvalidExposure,
 		ErrInvalidProxyType, ErrInvalidNetworkZone, ErrCrossProjectRef, ErrInvalidVolumePath,
 		ErrInvalidBackupType, ErrInvalidBackupStatus, ErrInvalidVolumeMode,
@@ -400,6 +400,59 @@ func (h *Handler) CreateAsset(c *gin.Context) {
 	}
 	recordAudit(c, "create", "developmentmanager:asset", a.URI)
 	response.Success(c, a)
+}
+
+// ExpandAsset 展开目录型资产为文件级索引
+// @Summary      展开目录型资产
+// @Tags         developmentManager
+// @Accept       json
+// @Produce      json
+// @Param        id    path  int             true  "项目 ID"
+// @Param        body  body  ExpandAssetReq  true  "目录资产 ID"
+// @Success      200  {object}  response.Response{data=ExpandAssetResp}
+// @Router       /developmentmanager/projects/{id}/assets/expand [post]
+// @Security     BearerAuth
+func (h *Handler) ExpandAsset(c *gin.Context) {
+	projectID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	var req ExpandAssetReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误: "+err.Error())
+		return
+	}
+	item, err := h.svc.ExpandAssetDirectory(c.Request.Context(), projectID, req.AssetID)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	recordAudit(c, "create", "developmentmanager:asset",
+		"expand asset="+strconv.FormatInt(req.AssetID, 10)+" created="+strconv.Itoa(item.Created))
+	response.Success(c, item)
+}
+
+// ExpandProjectAssets 展开项目下全部目录型资产
+// @Summary      展开项目全部目录型资产
+// @Tags         developmentManager
+// @Produce      json
+// @Param        id  path  int  true  "项目 ID"
+// @Success      200  {object}  response.Response{data=ExpandAssetResp}
+// @Router       /developmentmanager/projects/{id}/assets/expand-all [post]
+// @Security     BearerAuth
+func (h *Handler) ExpandProjectAssets(c *gin.Context) {
+	projectID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	item, err := h.svc.ExpandProjectDirectories(c.Request.Context(), projectID)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	recordAudit(c, "create", "developmentmanager:asset",
+		"expand-all created="+strconv.Itoa(item.Created)+" skipped="+strconv.Itoa(item.Skipped))
+	response.Success(c, item)
 }
 
 // DeleteAsset 删除项目资产索引（软删除）

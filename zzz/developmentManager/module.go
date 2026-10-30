@@ -108,6 +108,8 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	// 归类资产
 	r.GET("/projects/:id/assets", need("dm.asset", "read"), m.h.ListAssets)
 	r.POST("/projects/:id/assets", need("dm.asset", "create"), m.h.CreateAsset)
+	r.POST("/projects/:id/assets/expand", need("dm.asset", "create"), m.h.ExpandAsset)
+	r.POST("/projects/:id/assets/expand-all", need("dm.asset", "create"), m.h.ExpandProjectAssets)
 	r.DELETE("/projects/:id/assets/:asset_id", need("dm.asset", "delete"), m.h.DeleteAsset)
 
 	// 部署资产：容器

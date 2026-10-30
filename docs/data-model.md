@@ -126,7 +126,7 @@ CREATE TABLE s2_products (
    - `zzz_development_manager_project`（项目开发管理模块）
    - `login3rd_*` 属历史遗留，后续随 P8 规范化一并改为 `zzz_login3rd_*`
 3. **模块前缀与模块目录/路由对应**：模块目录 `zzz/<name>` → 表前缀 `zzz_<name 小写蛇形>_` → 路由前缀 `/api/v1/<name>`（目录允许驼峰，表名与包名取小写蛇形）。
-4. **新建表一律走 `migrations/mysql/NNN_*.sql` 统一迁移**（**现状：所有业务模块均为 MySQL、无 pg**；日后引入 pg 再同步补 `migrations/postgres/` 方言），不再在模块内 `initTables()` 自建（存量模块按 feature-V2 P8 陆续改造）。
+4. **新建表一律走 `migrations/mysql/NNN_*.sql` 统一迁移**（**现状：所有业务模块均为 MySQL、无 pg**；日后引入 pg 再同步补 `migrations/postgres/` 方言），不再在模块内 `initTables()` 自建。存量 `initTables()` 已于 feature-V2 P8 收敛到 `migrations/mysql/008_legacy_modules_schema.sql`（goodser/shopchecker/login3rd/ia/webhook/servicenav，31 张表）；`auth` 等使用 GORM `AutoMigrate` 的基座模块另行改造。
 5. 表全名不得超过 64 字符（MySQL 上限）；建表 DDL 必须注明**表用途**，每个字段注明**含义**（登记进数据字典）。
 
 ### 通用命名

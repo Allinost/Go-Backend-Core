@@ -120,7 +120,7 @@ var seedAssets = []struct {
 	{Key: "nkui", Category: AssetCategoryDoc, Title: "NKUI 设计语言与组件规范",
 		URI: "AllDesign/", Format: "dir", Note: "48 篇设计规范"},
 	{Key: "nkui", Category: AssetCategoryDoc, Title: "NKUI 组件使用文档",
-		URI: "AllDocs/", Format: "dir", Note: "204 篇组件文档"},
+		URI: "AllDocs/", Format: "dir", Note: "组件/指南文档与站点资源，可展开为文件索引"},
 	{Key: "local-compose", Category: AssetCategoryCode, Title: "本地容器栈编排文件",
 		URI: "docker-compose.yml", Format: "yml"},
 }
@@ -180,7 +180,7 @@ var seedRequirements = []seedRequirement{
 	{Key: "go-frontend-core", Title: "前端基座与管理端", Type: RequirementTypeFeature, Priority: PriorityP2,
 		Content: "基于 NKUI 的前端基座：登录、用户/角色、存储、迁移、网络、调度、服务导航、各业务模块管理端（含 developmentManager）。\n\n文档：`AGENTS.md`"},
 	{Key: "nkui", Title: "NKUI 组件库与设计系统", Type: RequirementTypeFeature, Priority: PriorityP2,
-		Content: "Vue3 组件库与设计语言：48 篇设计规范、204 篇组件使用文档。\n\n文档：`AllDesign/`、`AllDocs/`"},
+		Content: "Vue3 组件库与设计语言：48 篇设计规范，以及组件/指南文档与站点资源。\n\n文档：`AllDesign/`、`AllDocs/`"},
 	{Key: "local-compose", Title: "本地容器栈（app + browserless chrome）", Type: RequirementTypeOps, Priority: PriorityP2,
 		Content: "docker-compose 编排：业务 app 与 browserless chrome，接入 1panel-network。\n\n文件：`docker-compose.yml`"},
 

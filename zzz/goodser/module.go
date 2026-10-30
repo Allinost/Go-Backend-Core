@@ -1,8 +1,6 @@
 package goodser
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/Allinost/go-backend-core/internal/config"
@@ -50,11 +48,6 @@ func (m *Module) Init(cfg *config.Config) error {
 
 	m.repo = NewRepository(pool.DB)
 	m.svc = NewService(m.repo, m.store)
-
-	// 自动建表
-	if err := initTables(pool.DB); err != nil {
-		return fmt.Errorf("goodser: 初始化数据表失败: %w", err)
-	}
 
 	m.h = NewHandler(m.svc, m.store)
 
@@ -132,134 +125,6 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	stg := r.Group("/settings")
 	stg.GET("/tags", m.h.LoadTags)
 	stg.GET("/status-codes", m.h.LoadStatusCodes)
-}
-
-// initTables 自动创建数据表（CREATE TABLE IF NOT EXISTS）
-func initTables(db *sql.DB) error {
-	ctx := context.Background()
-	tables := []string{
-		`CREATE TABLE IF NOT EXISTS zzz_goodser_inventories (
-			id VARCHAR(36) PRIMARY KEY,
-			name VARCHAR(255) NOT NULL,
-			sort_order INT NOT NULL DEFAULT 0,
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-		`CREATE TABLE IF NOT EXISTS zzz_goodser_products (
-			id VARCHAR(36) PRIMARY KEY,
-			inventory_id VARCHAR(36) NOT NULL,
-			code VARCHAR(50) NOT NULL,
-			main_zone VARCHAR(10) NOT NULL,
-			sub_zone VARCHAR(10) NOT NULL,
-			seq_number INT NOT NULL,
-			quantity INT NOT NULL DEFAULT 0,
-			reserved_quantity INT NOT NULL DEFAULT 0,
-			status_code VARCHAR(10) NOT NULL DEFAULT 'A',
-			name VARCHAR(500) NOT NULL,
-			original_price DECIMAL(12,2) NOT NULL DEFAULT 0,
-			market_price DECIMAL(12,2) NOT NULL DEFAULT 0,
-			expected_price DECIMAL(12,2) NOT NULL DEFAULT 0,
-			remark TEXT,
-			storage_location VARCHAR(255) DEFAULT '',
-			image_url VARCHAR(1024) DEFAULT '',
-			images JSON DEFAULT NULL,
-			tags JSON DEFAULT NULL,
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX idx_inventory_id (inventory_id),
-			INDEX idx_code (inventory_id, code),
-			INDEX idx_zone (inventory_id, main_zone, sub_zone),
-			INDEX idx_seq_number (inventory_id, seq_number),
-			FULLTEXT INDEX ft_name (name)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-		`CREATE TABLE IF NOT EXISTS zzz_goodser_recycled_seq_numbers (
-			id VARCHAR(36) PRIMARY KEY,
-			inventory_id VARCHAR(36) NOT NULL,
-			main_zone VARCHAR(10) NOT NULL,
-			sub_zone VARCHAR(10) NOT NULL,
-			seq_number INT NOT NULL,
-			recycled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE INDEX idx_zone_seq (inventory_id, main_zone, sub_zone, seq_number)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-		`CREATE TABLE IF NOT EXISTS zzz_goodser_seq_counters (
-			id VARCHAR(36) PRIMARY KEY,
-			inventory_id VARCHAR(36) NOT NULL,
-			main_zone VARCHAR(10) NOT NULL,
-			sub_zone VARCHAR(10) NOT NULL,
-			current_max INT NOT NULL DEFAULT 0,
-			UNIQUE INDEX idx_unique_zone (inventory_id, main_zone, sub_zone)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-		`CREATE TABLE IF NOT EXISTS zzz_goodser_outbound_orders (
-			id VARCHAR(36) PRIMARY KEY,
-			inventory_id VARCHAR(36) NOT NULL,
-			order_no VARCHAR(50) NOT NULL,
-			type VARCHAR(20) NOT NULL,
-			status VARCHAR(20) NOT NULL,
-			order_info TEXT,
-			remark TEXT,
-			items JSON NOT NULL,
-			source_reserve_id VARCHAR(36) DEFAULT NULL,
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			confirmed_at DATETIME DEFAULT NULL,
-			cancelled_at DATETIME DEFAULT NULL,
-			INDEX idx_inventory_id (inventory_id),
-			INDEX idx_order_no (order_no)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-		`CREATE TABLE IF NOT EXISTS zzz_goodser_inbound_logs (
-			id VARCHAR(36) PRIMARY KEY,
-			inventory_id VARCHAR(36) NOT NULL,
-			order_no VARCHAR(50) DEFAULT '',
-			type VARCHAR(20) NOT NULL,
-			remark TEXT,
-			items JSON NOT NULL,
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			INDEX idx_inventory_id (inventory_id)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-		`CREATE TABLE IF NOT EXISTS zzz_goodser_status_codes (
-			id VARCHAR(36) PRIMARY KEY,
-			code VARCHAR(10) NOT NULL,
-			label VARCHAR(100) NOT NULL,
-			is_system TINYINT(1) NOT NULL DEFAULT 0,
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE INDEX idx_code (code)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-		`CREATE TABLE IF NOT EXISTS zzz_goodser_tags (
-			id VARCHAR(36) PRIMARY KEY,
-			name VARCHAR(100) NOT NULL,
-			color VARCHAR(7) NOT NULL DEFAULT '#1890ff',
-			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE INDEX idx_name (name)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-	}
-	for _, ddl := range tables {
-		if _, err := db.ExecContext(ctx, ddl); err != nil {
-			return err
-		}
-	}
-
-	// 插入系统预设状态编码（首次启动）
-	seed := `INSERT IGNORE INTO zzz_goodser_status_codes (id, code, label, is_system) VALUES
-		('sys-a', 'A', '正常', 1),
-		('sys-b', 'B', '预留', 1),
-		('sys-c', 'C', '已拆', 1),
-		('sys-d', 'D', '损坏', 1),
-		('sys-e', 'E', '过期', 1),
-		('sys-f', 'F', '停用', 1),
-		('sys-n', 'N', '全新', 1)`
-	if _, err := db.ExecContext(ctx, seed); err != nil {
-		return err
-	}
-
-	logger.Info().Msg("goodser: 数据表初始化完成")
-	return nil
 }
 
 var _ interface {

@@ -3,7 +3,7 @@
 ## 1. 数据库
 
 - **数据库**: 使用当前开发库（MySQL `main` 连接池）
-- **表名**: `services_nav_item` / `services_nav_type`（模块启动时自动建表）
+- **表名**: `services_nav_item` / `services_nav_type`（由 `migrations/mysql/008_legacy_modules_schema.sql` 统一建表）
 - **字符集**: `utf8mb4`
 - **引擎**: InnoDB
 
@@ -33,7 +33,7 @@
 
 唯一索引：`uk_name (name)`
 
-> `project_id / container_id / access_point_id` 由模块 `initTables` 的 `ensureColumn` 兼容补充（历史库启动自动加列）；查询时 LEFT JOIN 项目与容器表返回 `project_key / project_name / container_name` 供展示。
+> 建表由 `migrations/mysql/008_legacy_modules_schema.sql` 统一管理（含 `protocol` 与三个关联列）；查询时 LEFT JOIN 项目与容器表返回 `project_key / project_name / container_name` 供展示。
 
 ### 2.2 `services_nav_type` — 服务类型
 

@@ -28,6 +28,7 @@ const (
 	ErrProjectHasDependents       = 46106
 	ErrInvalidAssetCategory       = 46107
 	ErrInvalidProjectName         = 46108
+	ErrAssetDirectoryInvalid      = 46109
 
 	// 部署资产校验（P2）
 	ErrInvalidContainerName   = 46200
@@ -78,18 +79,19 @@ const (
 )
 
 var errMsgs = map[int]string{
-	ErrProjectNotFound:      "项目不存在",
-	ErrRelationNotFound:     "项目关联不存在",
-	ErrAssetNotFound:        "资产不存在",
-	ErrInvalidProjectKey:    "无效的项目唯一键（仅允许小写字母/数字/中划线，2-64 位）",
-	ErrInvalidProjectType:   "无效的项目类型（base/template/backend_module/frontend_module/frontend_base/container_project）",
-	ErrDuplicateProjectKey:  "项目唯一键已存在",
-	ErrInvalidRelationType:  "无效的关联类型（uses_base/uses_template/binds_backend_module/related）",
-	ErrSelfRelation:         "不能将项目关联到自身",
-	ErrTargetProjectMissing: "关联目标项目不存在",
-	ErrProjectHasDependents: "项目存在启用中的被依赖关联，需强制删除",
-	ErrInvalidAssetCategory: "无效的资产类别（requirement/code/doc/asset）",
-	ErrInvalidProjectName:   "项目名称不能为空（2-128 字符）",
+	ErrProjectNotFound:       "项目不存在",
+	ErrRelationNotFound:      "项目关联不存在",
+	ErrAssetNotFound:         "资产不存在",
+	ErrInvalidProjectKey:     "无效的项目唯一键（仅允许小写字母/数字/中划线，2-64 位）",
+	ErrInvalidProjectType:    "无效的项目类型（base/template/backend_module/frontend_module/frontend_base/container_project）",
+	ErrDuplicateProjectKey:   "项目唯一键已存在",
+	ErrInvalidRelationType:   "无效的关联类型（uses_base/uses_template/binds_backend_module/related）",
+	ErrSelfRelation:          "不能将项目关联到自身",
+	ErrTargetProjectMissing:  "关联目标项目不存在",
+	ErrProjectHasDependents:  "项目存在启用中的被依赖关联，需强制删除",
+	ErrInvalidAssetCategory:  "无效的资产类别（requirement/code/doc/asset）",
+	ErrInvalidProjectName:    "项目名称不能为空（2-128 字符）",
+	ErrAssetDirectoryInvalid: "资产目录不存在、不可访问或超出允许范围",
 
 	ErrContainerNotFound:       "容器不存在",
 	ErrResourceNotFound:        "容器资源分配不存在",

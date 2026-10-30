@@ -10,7 +10,7 @@
 | 服务条目 CRUD | ✅ | 增/删/改/查（详情），见 [03-api-design.md](03-api-design.md) |
 | 服务类型 CRUD | ✅ | 类型独立管理，条目多选引用 |
 | 列表查询 | ✅ | 名称模糊搜索 + 类型筛选 + 排序 + 分页 |
-| 自动建表 | ✅ | `services_nav_item` / `services_nav_type`，启动时 `CREATE TABLE IF NOT EXISTS` |
+| 建表 | ✅ | `services_nav_item` / `services_nav_type` 已收敛到 migrations 008（P8） |
 | 旧表兼容 | ✅ | `ensureColumn` 自动为已存在的表补充 `protocol` 列 |
 | 传输协议字段 | ✅ | `protocol` 默认 `http`，可设 `https` 等 |
 | 密码提示字段 | ✅ | `password_hint`（非真实密码，明文返回） |
@@ -26,7 +26,7 @@
 
 ```
 internal/modules/servicenav/
-├── module.go              # Module 接口实现（自动建表 + ensureColumn + 路由注册）
+├── module.go              # Module 接口实现（依赖装配 + 路由注册）
 ├── handler.go             # HTTP 处理器（swagger 注释）
 ├── service.go             # 业务逻辑（名称唯一、类型校验、删除保护、默认协议）
 ├── repository.go          # 数据访问层（MySQL，JSON_CONTAINS 筛选，排序白名单）
@@ -58,7 +58,7 @@ internal/modules/servicenav/
 
 | 问题 | 根因 | 修复 |
 |------|------|------|
-| `GET /services` 报 `Unknown column 'protocol'` (Error 1054) | 表在加字段前已存在，DDL 未生效 | `initTables` 增加 `ensureColumn` 自动补列 |
+| `GET /services` 报 `Unknown column 'protocol'` (Error 1054) | 表在加字段前已存在，DDL 未生效 | 由 migrations 008 的完整建表定义 + 存量库 ALTER 处理 |
 | `errors.go` 存在未使用的 `ErrInvalidSort` 死代码 | 排序采用白名单回退策略 | 移除该常量及文档中 41201 错误码 |
 | gofmt 未格式化 | 手工编辑破坏对齐 | `gofmt -w` 全模块格式化 |
 

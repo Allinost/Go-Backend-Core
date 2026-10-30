@@ -3674,6 +3674,108 @@ const docTemplate = `{
                 }
             }
         },
+        "/developmentmanager/projects/{id}/assets/expand": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "展开目录型资产",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "目录资产 ID",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.ExpandAssetReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.ExpandAssetResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/projects/{id}/assets/expand-all": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "展开项目全部目录型资产",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.ExpandAssetResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/developmentmanager/projects/{id}/assets/{asset_id}": {
             "delete": {
                 "security": [
@@ -17385,6 +17487,37 @@ const docTemplate = `{
                 },
                 "updated_by": {
                     "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.ExpandAssetReq": {
+            "type": "object",
+            "required": [
+                "asset_id"
+            ],
+            "properties": {
+                "asset_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_developmentManager.ExpandAssetResp": {
+            "type": "object",
+            "properties": {
+                "asset_id": {
+                    "type": "integer"
+                },
+                "created": {
+                    "type": "integer"
+                },
+                "failed": {
+                    "type": "integer"
+                },
+                "scanned": {
+                    "type": "integer"
+                },
+                "skipped": {
+                    "type": "integer"
                 }
             }
         },

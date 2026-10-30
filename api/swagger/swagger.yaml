@@ -1533,6 +1533,26 @@ definitions:
       updated_by:
         type: string
     type: object
+  zzz_developmentManager.ExpandAssetReq:
+    properties:
+      asset_id:
+        type: integer
+    required:
+    - asset_id
+    type: object
+  zzz_developmentManager.ExpandAssetResp:
+    properties:
+      asset_id:
+        type: integer
+      created:
+        type: integer
+      failed:
+        type: integer
+      scanned:
+        type: integer
+      skipped:
+        type: integer
+    type: object
   zzz_developmentManager.Generation:
     properties:
       auto_commit:
@@ -7011,6 +7031,64 @@ paths:
       security:
       - BearerAuth: []
       summary: 删除项目资产索引
+      tags:
+      - developmentManager
+  /developmentmanager/projects/{id}/assets/expand:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 目录资产 ID
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.ExpandAssetReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.ExpandAssetResp'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 展开目录型资产
+      tags:
+      - developmentManager
+  /developmentmanager/projects/{id}/assets/expand-all:
+    post:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.ExpandAssetResp'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 展开项目全部目录型资产
       tags:
       - developmentManager
   /developmentmanager/projects/{id}/backups:

@@ -8,7 +8,7 @@
 
 | 文件 | 行数 | 职责 | 测试 |
 |------|------|------|------|
-| `module.go` | 580 | 模块入口：Name/Init/Close/RegisterRoutes、**自动建表 DDL**、HTTP/断路器配置 | ❌ |
+| `module.go` | 580 | 模块入口：Name/Init/Close/RegisterRoutes、HTTP/断路器配置（建表已移至 migrations 008） | ❌ |
 | `handler.go` | 1449 | HTTP 处理器：参数绑定、调 Service、统一 `handleError` | ❌ |
 | `service.go` | 1340 | 业务核心：校验、交易构建、**持仓重放引擎**（`replay`，677 行起） | ✅ |
 | `repository.go` | 2100 | 数据访问（原生 SQL），13 张表常量与全部查询 | ❌ |
@@ -79,7 +79,7 @@ Init(cfg):                                            // module.go:45-83
   2. NewService(repo)
   3. 构建 quote.Registry（pkg/net 客户端 + 东财 UA/Referer + 断路器配置）
   4. 可选: modules.Get("webhook") → AttachWebhook（未注册仅告警）
-  5. initTables(pool.DB)          // 13 张 zzz_ia_* 表，幂等
+  5. （建表已由 migrations/mysql/008_legacy_modules_schema.sql 统一管理）
      migratePositionTargetCols    // 存量列兼容（忽略 Duplicate column）
   6. NewJobScheduler(svc).Start() // 内部 ticker 调度器
   7. registerSchedulerTask()      // 集中调度占位 zzz_ia_daily_maintenance
