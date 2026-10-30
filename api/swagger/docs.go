@@ -3047,6 +3047,96 @@ const docTemplate = `{
                 }
             }
         },
+        "/developmentmanager/generations/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取生成任务详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "生成任务 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Generation"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/generations/{id}/retry": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "重试生成任务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "生成任务 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Generation"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/developmentmanager/permissions/meta": {
             "get": {
                 "security": [
@@ -4498,6 +4588,109 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/requirements/{id}/generations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取需求下的生成任务",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "需求 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/zzz_developmentManager.Generation"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "触发生成任务（plan/code/doc）",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "需求 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "生成参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.CreateGenerationReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Generation"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -16782,6 +16975,26 @@ const docTemplate = `{
                 }
             }
         },
+        "zzz_developmentManager.CreateGenerationReq": {
+            "type": "object",
+            "required": [
+                "kind"
+            ],
+            "properties": {
+                "auto_commit": {
+                    "type": "boolean"
+                },
+                "engine": {
+                    "type": "string"
+                },
+                "instructions": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                }
+            }
+        },
         "zzz_developmentManager.CreateProjectReq": {
             "type": "object",
             "required": [
@@ -17037,6 +17250,77 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.Generation": {
+            "type": "object",
+            "properties": {
+                "auto_commit": {
+                    "type": "boolean"
+                },
+                "branch": {
+                    "type": "string"
+                },
+                "commit_hash": {
+                    "type": "string"
+                },
+                "committed": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "engine": {
+                    "type": "string"
+                },
+                "engine_used": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "input_snapshot": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "operator": {
+                    "type": "string"
+                },
+                "output_ref": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "requirement_id": {
+                    "type": "integer"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

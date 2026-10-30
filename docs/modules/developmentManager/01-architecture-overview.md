@@ -42,5 +42,9 @@ zzz/developmentManager/
 
 ## 与规划阶段的对应
 
-P1（本阶段）：项目台账 + 关联 + 资产索引 + 权限/seed。
-P2 部署资产（container/resource_alloc/volume_mapping/access_point/whitelist×2/backup）→ P3 数据字典 → P4 需求 → P5 生成 → P6 前端（Go-Frontend-Core）→ P7 收尾 → P8 历史模块迁移。
+- **P1（已完成）**：项目台账 + 关联 + 资产索引 + 权限/seed。
+- **P2（已完成）**：部署资产（container/resource_alloc/volume_mapping/access_point/whitelist×2/backup）。
+- **P3（已完成）**：数据字典（表/字段 + `information_schema` 扫描导入）。
+- **P4（已完成）**：需求管理（CRUD + 状态机 + 版本快照）。
+- **P5（已完成）**：生成流程（plan/code/doc，模板主线 + AI 可选降级 + 受限自动提交）。
+- 后续：P6 前端（Go-Frontend-Core）→ P7 收尾 → P8 历史模块迁移。

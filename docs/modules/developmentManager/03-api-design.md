@@ -112,6 +112,22 @@
 
 需求状态机：`draft → reviewing → approved → planned → developing → done`，任意非 closed 状态可转 `closed`；`reviewing` 可退回 `draft`，`done` 可打回 `developing`。状态修改必须走 `/status`（受 `approve` 权限约束），PUT 不改变状态。
 
+## P5 已实现路由（生成流程，`dm.generation`）
+
+| 方法 | 路径 | 权限动作 | 说明 |
+|---|---|---|---|
+| POST | `/requirements/:id/generations` | execute | 触发生成。body：`kind`（必填 plan/code/doc）、`engine`（缺省 template；ai/template/manual）、`auto_commit`（默认 false，仅 code）、`instructions`（补充要求） |
+| GET | `/requirements/:id/generations` | read | 需求下的生成任务列表（最新在前） |
+| GET | `/generations/:id` | read | 任务详情（状态、实际引擎、产物路径、文件列表、分支与 commit、失败原因） |
+| POST | `/generations/:id/retry` | execute | 重试失败任务（沿用原参数；已成功任务返回 46504） |
+
+生成语义：
+- **引擎**：`template` 为默认主线；`ai` 在未配置 Provider 或调用失败时**自动降级 template**，`engine_used` 记录实际引擎；`manual` 生成骨架供人工填充。
+- **auto_commit 双保险**：请求体 `auto_commit=true` **且** 当前用户拥有 `dm.generation:autocommit` 才执行（否则 403）；仅 `kind=code` 生效（否则 46502）。
+- **分支安全**：自动提交只在当前分支（非 main/master）上提交本次产物路径；产物已生成但提交失败时任务仍为 success，失败原因见 `error`。
+- **产物**：方案/文档为 Markdown 文件，代码为草案目录（README + Go 骨架），均位于 `docs/projects/<项目 key>/`。
+- 任务同步执行，返回即包含 `status`（success/failed）与 `output_ref`；失败可重试。
+
 ## 业务错误码（46001+ 区段）
 
 模块错误类型 `DevelopmentManagerError{Code, Message, Detail}`；handler 按码映射 HTTP 状态（非 release 模式才透出 `Detail`）。
@@ -174,6 +190,13 @@
 | 46404 | 400 | 需求标题为空或长度不合法 |
 | 46405 | 400 | 无效需求来源 |
 | 46406 | 409 | 需求已删除，不能修改 |
+| 46015 | 404 | 生成任务不存在 |
+| 46500 | 400 | 无效生成类型 |
+| 46501 | 400 | 无效生成引擎 |
+| 46502 | 400 | auto_commit 仅对 kind=code 生效 |
+| 46503 | 409 | 自动提交不安全（main/master 或 git 失败） |
+| 46504 | 409 | 生成任务已成功，无需重试 |
+| 46505 | 500 | 生成产物写入失败 |
 
 鉴权失败/无权限走基座标准错误（`CodeUnauth`/`CodeForbidden`）。
 
@@ -183,6 +206,6 @@
 - 写操作（create/update/delete）审计写入 `services/audit`（记录失败仅告警，不阻断业务）。
 - 所有 ID 为正整数路径参数，非法直接 400。
 
-## P5 规划路由（规划 §4 API 概要）
+## P6 规划（前端）
 
-生成 `POST /requirements/:id/generations`（body：`kind: plan|code|doc`、`engine: ai|template|manual`、`auto_commit: 0|1`）与 `GET /generations/:id`。
+Go-Frontend-Core 中新增 developmentManager 管理模块（先 Web），通过上述 API 完成台账、部署资产、数据字典、需求看板与生成任务的可视化操作。

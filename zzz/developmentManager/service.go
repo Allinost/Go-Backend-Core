@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/Allinost/go-backend-core/zzz/developmentManager/generation"
 )
 
 // projectKeyRe 项目唯一键格式：小写字母/数字/中划线
@@ -13,12 +15,18 @@ var projectKeyRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,63}$`)
 
 // Service 项目开发管理业务逻辑
 type Service struct {
-	repo *Repository
+	repo     *Repository
+	aiWriter generation.AIWriter // 可选的 AI 生成器，未注入时 engine=ai 自动降级为 template
 }
 
 // NewService 创建 Service
 func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
+}
+
+// SetAIWriter 注入 AI 生成器（不注入或调用失败时自动降级为模板引擎）
+func (s *Service) SetAIWriter(w generation.AIWriter) {
+	s.aiWriter = w
 }
 
 // validateProjectReq 校验项目请求（键格式 / 名称 / 类型），返回归一化后的项目

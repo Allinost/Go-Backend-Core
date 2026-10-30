@@ -18,6 +18,7 @@ const (
 	ErrColumnNotFound             = 46012
 	ErrRequirementNotFound        = 46013
 	ErrRequirementVersionNotFound = 46014
+	ErrGenerationNotFound         = 46015
 	ErrInvalidProjectKey          = 46100
 	ErrInvalidProjectType         = 46101
 	ErrDuplicateProjectKey        = 46102
@@ -66,6 +67,14 @@ const (
 	ErrInvalidRequirementTitle      = 46404
 	ErrInvalidRequirementSource     = 46405
 	ErrRequirementDeleted           = 46406
+
+	// 生成流程校验（P5）
+	ErrInvalidGenerationKind    = 46500
+	ErrInvalidGenerationEngine  = 46501
+	ErrAutoCommitKind           = 46502
+	ErrAutoCommitUnsafe         = 46503
+	ErrGenerationAlreadySuccess = 46504
+	ErrGenerationOutputWrite    = 46505
 )
 
 var errMsgs = map[int]string{
@@ -129,6 +138,14 @@ var errMsgs = map[int]string{
 	ErrInvalidRequirementTitle:      "需求标题不能为空（2-200 字符）",
 	ErrInvalidRequirementSource:     "无效的需求来源（manual/ai/customer）",
 	ErrRequirementDeleted:           "需求已删除，不能修改",
+
+	ErrGenerationNotFound:       "生成任务不存在",
+	ErrInvalidGenerationKind:    "无效的生成类型（plan/code/doc）",
+	ErrInvalidGenerationEngine:  "无效的生成引擎（ai/template/manual）",
+	ErrAutoCommitKind:           "auto_commit 仅对 kind=code 生效",
+	ErrAutoCommitUnsafe:         "自动提交失败：当前分支不允许提交或 git 操作失败",
+	ErrGenerationAlreadySuccess: "该生成任务已成功，无需重试",
+	ErrGenerationOutputWrite:    "生成产物写入失败",
 }
 
 // DevelopmentManagerError 模块业务错误，携带模块级错误码

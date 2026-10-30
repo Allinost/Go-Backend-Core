@@ -12,6 +12,7 @@ import (
 	coreAuth "github.com/Allinost/go-backend-core/internal/modules/auth"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	svcAuth "github.com/Allinost/go-backend-core/internal/services/auth"
+	"github.com/Allinost/go-backend-core/zzz/developmentManager/generation"
 	"github.com/gin-gonic/gin"
 )
 
@@ -59,6 +60,7 @@ func (m *Module) Init(cfg *config.Config) error {
 
 	m.svc = NewService(m.repo)
 	m.h = NewHandler(m.svc)
+	m.h.SetRBAC(m.rbac)
 
 	// 台账 seed 幂等登记现有项目（迁移未应用时后台重试）
 	go m.seedWithRetry()
@@ -75,6 +77,13 @@ func (m *Module) Close() error {
 // GetService 暴露 Service 实例，供其他模块调用
 func (m *Module) GetService() *Service {
 	return m.svc
+}
+
+// SetAIWriter 注入可选的 AI 生成器（未注入时 engine=ai 自动降级为 template）
+func (m *Module) SetAIWriter(w generation.AIWriter) {
+	if m.svc != nil {
+		m.svc.SetAIWriter(w)
+	}
 }
 
 // RegisterRoutes 注册模块路由到 /api/v1/developmentmanager/*（全组要求登录，按路由挂载资源×动作权限）
@@ -162,6 +171,12 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/requirements/:id/status", need("dm.requirement", "approve"), m.h.ChangeRequirementStatus)
 	r.DELETE("/requirements/:id", need("dm.requirement", "delete"), m.h.DeleteRequirement)
 	r.GET("/requirements/:id/versions", need("dm.requirement", "read"), m.h.ListRequirementVersions)
+
+	// 生成流程：方案/代码/文档（auto_commit 由 handler 二次校验 autocommit 权限）
+	r.POST("/requirements/:id/generations", need("dm.generation", "execute"), m.h.CreateGeneration)
+	r.GET("/requirements/:id/generations", need("dm.generation", "read"), m.h.ListGenerations)
+	r.GET("/generations/:id", need("dm.generation", "read"), m.h.GetGeneration)
+	r.POST("/generations/:id/retry", need("dm.generation", "execute"), m.h.RetryGeneration)
 
 	// 统计与权限元数据
 	r.GET("/stats", need("dm.project", "read"), m.h.Stats)

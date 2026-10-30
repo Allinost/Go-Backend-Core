@@ -1,6 +1,6 @@
 # developmentManager 数据模型
 
-> 表前缀规范见 [docs/data-model.md](../../../data-model.md)：模块表统一 `zzz_development_manager_` 前缀，建表统一走 migrations 迁移（模块不 initTables）。本模块规划共 **15 张表**，P1 已建 3 张、P2 已建 7 张、P3 已建 2 张、P4 已建 2 张（累计落地 14 张）。
+> 表前缀规范见 [docs/data-model.md](../../../data-model.md)：模块表统一 `zzz_development_manager_` 前缀，建表统一走 migrations 迁移（模块不 initTables）。本模块规划共 **15 张表**，P1 已建 3 张、P2 已建 7 张、P3 已建 2 张、P4 已建 2 张、P5 已建 1 张（**15 张全部落地**）。
 
 ## 总览
 
@@ -20,7 +20,7 @@
 | 12 | `zzz_development_manager_db_column` | P3 ✅ | 字段字典 |
 | 13 | `zzz_development_manager_requirement` | P4 ✅ | 需求登记与状态流转 |
 | 14 | `zzz_development_manager_requirement_version` | P4 ✅ | 需求版本快照（增改删全留痕） |
-| 15 | `zzz_development_manager_generation` | P5 | 生成任务（plan/code/doc） |
+| 15 | `zzz_development_manager_generation` | P5 ✅ | 生成任务（plan/code/doc） |
 
 ## P1 已建表（migrations/mysql/002_development_manager.sql）
 
@@ -129,7 +129,26 @@ draft ──> reviewing ──> approved ──> planned ──> developing ─�
 - 版本生成：创建 = v1；每次 PUT 更新 = 新版本；状态流转 = 新版本；删除 = 软删除 + `status=deleted` 快照。
 - 快照保存完整标题与正文，可回看任意历史版本；`change_note` 缺省为"更新需求"/"状态流转: a -> b"/"需求已删除"。
 
-## P5 规划表要点（详见规划 §3.4）
+## P5 已建表（migrations/mysql/006_development_manager_generation.sql）
+
+| 字段组 | 字段 | 语义要点 |
+|---|---|---|
+| 归属 | requirement_id、project_id、kind(plan/code/doc)、operator | 一个需求可多次生成，任务留历史 |
+| 引擎 | engine（请求）、engine_used（实际）、auto_commit、committed、branch、commit_hash | AI 不可用自动降级 template 并留痕；auto_commit 默认 0，仅 code 生效 |
+| 执行 | status(pending/running/success/failed)、started_at、finished_at、error | 同步执行；失败任务可重试，产物写入失败为 failed |
+| 输入 | input_snapshot(JSON) | 需求/项目字段、请求引擎、补充说明，用于审计与重试 |
+| 产物 | output_ref、files(JSON) | 方案/文档为文件路径，代码为草案目录；自动提交记录分支与 commit |
+
+### 产物落盘约定
+
+- 方案：`docs/projects/<项目key>/plans/<需求编号>-plan-<任务ID>.md`
+- 文档：`docs/projects/<项目key>/docs/<需求编号>-doc-<任务ID>.md`
+- 代码草案：`docs/projects/<项目key>/code-drafts/<需求编号>-<任务ID>/`（README + handler/service 骨架，**不直接落主干**）
+- 写文件前校验相对路径，拒绝绝对路径与 `..` 穿越；自动提交仅提交本次产物的路径。
+
+## P6 规划（前端）
+
+前端模块在 Go-Frontend-Core 中实现，复用本模块全部 API；无新增表。
 
 - **access_point 四合一**：端口（listen/host_port/protocol/exposure）+ 反代（proxy_type/domain/upstream_url/tls，可空=直连）+ 访问地址（url **NULL=不可达**）+ `whitelist_id`（**NULL=不限制**）；行粒度 = 端口 × 访问地址。
 - **whitelist 组复用**：组 + 成员两表，组**允许 0 成员**；成员 FK → container，容器改名自动跟随。

@@ -1289,6 +1289,19 @@ definitions:
     required:
     - container_name
     type: object
+  zzz_developmentManager.CreateGenerationReq:
+    properties:
+      auto_commit:
+        type: boolean
+      engine:
+        type: string
+      instructions:
+        type: string
+      kind:
+        type: string
+    required:
+    - kind
+    type: object
   zzz_developmentManager.CreateProjectReq:
     properties:
       default_branch:
@@ -1458,6 +1471,53 @@ definitions:
       updated_at:
         type: string
       updated_by:
+        type: string
+    type: object
+  zzz_developmentManager.Generation:
+    properties:
+      auto_commit:
+        type: boolean
+      branch:
+        type: string
+      commit_hash:
+        type: string
+      committed:
+        type: boolean
+      created_at:
+        type: string
+      engine:
+        type: string
+      engine_used:
+        type: string
+      error:
+        type: string
+      files:
+        items:
+          type: string
+        type: array
+      finished_at:
+        type: string
+      id:
+        type: integer
+      input_snapshot:
+        items:
+          type: integer
+        type: array
+      kind:
+        type: string
+      operator:
+        type: string
+      output_ref:
+        type: string
+      project_id:
+        type: integer
+      requirement_id:
+        type: integer
+      started_at:
+        type: string
+      status:
+        type: string
+      updated_at:
         type: string
     type: object
   zzz_developmentManager.PaginatedResp-zzz_developmentManager_Project:
@@ -6506,6 +6566,56 @@ paths:
       summary: 新建卷映射
       tags:
       - developmentManager
+  /developmentmanager/generations/{id}:
+    get:
+      parameters:
+      - description: 生成任务 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Generation'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取生成任务详情
+      tags:
+      - developmentManager
+  /developmentmanager/generations/{id}/retry:
+    post:
+      parameters:
+      - description: 生成任务 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Generation'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 重试生成任务
+      tags:
+      - developmentManager
   /developmentmanager/permissions/meta:
     get:
       produces:
@@ -7356,6 +7466,65 @@ paths:
       security:
       - BearerAuth: []
       summary: 更新需求
+      tags:
+      - developmentManager
+  /developmentmanager/requirements/{id}/generations:
+    get:
+      parameters:
+      - description: 需求 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_developmentManager.Generation'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取需求下的生成任务
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 需求 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 生成参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateGenerationReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Generation'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 触发生成任务（plan/code/doc）
       tags:
       - developmentManager
   /developmentmanager/requirements/{id}/status:

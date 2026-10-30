@@ -29,10 +29,16 @@
 | `requirement_service.go` | P4 校验、状态流转判定、编号与快照编排 |
 | `requirement_handler.go` | P4 HTTP 处理器（7 条路由）+ swag 注解 + 审计 |
 | `requirement_test.go` | P4 校验、状态机、编号格式、错误码单测 |
+| `generation_model.go` | P5 生成任务实体、类型/引擎/状态枚举、请求结构 |
+| `generation_repository.go` | P5 任务创建/查询/执行状态回写（产物文件与提交信息 JSON） |
+| `generation_service.go` | P5 任务编排：快照、引擎选择与 AI 降级、产物落盘、可选自动提交、重试 |
+| `generation_handler.go` | P5 HTTP 处理器（4 条路由）+ `autocommit` 二次权限校验 + swag 注解 |
+| `generation_test.go` | P5 枚举、错误码、快照解析单测 |
+| `generation/` | 生成引擎子包：`generator.go`（模板生成 + AI 提示词/包装）、`writer.go`（安全落盘 + 受限自动提交）、`generator_test.go` |
 | `service_test.go` | 校验逻辑、错误码→状态映射、枚举集合数量 |
 | `permissions_test.go` | 权限命名规范/数量（28）/去重；seed 数据一致性（关联两端与资产归属均已登记、类型合法） |
 
-规划中 P3/P5 将新增子包 `scan/`（数据字典扫描导入）与 `generation/`（plan/code/doc 生成器 + AI 降级），届时按规划 §4 目录拆分。
+数据字典扫描导入实现在主包 `dictionary_repository.go`（`information_schema`）；生成引擎独立为 `generation/` 子包，便于后续替换/扩展 AI Provider。
 
 ## 生命周期
 
@@ -47,7 +53,7 @@
 
 ## 迁移与部署注意
 
-- DDL 在 `migrations/mysql/002_development_manager.sql`（P1 三表）、`003_development_manager_deployment.sql`（P2 七表）、`004_development_manager_dictionary.sql`（P3 两表）、`005_development_manager_requirement.sql`（P4 两表），按序应用，需手动触发：`POST /api/v1/migrate/schema/migrate`。
+- DDL 在 `migrations/mysql/002_development_manager.sql`（P1 三表）、`003_development_manager_deployment.sql`（P2 七表）、`004_development_manager_dictionary.sql`（P3 两表）、`005_development_manager_requirement.sql`（P4 两表）、`006_development_manager_generation.sql`（P5 一表），按序应用，需手动触发：`POST /api/v1/migrate/schema/migrate`。
 - 迁移按英文分号拆分执行：迁移 SQL 的注释与字符串内**不得出现英文分号**。
 - 权限播种与路由注册不依赖迁移（无表也能启动）；台账 seed 依赖迁移，未应用时后台重试并在日志中提示。
 - Swagger 已随模块生成：`swag init -g cmd/server/docs.go -o api/swagger --parseDependency --parseInternal`。
@@ -56,5 +62,8 @@
 
 - `dm.project:restore` 权限点已播种，但项目恢复接口（`undelete`）规划在收尾阶段实现，暂未提供。
 - 部署资产的列表接口不分页（单项目内条目量级小），接入点支持按暴露范围/网络区域筛选；如需分页在 P7 统一补齐。
+- AI 生成器默认未注入（`Module.SetAIWriter` / `Service.SetAIWriter` 可接入 `services/ai.Manager`），此时 `engine=ai` 自动降级 `template`；接入后无需改任务流程。
+- 生成产物写入进程工作目录（`docs/projects/<项目 key>/`），部署时需保证服务对仓库目录有写权限。
+- 自动提交依赖本机 `git`，且只允许在非 main/master 分支提交；建议在开发/受控环境使用。
 - 项目类型已扩展为 5 类（2026-10-30 用户确认新增 `frontend_base` 前端基座），`go-frontend-core` 登记为此类型。
 - 历史 zzz 模块的 `initTables` 建表方式未改造（P8 统一迁移到 migrations）。

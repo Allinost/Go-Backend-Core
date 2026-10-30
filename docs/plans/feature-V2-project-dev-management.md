@@ -23,6 +23,7 @@
 | Q10 | 部署建模 | 采用 **A 行式**，但**端口、反代、访问地址合并为 `access_point` 一张表**（绑定链，行粒度 = 端口 × 地址，仍可 SQL 过滤）；资源分配保持**独立 `resource_alloc` 表**（1:1）；白名单建模见 Q11 |
 | Q11 | 白名单建模 | 白名单**升格为独立可复用实体**：`whitelist` 组表 + `whitelist_member` 成员行表（`container_id` FK，容器改名自动跟随）；`access_point` 只留 `whitelist_id` 组引用（**NULL = 不限制**），临时/单次名单建一次性组（**只留组引用，无内嵌 JSON 列**）。**允许白名单为空**：接入点可不引用组，组可 0 成员。部署 7 表，全模块 **15 张表** |
 | Q12 | 前端基座类型（2026-10-30 追加） | 项目类型由 4 类扩展为 **5 类，新增 `frontend_base`（前端基座）**：NKUI 之上的前端工程（Go-Frontend-Core）此前只能登记为 `frontend_module`，与"前端模块=绑定模板与后端模块的业务模块"语义冲突；现 `go-frontend-core` 登记为 `frontend_base`，关联合计不变 |
+| Q13 | 生成任务记录（P5 实现细化） | 任务同时记录 **`engine`（请求引擎）与 `engine_used`（实际引擎）**：`engine=ai` 但未配置 Provider 或调用失败时自动降级 `template`，并在 `engine_used` 留痕；`auto_commit` 仅对 `kind=code` 生效，且需 **`dm.generation:autocommit` 权限 + 请求体开关同时满足**；自动提交只允许在**非 main/master 的当前分支**上提交生成产物，产物已生成但提交失败时任务仍为 success，失败原因记录在 `error` 字段 |
 
 ### 0.1 开发 SOP：用户描述 → 规划 → 开发 → 文档
 

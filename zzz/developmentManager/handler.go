@@ -10,17 +10,24 @@ import (
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/Allinost/go-backend-core/internal/pkg/response"
 	"github.com/Allinost/go-backend-core/internal/services/audit"
+	"github.com/Allinost/go-backend-core/internal/services/auth"
 	"github.com/gin-gonic/gin"
 )
 
 // Handler HTTP 处理器
 type Handler struct {
-	svc *Service
+	svc  *Service
+	rbac *auth.RBACService // 用于敏感动作的二次权限校验（如 auto_commit）
 }
 
 // NewHandler 创建 Handler
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// SetRBAC 注入 RBAC 服务（auto_commit 等敏感动作需要按用户二次校验）
+func (h *Handler) SetRBAC(rbac *auth.RBACService) {
+	h.rbac = rbac
 }
 
 // ---------- 辅助 ----------
@@ -52,13 +59,14 @@ func statusForCode(code int) int {
 		ErrContainerNotFound, ErrResourceNotFound, ErrVolumeNotFound, ErrAccessPointNotFound,
 		ErrWhitelistNotFound, ErrWhitelistMemberNotFound, ErrBackupNotFound,
 		ErrTableNotFound, ErrColumnNotFound,
-		ErrRequirementNotFound, ErrRequirementVersionNotFound:
+		ErrRequirementNotFound, ErrRequirementVersionNotFound, ErrGenerationNotFound:
 		return 404
 	case ErrDuplicateProjectKey, ErrProjectHasDependents, ErrSelfRelation,
 		ErrDuplicateContainerName, ErrDuplicateWhitelistName,
 		ErrContainerInWhitelist, ErrWhitelistInUse,
 		ErrDuplicateTable, ErrDuplicateColumn,
-		ErrInvalidRequirementTransition, ErrRequirementDeleted:
+		ErrInvalidRequirementTransition, ErrRequirementDeleted,
+		ErrAutoCommitUnsafe, ErrGenerationAlreadySuccess:
 		return 409
 	case ErrInvalidProjectKey, ErrInvalidProjectType, ErrInvalidRelationType,
 		ErrInvalidAssetCategory, ErrInvalidProjectName,
@@ -69,7 +77,8 @@ func statusForCode(code int) int {
 		ErrInvalidDBType, ErrInvalidTableName, ErrInvalidTableStatus,
 		ErrInvalidColumnName, ErrScanUnsupported,
 		ErrInvalidRequirementType, ErrInvalidRequirementPriority, ErrInvalidRequirementStatus,
-		ErrInvalidRequirementTitle, ErrInvalidRequirementSource:
+		ErrInvalidRequirementTitle, ErrInvalidRequirementSource,
+		ErrInvalidGenerationKind, ErrInvalidGenerationEngine, ErrAutoCommitKind:
 		return 400
 	default:
 		return 500
