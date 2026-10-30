@@ -1123,6 +1123,15 @@ definitions:
       volume_id:
         type: integer
     type: object
+  zzz_developmentManager.ChangeRequirementStatusReq:
+    properties:
+      change_note:
+        type: string
+      status:
+        type: string
+    required:
+    - status
+    type: object
   zzz_developmentManager.Container:
     properties:
       compose_ref:
@@ -1319,6 +1328,25 @@ definitions:
     - relation_type
     - to_project_id
     type: object
+  zzz_developmentManager.CreateRequirementReq:
+    properties:
+      change_note:
+        type: string
+      content:
+        type: string
+      owner:
+        type: string
+      priority:
+        type: string
+      source:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+    required:
+    - title
+    type: object
   zzz_developmentManager.CreateTableReq:
     properties:
       created_note:
@@ -1465,6 +1493,17 @@ definitions:
       total:
         type: integer
     type: object
+  zzz_developmentManager.PaginatedResp-zzz_developmentManager_Requirement:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zzz_developmentManager.Requirement'
+        type: array
+      total:
+        type: integer
+    type: object
   zzz_developmentManager.PermSpec:
     properties:
       action:
@@ -1571,6 +1610,64 @@ definitions:
         type: string
       updated_at:
         type: string
+    type: object
+  zzz_developmentManager.Requirement:
+    properties:
+      code:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted:
+        type: boolean
+      deleted_at:
+        type: string
+      id:
+        type: integer
+      latest_version:
+        type: integer
+      owner:
+        type: string
+      priority:
+        type: string
+      project_id:
+        type: integer
+      source:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
+  zzz_developmentManager.RequirementVersion:
+    properties:
+      change_note:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      operator:
+        type: string
+      requirement_id:
+        type: integer
+      status:
+        type: string
+      title:
+        type: string
+      version_no:
+        type: integer
     type: object
   zzz_developmentManager.ResourceAlloc:
     properties:
@@ -1758,6 +1855,25 @@ definitions:
     - name
     - project_key
     - type
+    type: object
+  zzz_developmentManager.UpdateRequirementReq:
+    properties:
+      change_note:
+        type: string
+      content:
+        type: string
+      owner:
+        type: string
+      priority:
+        type: string
+      source:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+    required:
+    - title
     type: object
   zzz_developmentManager.UpdateTableReq:
     properties:
@@ -6947,6 +7063,91 @@ paths:
       summary: 删除项目关联
       tags:
       - developmentManager
+  /developmentmanager/projects/{id}/requirements:
+    get:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 页码，默认 1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认 20，最大 100
+        in: query
+        name: page_size
+        type: integer
+      - description: 状态筛选
+        in: query
+        name: status
+        type: string
+      - description: 类型筛选
+        in: query
+        name: type
+        type: string
+      - description: 优先级筛选
+        in: query
+        name: priority
+        type: string
+      - description: 关键词（标题/编号/正文）
+        in: query
+        name: keyword
+        type: string
+      - description: 是否查询已删除（默认否）
+        in: query
+        name: deleted
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.PaginatedResp-zzz_developmentManager_Requirement'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目需求列表
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 需求信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateRequirementReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Requirement'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 新建需求
+      tags:
+      - developmentManager
   /developmentmanager/projects/{id}/tables:
     get:
       parameters:
@@ -7079,6 +7280,142 @@ paths:
       security:
       - BearerAuth: []
       summary: 新建白名单组
+      tags:
+      - developmentManager
+  /developmentmanager/requirements/{id}:
+    delete:
+      parameters:
+      - description: 需求 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除需求
+      tags:
+      - developmentManager
+    get:
+      parameters:
+      - description: 需求 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Requirement'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取需求详情
+      tags:
+      - developmentManager
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 需求 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 需求信息（全量，不含状态）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.UpdateRequirementReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Requirement'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新需求
+      tags:
+      - developmentManager
+  /developmentmanager/requirements/{id}/status:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 需求 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 目标状态与变更说明
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.ChangeRequirementStatusReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Requirement'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 需求状态流转
+      tags:
+      - developmentManager
+  /developmentmanager/requirements/{id}/versions:
+    get:
+      parameters:
+      - description: 需求 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_developmentManager.RequirementVersion'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取需求版本历史
       tags:
       - developmentManager
   /developmentmanager/stats:

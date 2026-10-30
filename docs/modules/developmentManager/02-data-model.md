@@ -1,6 +1,6 @@
 # developmentManager 数据模型
 
-> 表前缀规范见 [docs/data-model.md](../../../data-model.md)：模块表统一 `zzz_development_manager_` 前缀，建表统一走 migrations 迁移（模块不 initTables）。本模块规划共 **15 张表**，P1 已建 3 张、P2 已建 7 张、P3 已建 2 张（累计落地 12 张）。
+> 表前缀规范见 [docs/data-model.md](../../../data-model.md)：模块表统一 `zzz_development_manager_` 前缀，建表统一走 migrations 迁移（模块不 initTables）。本模块规划共 **15 张表**，P1 已建 3 张、P2 已建 7 张、P3 已建 2 张、P4 已建 2 张（累计落地 14 张）。
 
 ## 总览
 
@@ -18,8 +18,8 @@
 | 10 | `zzz_development_manager_backup` | P2 ✅ | 备份策略与最近执行结果 |
 | 11 | `zzz_development_manager_db_table` | P3 ✅ | 数据表登记 |
 | 12 | `zzz_development_manager_db_column` | P3 ✅ | 字段字典 |
-| 13 | `zzz_development_manager_requirement` | P4 | 需求登记与状态流转 |
-| 14 | `zzz_development_manager_requirement_version` | P4 | 需求版本快照（增改删全留痕） |
+| 13 | `zzz_development_manager_requirement` | P4 ✅ | 需求登记与状态流转 |
+| 14 | `zzz_development_manager_requirement_version` | P4 ✅ | 需求版本快照（增改删全留痕） |
 | 15 | `zzz_development_manager_generation` | P5 | 生成任务（plan/code/doc） |
 
 ## P1 已建表（migrations/mysql/002_development_manager.sql）
@@ -110,7 +110,26 @@
 - 已存在字段更新 `data_type / nullable / default_value / is_pk / is_index`，**保留人工填写的 `meaning`**（`meaning` 为空时才用列注释填充）；
 - 返回 `{scanned, created, updated}`；表中不存在或无字段时返回 46307。
 
-## P4~P5 规划表要点（详见规划 §3.4）
+## P4 已建表（migrations/mysql/005_development_manager_requirement.sql）
+
+| 表 | 关键字段 | 语义要点 |
+|---|---|---|
+| `requirement` | project_id、code、title、content、type、priority、status、source、owner、deleted | UK(project_id, code)；编号 `RQM-0001` 项目内自增；状态流转见下；删除为软删除 + 快照 |
+| `requirement_version` | requirement_id、version_no、title、content、status、change_note、operator、created_at | UK(requirement_id, version_no)；每次创建/修改/状态流转/删除都追加一条快照（content 也快照） |
+
+### 需求状态机
+
+```
+draft ──> reviewing ──> approved ──> planned ──> developing ──> done
+  │           │              │            │             │          │
+  └───────────┴──────────────┴────────────┴─────────────┴──────────┴──> closed
+                          （done 可打回 developing 重新开发）
+```
+
+- 版本生成：创建 = v1；每次 PUT 更新 = 新版本；状态流转 = 新版本；删除 = 软删除 + `status=deleted` 快照。
+- 快照保存完整标题与正文，可回看任意历史版本；`change_note` 缺省为"更新需求"/"状态流转: a -> b"/"需求已删除"。
+
+## P5 规划表要点（详见规划 §3.4）
 
 - **access_point 四合一**：端口（listen/host_port/protocol/exposure）+ 反代（proxy_type/domain/upstream_url/tls，可空=直连）+ 访问地址（url **NULL=不可达**）+ `whitelist_id`（**NULL=不限制**）；行粒度 = 端口 × 访问地址。
 - **whitelist 组复用**：组 + 成员两表，组**允许 0 成员**；成员 FK → container，容器改名自动跟随。

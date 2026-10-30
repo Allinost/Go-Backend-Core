@@ -51,12 +51,14 @@ func statusForCode(code int) int {
 	case ErrProjectNotFound, ErrRelationNotFound, ErrAssetNotFound, ErrTargetProjectMissing,
 		ErrContainerNotFound, ErrResourceNotFound, ErrVolumeNotFound, ErrAccessPointNotFound,
 		ErrWhitelistNotFound, ErrWhitelistMemberNotFound, ErrBackupNotFound,
-		ErrTableNotFound, ErrColumnNotFound:
+		ErrTableNotFound, ErrColumnNotFound,
+		ErrRequirementNotFound, ErrRequirementVersionNotFound:
 		return 404
 	case ErrDuplicateProjectKey, ErrProjectHasDependents, ErrSelfRelation,
 		ErrDuplicateContainerName, ErrDuplicateWhitelistName,
 		ErrContainerInWhitelist, ErrWhitelistInUse,
-		ErrDuplicateTable, ErrDuplicateColumn:
+		ErrDuplicateTable, ErrDuplicateColumn,
+		ErrInvalidRequirementTransition, ErrRequirementDeleted:
 		return 409
 	case ErrInvalidProjectKey, ErrInvalidProjectType, ErrInvalidRelationType,
 		ErrInvalidAssetCategory, ErrInvalidProjectName,
@@ -65,7 +67,9 @@ func statusForCode(code int) int {
 		ErrInvalidBackupType, ErrInvalidBackupStatus, ErrInvalidVolumeMode,
 		ErrInvalidWhitelistName, ErrInvalidReplicas, ErrInvalidResourceAlloc,
 		ErrInvalidDBType, ErrInvalidTableName, ErrInvalidTableStatus,
-		ErrInvalidColumnName, ErrScanUnsupported:
+		ErrInvalidColumnName, ErrScanUnsupported,
+		ErrInvalidRequirementType, ErrInvalidRequirementPriority, ErrInvalidRequirementStatus,
+		ErrInvalidRequirementTitle, ErrInvalidRequirementSource:
 		return 400
 	default:
 		return 500

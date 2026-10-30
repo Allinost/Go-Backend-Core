@@ -98,6 +98,20 @@
 - 已有字段更新类型/可空/默认值/主键/索引，**不覆盖已填写的中文含义**；
 - 库名/表名/字段名均只允许字母、数字、下划线。
 
+## P4 已实现路由（需求管理，`dm.requirement`）
+
+| 方法 | 路径 | 权限动作 | 说明 |
+|---|---|---|---|
+| GET | `/projects/:id/requirements` | read | 分页列表。query：`page`/`page_size`、`status`、`type`、`priority`、`keyword`（标题/编号/正文）、`deleted` |
+| POST | `/projects/:id/requirements` | create | 新建需求。body：`title`（必填 2-200）、`content`（markdown）、`type`（缺省 feature）、`priority`（缺省 P2）、`source`（缺省 manual）、`owner`、`change_note` |
+| GET | `/requirements/:id` | read | 详情（含 `latest_version`，已删除也可查） |
+| PUT | `/requirements/:id` | update | 更新标题/正文/类型/优先级/来源/负责人，**不改状态**，自动追加版本快照 |
+| POST | `/requirements/:id/status` | **approve** | 状态流转。body：`status`（必填）、`change_note`；非法流转返回 46403 |
+| DELETE | `/requirements/:id` | delete | 软删除 + 生成 `status=deleted` 快照 |
+| GET | `/requirements/:id/versions` | read | 版本历史（最新在前，含完整历史标题/正文） |
+
+需求状态机：`draft → reviewing → approved → planned → developing → done`，任意非 closed 状态可转 `closed`；`reviewing` 可退回 `draft`，`done` 可打回 `developing`。状态修改必须走 `/status`（受 `approve` 权限约束），PUT 不改变状态。
+
 ## 业务错误码（46001+ 区段）
 
 模块错误类型 `DevelopmentManagerError{Code, Message, Detail}`；handler 按码映射 HTTP 状态（非 release 模式才透出 `Detail`）。
@@ -151,6 +165,15 @@
 | 46305 | 409 | 同表字段重复 |
 | 46306 | 400 | 该数据库类型不支持扫描导入 |
 | 46307 | 500 | 扫描 information_schema 失败/未找到表 |
+| 46013 | 404 | 需求不存在 |
+| 46014 | 404 | 需求版本不存在 |
+| 46400 | 400 | 无效需求类型 |
+| 46401 | 400 | 无效优先级 |
+| 46402 | 400 | 无效需求状态 |
+| 46403 | 409 | 非法状态流转 |
+| 46404 | 400 | 需求标题为空或长度不合法 |
+| 46405 | 400 | 无效需求来源 |
+| 46406 | 409 | 需求已删除，不能修改 |
 
 鉴权失败/无权限走基座标准错误（`CodeUnauth`/`CodeForbidden`）。
 
@@ -160,6 +183,6 @@
 - 写操作（create/update/delete）审计写入 `services/audit`（记录失败仅告警，不阻断业务）。
 - 所有 ID 为正整数路径参数，非法直接 400。
 
-## P4~P5 规划路由（规划 §4 API 概要）
+## P5 规划路由（规划 §4 API 概要）
 
-需求 `/projects/:id/requirements`（PUT 自动产生版本、`/requirements/:id/versions` 修订历史）、生成 `POST /requirements/:id/generations`（body：`kind`/`engine`/`auto_commit`）与 `GET /generations/:id`。
+生成 `POST /requirements/:id/generations`（body：`kind: plan|code|doc`、`engine: ai|template|manual`、`auto_commit: 0|1`）与 `GET /generations/:id`。

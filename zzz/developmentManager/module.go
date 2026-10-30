@@ -154,6 +154,15 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.PUT("/columns/:id", need("dm.dictionary", "update"), m.h.UpdateColumn)
 	r.DELETE("/columns/:id", need("dm.dictionary", "delete"), m.h.DeleteColumn)
 
+	// 需求管理：需求与版本快照
+	r.GET("/projects/:id/requirements", need("dm.requirement", "read"), m.h.ListRequirements)
+	r.POST("/projects/:id/requirements", need("dm.requirement", "create"), m.h.CreateRequirement)
+	r.GET("/requirements/:id", need("dm.requirement", "read"), m.h.GetRequirement)
+	r.PUT("/requirements/:id", need("dm.requirement", "update"), m.h.UpdateRequirement)
+	r.POST("/requirements/:id/status", need("dm.requirement", "approve"), m.h.ChangeRequirementStatus)
+	r.DELETE("/requirements/:id", need("dm.requirement", "delete"), m.h.DeleteRequirement)
+	r.GET("/requirements/:id/versions", need("dm.requirement", "read"), m.h.ListRequirementVersions)
+
 	// 统计与权限元数据
 	r.GET("/stats", need("dm.project", "read"), m.h.Stats)
 	r.GET("/permissions/meta", need("dm.project", "read"), m.h.PermissionMeta)

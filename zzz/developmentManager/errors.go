@@ -4,27 +4,29 @@ import "fmt"
 
 // 模块业务错误码（developmentManager 占用 46001+ 区段）
 const (
-	ErrProjectNotFound         = 46001
-	ErrRelationNotFound        = 46002
-	ErrAssetNotFound           = 46003
-	ErrContainerNotFound       = 46004
-	ErrResourceNotFound        = 46005
-	ErrVolumeNotFound          = 46006
-	ErrAccessPointNotFound     = 46007
-	ErrWhitelistNotFound       = 46008
-	ErrWhitelistMemberNotFound = 46009
-	ErrBackupNotFound          = 46010
-	ErrTableNotFound           = 46011
-	ErrColumnNotFound          = 46012
-	ErrInvalidProjectKey       = 46100
-	ErrInvalidProjectType      = 46101
-	ErrDuplicateProjectKey     = 46102
-	ErrInvalidRelationType     = 46103
-	ErrSelfRelation            = 46104
-	ErrTargetProjectMissing    = 46105
-	ErrProjectHasDependents    = 46106
-	ErrInvalidAssetCategory    = 46107
-	ErrInvalidProjectName      = 46108
+	ErrProjectNotFound            = 46001
+	ErrRelationNotFound           = 46002
+	ErrAssetNotFound              = 46003
+	ErrContainerNotFound          = 46004
+	ErrResourceNotFound           = 46005
+	ErrVolumeNotFound             = 46006
+	ErrAccessPointNotFound        = 46007
+	ErrWhitelistNotFound          = 46008
+	ErrWhitelistMemberNotFound    = 46009
+	ErrBackupNotFound             = 46010
+	ErrTableNotFound              = 46011
+	ErrColumnNotFound             = 46012
+	ErrRequirementNotFound        = 46013
+	ErrRequirementVersionNotFound = 46014
+	ErrInvalidProjectKey          = 46100
+	ErrInvalidProjectType         = 46101
+	ErrDuplicateProjectKey        = 46102
+	ErrInvalidRelationType        = 46103
+	ErrSelfRelation               = 46104
+	ErrTargetProjectMissing       = 46105
+	ErrProjectHasDependents       = 46106
+	ErrInvalidAssetCategory       = 46107
+	ErrInvalidProjectName         = 46108
 
 	// 部署资产校验（P2）
 	ErrInvalidContainerName   = 46200
@@ -55,6 +57,15 @@ const (
 	ErrDuplicateColumn    = 46305
 	ErrScanUnsupported    = 46306
 	ErrScanFailed         = 46307
+
+	// 需求校验（P4）
+	ErrInvalidRequirementType       = 46400
+	ErrInvalidRequirementPriority   = 46401
+	ErrInvalidRequirementStatus     = 46402
+	ErrInvalidRequirementTransition = 46403
+	ErrInvalidRequirementTitle      = 46404
+	ErrInvalidRequirementSource     = 46405
+	ErrRequirementDeleted           = 46406
 )
 
 var errMsgs = map[int]string{
@@ -108,6 +119,16 @@ var errMsgs = map[int]string{
 	ErrDuplicateColumn:    "同表内该字段已存在",
 	ErrScanUnsupported:    "当前数据库类型不支持扫描导入（本期仅支持 mysql）",
 	ErrScanFailed:         "扫描 information_schema 失败",
+
+	ErrRequirementNotFound:          "需求不存在",
+	ErrRequirementVersionNotFound:   "需求版本不存在",
+	ErrInvalidRequirementType:       "无效的需求类型（feature/change/fix/ops）",
+	ErrInvalidRequirementPriority:   "无效的优先级（P0/P1/P2/P3）",
+	ErrInvalidRequirementStatus:     "无效的需求状态（draft/reviewing/approved/planned/developing/done/closed）",
+	ErrInvalidRequirementTransition: "非法的状态流转",
+	ErrInvalidRequirementTitle:      "需求标题不能为空（2-200 字符）",
+	ErrInvalidRequirementSource:     "无效的需求来源（manual/ai/customer）",
+	ErrRequirementDeleted:           "需求已删除，不能修改",
 }
 
 // DevelopmentManagerError 模块业务错误，携带模块级错误码

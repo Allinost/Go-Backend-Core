@@ -3997,6 +3997,148 @@
                 }
             }
         },
+        "/developmentmanager/projects/{id}/requirements": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取项目需求列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量，默认 20，最大 100",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态筛选",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "类型筛选",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "优先级筛选",
+                        "name": "priority",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "关键词（标题/编号/正文）",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否查询已删除（默认否）",
+                        "name": "deleted",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.PaginatedResp-zzz_developmentManager_Requirement"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "新建需求",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "需求信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.CreateRequirementReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Requirement"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/developmentmanager/projects/{id}/tables": {
             "get": {
                 "security": [
@@ -4218,6 +4360,242 @@
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/zzz_developmentManager.Whitelist"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/requirements/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取需求详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "需求 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Requirement"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "更新需求",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "需求 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "需求信息（全量，不含状态）",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.UpdateRequirementReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Requirement"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "删除需求",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "需求 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/requirements/{id}/status": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "需求状态流转",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "需求 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "目标状态与变更说明",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.ChangeRequirementStatusReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Requirement"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/requirements/{id}/versions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取需求版本历史",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "需求 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/zzz_developmentManager.RequirementVersion"
+                                            }
                                         }
                                     }
                                 }
@@ -16150,6 +16528,20 @@
                 }
             }
         },
+        "zzz_developmentManager.ChangeRequirementStatusReq": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "change_note": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "zzz_developmentManager.Container": {
             "type": "object",
             "properties": {
@@ -16445,6 +16837,35 @@
                 }
             }
         },
+        "zzz_developmentManager.CreateRequirementReq": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "properties": {
+                "change_note": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "zzz_developmentManager.CreateTableReq": {
             "type": "object",
             "required": [
@@ -16668,6 +17089,23 @@
                 }
             }
         },
+        "zzz_developmentManager.PaginatedResp-zzz_developmentManager_Requirement": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_developmentManager.Requirement"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "zzz_developmentManager.PermSpec": {
             "type": "object",
             "properties": {
@@ -16827,6 +17265,94 @@
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.Requirement": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "deleted": {
+                    "type": "boolean"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "latest_version": {
+                    "type": "integer"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.RequirementVersion": {
+            "type": "object",
+            "properties": {
+                "change_note": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "operator": {
+                    "type": "string"
+                },
+                "requirement_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "version_no": {
+                    "type": "integer"
                 }
             }
         },
@@ -17107,6 +17633,35 @@
                     "items": {
                         "type": "string"
                     }
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.UpdateRequirementReq": {
+            "type": "object",
+            "required": [
+                "title"
+            ],
+            "properties": {
+                "change_note": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
                 },
                 "type": {
                     "type": "string"
