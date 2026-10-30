@@ -4,11 +4,12 @@ import "time"
 
 // 项目类型
 const (
-	ProjectTypeBase           = "base"            // 后端基座
-	ProjectTypeTemplate       = "template"        // 前端模板
-	ProjectTypeBackendModule  = "backend_module"  // 后端模块
-	ProjectTypeFrontendModule = "frontend_module" // 前端模块
-	ProjectTypeFrontendBase   = "frontend_base"   // 前端基座（NKUI 之上的前端工程，如 Go-Frontend-Core）
+	ProjectTypeBase           = "base"              // 后端基座
+	ProjectTypeTemplate       = "template"          // 前端模板
+	ProjectTypeBackendModule  = "backend_module"    // 后端模块
+	ProjectTypeFrontendModule = "frontend_module"   // 前端模块
+	ProjectTypeFrontendBase   = "frontend_base"     // 前端基座（NKUI 之上的前端工程，如 Go-Frontend-Core）
+	ProjectTypeContainer      = "container_project" // 容器项目（docker compose 部署栈）
 )
 
 // 项目状态
@@ -40,6 +41,7 @@ var ValidProjectTypes = map[string]bool{
 	ProjectTypeBackendModule:  true,
 	ProjectTypeFrontendModule: true,
 	ProjectTypeFrontendBase:   true,
+	ProjectTypeContainer:      true,
 }
 
 // ValidRelationTypes 关联类型合法集合

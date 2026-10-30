@@ -13,7 +13,7 @@
 | `model.go` | 实体、枚举常量与 `Valid*` 集合、请求结构（含分页 `Normalize/Offset`）、`PaginatedResp[T]`、`StatsResp` |
 | `errors.go` | 错误码常量（46001+）、中文消息表、`DevelopmentManagerError{Code,Message,Detail}` 与 `WithDetail` |
 | `permissions.go` | `PermissionSpecs` 28 个权限点（resource×action+中文说明，`init()` 拼 name）、`SeedPermissions` 幂等播种、`ensureRole` 默认角色（editor/viewer 仅不存在时创建，不覆盖） |
-| `seed.go` | 台账 seed：8 个现有项目（基座/NKUI/前端基座/5 个 zzz 模块）+ 7 条关联 + 3 条资产索引，全部幂等；`seedWithRetry` 迁移未应用时每 5 秒重试至 60 次 |
+| `seed.go` | 台账 seed：9 个现有项目（基座/NKUI/前端基座/5 个 zzz 模块/本地容器栈）+ 7 条关联 + 3 条资产索引，全部幂等；`seedWithRetry` 迁移未应用时每 5 秒重试至 60 次 |
 | `deployment_model.go` | P2 部署资产实体（container/resource_alloc/volume_mapping/access_point/whitelist/whitelist_member/backup）、枚举合法集合、请求结构 |
 | `deployment_repository.go` | P2 数据访问：7 实体 CRUD、接入点 LEFT JOIN 白名单组名、白名单成员 JOIN 容器名、容器删除事务级联、资源分配 `ON DUPLICATE KEY UPDATE` |
 | `deployment_service.go` | P2 业务校验：端口/协议/暴露/反代/区域/挂载模式/备份类型、跨项目引用、白名单成员与容器引用约束、`url=NULL` 不可达归一化 |
@@ -60,7 +60,8 @@ Go-Frontend-Core/src/
 ├── styles/development-manager.scss    # dm- 前缀通用样式（表格/表单/统计卡）
 └── views/modules/zzz/developmentManager/
     ├── index.vue                      # 项目列表（统计/筛选/CRUD/软删除）
-    ├── ProjectDetailView.vue          # 详情页 + 六个 Tab
+    ├── ContainerManagementView.vue    # 容器管理（container_project 汇总 + 直达部署 Tab）
+    ├── ProjectDetailView.vue          # 详情页 + 六个 Tab（支持 ?tab=deployment）
     └── tabs/
         ├── OverviewTab.vue            # 基本信息 + 项目关联
         ├── DeploymentTab.vue          # 容器/资源/卷/接入点/白名单/备份
@@ -70,13 +71,13 @@ Go-Frontend-Core/src/
         └── AssetsTab.vue              # 归类资产索引
 ```
 
-- 路由：`/modules/zzz/developmentmanager`（列表）、`/modules/zzz/developmentmanager/:id`（详情）；
-- 侧边栏：业务模块 → 项目开发管理；
+- 路由：`/modules/zzz/developmentmanager`（列表）、`/modules/zzz/developmentmanager/:id`（详情，支持 `?tab=deployment`）、`/modules/zzz/containers`（容器管理）；
+- 侧边栏：业务模块 → 项目开发管理；运维管理 → 容器管理（与项目开发管理同级的独立入口）；
 - 状态流转对话框只展示后端状态机允许的下一状态；删除操作带确认弹窗，强制删除以开关形式提供。
 
 ## 迁移与部署注意
 
-- DDL 在 `migrations/mysql/002_development_manager.sql`（P1 三表）、`003_development_manager_deployment.sql`（P2 七表）、`004_development_manager_dictionary.sql`（P3 两表）、`005_development_manager_requirement.sql`（P4 两表）、`006_development_manager_generation.sql`（P5 一表），按序应用，需手动触发：`POST /api/v1/migrate/schema/migrate`。
+- DDL 在 `migrations/mysql/002_development_manager.sql`（P1 三表）、`003_development_manager_deployment.sql`（P2 七表）、`004_development_manager_dictionary.sql`（P3 两表）、`005_development_manager_requirement.sql`（P4 两表）、`006_development_manager_generation.sql`（P5 一表）、`007_project_type_container.sql`（类型注释扩展），按序应用，需手动触发：`POST /api/v1/migrate/schema/migrate`。
 - 迁移按英文分号拆分执行：迁移 SQL 的注释与字符串内**不得出现英文分号**。
 - 权限播种与路由注册不依赖迁移（无表也能启动）；台账 seed 依赖迁移，未应用时后台重试并在日志中提示。
 - Swagger 已随模块生成：`swag init -g cmd/server/docs.go -o api/swagger --parseDependency --parseInternal`。

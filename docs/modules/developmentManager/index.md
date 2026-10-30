@@ -25,3 +25,4 @@
 8. **需求版本留痕（P4）**：创建/修改/状态流转/删除全部追加版本快照；状态只能经 `/status` 流转（受 `dm.requirement:approve` 约束），PUT 不改状态。
 9. **生成流程（P5）**：模板生成为主线，`engine=ai` 在 Provider 不可用/失败时自动降级并记录 `engine_used`；代码产物为草案目录不落主干；`auto_commit` 需权限与开关双满足，且只允许在特性分支提交本次产物。
 10. **前端（P6）**：Go-Frontend-Core 新增 `developmentManager` 模块（Web），列表页 + 六 Tab 详情页；状态流转仅展示合法目标状态，生成页支持触发/重试/产物查看。
+11. **容器项目与容器管理（Q14）**：新增 `container_project` 类型管理 docker compose 部署栈；「容器管理」页面位于运维管理下，与项目开发管理同级，汇总容器项目及容器/接入点并可直达部署 Tab。

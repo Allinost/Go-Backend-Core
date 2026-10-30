@@ -33,7 +33,7 @@
 | id | bigint PK | 主键 |
 | project_key | varchar(64) UK | 项目唯一键（目录/接口引用用，如 `go-backend-core`；格式：小写字母/数字/中划线，2-64 位） |
 | name | varchar(128) | 项目名称（2-128 字符） |
-| type | varchar(32) | 项目类型：`base` / `template` / `backend_module` / `frontend_module` / `frontend_base` |
+| type | varchar(32) | 项目类型：`base` / `template` / `backend_module` / `frontend_module` / `frontend_base` / `container_project` |
 | description | text | 项目简介 |
 | repo_url | varchar(255) | 代码仓库地址（可空） |
 | repo_path | varchar(255) | 仓库本地路径（可空，相对仓库根目录） |

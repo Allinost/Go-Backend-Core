@@ -9,7 +9,7 @@
 | 方法 | 路径 | 权限 | 说明 |
 |---|---|---|---|
 | GET | `/projects` | dm.project:read | 列表。query：`page`、`page_size`（缺省 20，最大 100）、`type`、`status`、`keyword`（匹配名称/唯一键/简介）、`deleted`（默认只查未删除） |
-| POST | `/projects` | dm.project:create | 新建。body：`project_key`（必填，`^[a-z0-9][a-z0-9-]{1,63}$`）、`name`（必填，2-128 字符）、`type`（必填，五选一：base/template/backend_module/frontend_module/frontend_base）、`description`、`repo_url`、`repo_path`、`default_branch`（缺省 main）、`tech_stack`（字符串数组）、`status`（缺省 active） |
+| POST | `/projects` | dm.project:create | 新建。body：`project_key`（必填，`^[a-z0-9][a-z0-9-]{1,63}$`）、`name`（必填，2-128 字符）、`type`（必填，六选一：base/template/backend_module/frontend_module/frontend_base/container_project）、`description`、`repo_url`、`repo_path`、`default_branch`（缺省 main）、`tech_stack`（字符串数组）、`status`（缺省 active） |
 | GET | `/projects/:id` | dm.project:read | 详情（含已删除项，`deleted` 字段区分） |
 | PUT | `/projects/:id` | dm.project:update | 全量更新（body 同创建；唯一键未变时跳过查重） |
 | DELETE | `/projects/:id` | dm.project:delete | 软删除 + 事务级联标记关联与资产。query：`force=1` 时忽略被依赖保护 |

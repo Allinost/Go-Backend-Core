@@ -82,7 +82,7 @@ var errMsgs = map[int]string{
 	ErrRelationNotFound:     "项目关联不存在",
 	ErrAssetNotFound:        "资产不存在",
 	ErrInvalidProjectKey:    "无效的项目唯一键（仅允许小写字母/数字/中划线，2-64 位）",
-	ErrInvalidProjectType:   "无效的项目类型（base/template/backend_module/frontend_module/frontend_base）",
+	ErrInvalidProjectType:   "无效的项目类型（base/template/backend_module/frontend_module/frontend_base/container_project）",
 	ErrDuplicateProjectKey:  "项目唯一键已存在",
 	ErrInvalidRelationType:  "无效的关联类型（uses_base/uses_template/binds_backend_module/related）",
 	ErrSelfRelation:         "不能将项目关联到自身",

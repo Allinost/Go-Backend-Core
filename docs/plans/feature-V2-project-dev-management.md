@@ -24,6 +24,7 @@
 | Q11 | 白名单建模 | 白名单**升格为独立可复用实体**：`whitelist` 组表 + `whitelist_member` 成员行表（`container_id` FK，容器改名自动跟随）；`access_point` 只留 `whitelist_id` 组引用（**NULL = 不限制**），临时/单次名单建一次性组（**只留组引用，无内嵌 JSON 列**）。**允许白名单为空**：接入点可不引用组，组可 0 成员。部署 7 表，全模块 **15 张表** |
 | Q12 | 前端基座类型（2026-10-30 追加） | 项目类型由 4 类扩展为 **5 类，新增 `frontend_base`（前端基座）**：NKUI 之上的前端工程（Go-Frontend-Core）此前只能登记为 `frontend_module`，与"前端模块=绑定模板与后端模块的业务模块"语义冲突；现 `go-frontend-core` 登记为 `frontend_base`，关联合计不变 |
 | Q13 | 生成任务记录（P5 实现细化） | 任务同时记录 **`engine`（请求引擎）与 `engine_used`（实际引擎）**：`engine=ai` 但未配置 Provider 或调用失败时自动降级 `template`，并在 `engine_used` 留痕；`auto_commit` 仅对 `kind=code` 生效，且需 **`dm.generation:autocommit` 权限 + 请求体开关同时满足**；自动提交只允许在**非 main/master 的当前分支**上提交生成产物，产物已生成但提交失败时任务仍为 success，失败原因记录在 `error` 字段 |
+| Q14 | 容器项目与容器管理（2026-10-30 追加） | 明确部署语义：**后端基座 / 前端基座是部署单元，业务模块挂载到基座上运行**；新增项目类型 **`container_project`（容器项目）**，专门管理 docker compose 部署栈；前端在「运维管理」下新增与「项目开发管理」同级的 **「容器管理」** 页面，汇总容器项目及其容器/接入点，并可直达项目详情的部署 Tab |
 
 ### 0.1 开发 SOP：用户描述 → 规划 → 开发 → 文档
 
@@ -90,8 +91,11 @@
 | `base` 后端基座 | 通用后端骨架项目 | Go-Backend-Core |
 | `template` 前端模板 | 前端模板项目 | NKUI |
 | `backend_module` 后端模块 | 绑定一个后端基座 | zzz/ia、zzz/login3rd、**developmentManager（本模块）** |
-| `frontend_base` 前端基座 | 前端工程基座，绑定一个前端模板 | Go-Frontend-Core |
+| `frontend_base` 前端基座 | 前端工程基座（部署单元），绑定一个前端模板 | Go-Frontend-Core |
 | `frontend_module` 前端模块 | 绑定一个前端模板 **且** 绑定一个后端模块 | Go-Frontend-Core 下的 developmentManager 管理端页面 |
+| `container_project` 容器项目 | docker compose 部署栈，可关联多个容器 | 本地容器栈（docker-compose.yml：app + chrome） |
+
+> 部署语义：**后端基座 / 前端基座是部署单元，业务模块挂载到基座上运行**；容器项目用于登记 compose 栈及其容器、接入点等部署资产。
 
 ### 2.2 关联关系（zzz_development_manager_project_relation）
 
@@ -144,7 +148,7 @@ docs/
 | id | bigint PK | 主键 |
 | project_key | varchar(64) UK | 项目唯一键（目录/接口引用用，如 `go-backend-core`） |
 | name | varchar(128) | 项目名称 |
-| type | varchar(32) | 项目类型：base/template/backend_module/frontend_module/frontend_base |
+| type | varchar(32) | 项目类型：base/template/backend_module/frontend_module/frontend_base/container_project |
 | description | text | 项目简介 |
 | repo_url | varchar(255) | 代码仓库地址（可空） |
 | repo_path | varchar(255) | 本地路径（可空） |

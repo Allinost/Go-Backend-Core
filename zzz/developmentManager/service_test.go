@@ -93,8 +93,8 @@ func TestStatusForCode(t *testing.T) {
 }
 
 func TestValidCollections(t *testing.T) {
-	if len(ValidProjectTypes) != 5 {
-		t.Errorf("项目类型应为 5 种（含 frontend_base），实际 %d", len(ValidProjectTypes))
+	if len(ValidProjectTypes) != 6 {
+		t.Errorf("项目类型应为 6 种（含 frontend_base / container_project），实际 %d", len(ValidProjectTypes))
 	}
 	if len(ValidRelationTypes) != 4 {
 		t.Errorf("关联类型应为 4 种，实际 %d", len(ValidRelationTypes))
