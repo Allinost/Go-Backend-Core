@@ -239,6 +239,15 @@ func (r *Repository) SoftDeleteRequirementTx(ctx context.Context, req *Requireme
 	return tx.Commit()
 }
 
+// RequirementTitleExists 判断项目下是否已存在同标题需求（含已删除，尊重人工删除）
+func (r *Repository) RequirementTitleExists(ctx context.Context, projectID int64, title string) (bool, error) {
+	var n int
+	err := r.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM "+tableRequirement+" WHERE project_id = ? AND title = ?",
+		projectID, title).Scan(&n)
+	return n > 0, err
+}
+
 // ListRequirementVersions 查询需求版本历史（最新在前）
 func (r *Repository) ListRequirementVersions(ctx context.Context, requirementID int64) ([]RequirementVersion, error) {
 	rows, err := r.db.QueryContext(ctx,

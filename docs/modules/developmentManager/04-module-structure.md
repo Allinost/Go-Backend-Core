@@ -13,7 +13,7 @@
 | `model.go` | 实体、枚举常量与 `Valid*` 集合、请求结构（含分页 `Normalize/Offset`）、`PaginatedResp[T]`、`StatsResp` |
 | `errors.go` | 错误码常量（46001+）、中文消息表、`DevelopmentManagerError{Code,Message,Detail}` 与 `WithDetail` |
 | `permissions.go` | `PermissionSpecs` 28 个权限点（resource×action+中文说明，`init()` 拼 name）、`SeedPermissions` 幂等播种、`ensureRole` 默认角色（editor/viewer 仅不存在时创建，不覆盖） |
-| `seed.go` | 台账 seed：9 个现有项目（基座/NKUI/前端基座/5 个 zzz 模块/本地容器栈）+ 7 条关联 + 3 条资产索引，全部幂等；`seedWithRetry` 迁移未应用时每 5 秒重试至 60 次 |
+| `seed.go` | 台账 seed：9 个项目（基座/NKUI/前端基座/5 个 zzz 模块/本地容器栈）+ 7 条关联 + **26 条历史资产索引** + **21 条历史需求**（P0–P17、各业务模块、前端/NKUI/容器栈），全部幂等；`seedWithRetry` 迁移未应用时每 5 秒重试至 60 次 |
 | `deployment_model.go` | P2 部署资产实体（container/resource_alloc/volume_mapping/access_point/whitelist/whitelist_member/backup）、枚举合法集合、请求结构 |
 | `deployment_repository.go` | P2 数据访问：7 实体 CRUD、接入点 LEFT JOIN 白名单组名、白名单成员 JOIN 容器名、容器删除事务级联、资源分配 `ON DUPLICATE KEY UPDATE` |
 | `deployment_service.go` | P2 业务校验：端口/协议/暴露/反代/区域/挂载模式/备份类型、跨项目引用、白名单成员与容器引用约束、`url=NULL` 不可达归一化 |
