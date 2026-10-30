@@ -1,56 +1,89 @@
-# 模块开发 SOP 自检清单
+# 模块开发与维护 SOP（v1.0）
 
-> 适用于新模块与老模块重构（feature-V2 P8 之后）。执行 `make sop-check` 自动检查第 1、2、3、4、5 项。
+> 生效日期：2026-10-30 ｜ 适用范围：`internal/modules/*`、`zzz/*`、前端模块
+> 目标：新建与存量重构统一按同一套流程、同一种目录/命名/测试/文档标准交付。
+> 自动门禁：`make sop-check`（见文末）。
 
-## 1. 建表与命名
+## 1. 四阶段流程
 
-- [ ] 表结构写在 `migrations/mysql/NNN_*.sql`，模块内**不得**再有 `initTables()`
-- [ ] 表名使用 `zzz_<模块名>_<实体>` 前缀（历史表已由 `009_rename_legacy_tables.sql` 统一）
-- [ ] DDL 注明表用途与字段含义；新表登记进 developmentManager 数据字典（可扫描导入）
-- [ ] 迁移只追加新文件，不修改已应用版本
+| 阶段 | 必须产出 | 进入下一阶段的条件 |
+|---|---|---|
+| ① 用户描述 | 需求原文留档（规划文档 §0.2） | 原文不改写、追加需求编号 |
+| ② 规划 | 方案 + 决策表（每条决策可追溯） | **用户确认后**才进入开发 |
+| ③ 开发 | 代码 + 单测 + 迁移 + Swagger | `make sop-check` 通过、接口冒烟通过 |
+| ④ 文档 | 模块四件套 + 数据字典 + 更新索引 | 文档与代码同一次提交/同批推送 |
 
-## 2. 代码质量
+## 2. 缺陷修复流程（Bugfix）
 
-- [ ] `gofmt -l` 无输出
-- [ ] `go vet ./...` 通过
-- [ ] `go test -short ./...` 通过（在线联调用 `testing.Short()` 跳过）
-- [ ] 关键分支有单测：校验、状态机、纯函数、错误码映射
-- [ ] 错误码段已登记，不与其他模块冲突
+老模块发现缺陷时，按以下顺序处理，禁止“先改再补测”：
 
-## 3. 模块文档
+1. **复现**：记录入口、参数、期望/实际结果；能在单测复现的优先写单测。
+2. **失败测试**：先提交/编写会失败的测试（或明确无法单测的原因）。
+3. **最小修复**：只改根因，不顺手重构无关代码。
+4. **回归**：`go test -short ./zzz/... ./internal/modules/...` + 相关接口冒烟。
+5. **文档**：更新模块文档的“已知限制/变更说明”，涉及接口或表结构时同步 Swagger/数据模型。
+6. **提交**：提交信息以 `fix(<module>): ...` 开头，说明根因与影响面。
 
-- [ ] `docs/modules/<name>/index.md`
-- [ ] `01-architecture-overview.md`
-- [ ] `02-data-model.md`（表名与迁移文件对应）
+> 数据正确性缺陷（如库存、金额、会话）必须补测试；仅 UI 文案问题可豁免单测，但仍需回归记录。
+
+## 3. 建表与命名
+
+- [ ] 表结构写在 `migrations/mysql/NNN_*.sql`，模块内**禁止** `initTables()`
+- [ ] 表名 `zzz_<模块名>_<实体>`；历史表已由 `009_rename_legacy_tables.sql` 统一
+- [ ] DDL 注明表用途与字段含义，新表登记数据字典（扫描导入即可）
+- [ ] 迁移只追加，不修改已应用版本；单条 SQL 内不得出现英文分号（迁移按分号拆分）
+- [ ] 错误码使用模块专属区段，登记后再使用
+
+## 4. 代码与测试
+
+- [ ] `gofmt` 无漂移、`go vet` 通过
+- [ ] `go test -short` 通过；在线/外部依赖测试用 `testing.Short()` 跳过
+- [ ] 单测优先覆盖：参数校验、状态机/流转、纯函数、错误码映射、数据转换
+- [ ] 不引入仅“凑覆盖率”的断言；测试失败信息需能定位问题
+- [ ] 并发/事务路径至少在 code review 中标注风险点
+
+## 5. Swagger
+
+- [ ] 每个注册路由都有 `@Router`；同一 handler 多入口（legacy + REST）写多条 `@Router`
+- [ ] `make swagger` 成功，`api/swagger/swagger.json` 覆盖模块全部路径
+- [ ] 请求/响应使用真实模型；鉴权路由加 `@Security BearerAuth`
+- [ ] 结构性变更后重新生成并随代码提交
+
+## 6. 模块文档（四件套）
+
+- [ ] `docs/modules/<name>/index.md`（总览 + 关键决策）
+- [ ] `01-architecture-overview.md`（定位、分层、依赖）
+- [ ] `02-data-model.md`（表名、迁移文件、字段含义）
 - [ ] `03-api-design.md`（路由、参数、错误码）
 - [ ] `04-module-structure.md`（文件组织、生命周期、已知限制）
-- [ ] 文档与代码同提交；结构性变更同步更新，不保留已删除代码的行号引用
+- [ ] 修改代码后同步更新；**不保留已删除函数/行号的过期引用**
+- [ ] 新模块在 `docs/README.md` 模块表登记
 
-## 4. Swagger
+## 7. 关联与统一管理（developmentManager）
 
-- [ ] 每个注册路由都有 `@Router` 注解（含 REST 与 legacy 双入口时使用多条 `@Router`）
-- [ ] `make swagger` 成功，`api/swagger/swagger.json` 覆盖模块全部路径
-- [ ] 请求体/响应使用真实模型（`response.Response{data=...}`）
+- [ ] 项目登记（基座/模板/模块/容器项目类型正确）
+- [ ] 模块文档、历史需求登记资产索引（目录型资产可展开为文件级）
+- [ ] 模块数据表登记数据字典
+- [ ] 前端模块在 Go-Frontend-Core 登记路由、菜单与 API 封装
 
-## 5. 关联与统一管理
+## 8. 环境约定
 
-- [ ] 项目登记在 developmentManager 台账（基座/模板/模块/容器项目类型正确）
-- [ ] 模块文档与历史需求已登记资产索引
-- [ ] 历史模块表已登记数据字典
-- [ ] 前端模块在 Go-Frontend-Core 登记页面与菜单
+- 命令行统一 Git Bash；复杂命令写入 `.sh` 脚本执行
+- 本机联调：`export EASY_TIER_NAS_URL=et.hailong.site`（仅当前 Windows 设备）
+- 迁移应用：`POST /api/v1/migrate/schema/migrate`
+- 前端：Go-Frontend-Core `npm run dev`（3000，代理 `/api` → 29090）
 
-## 6. 开发环境（仅当前 Windows 设备）
-
-- [ ] 命令使用 Git Bash；复杂命令写入 `.sh` 脚本执行
-- [ ] 后端启动前 `export EASY_TIER_NAS_URL=et.hailong.site`
-- [ ] 迁移通过 `POST /api/v1/migrate/schema/migrate` 应用
-
-## 自动检查
+## 9. 门禁
 
 ```bash
 make sop-check
-# 或
+# 等价于
 bash scripts/sop-check.sh
 ```
 
-检查项：gofmt、`initTables` 残留、模块文档索引、`go vet`、`go test -short`。
+自动检查：gofmt、`initTables` 残留、模块文档索引、`go vet`、`go test -short`。
+人工检查：Swagger 路由覆盖、迁移/数据字典登记、模块文档四件套、接口冒烟。
+
+## 10. 例外
+
+无法满足项必须在 PR/提交说明中写明原因、影响与补做计划；不得静默跳过。
