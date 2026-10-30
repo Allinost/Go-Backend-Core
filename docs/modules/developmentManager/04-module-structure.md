@@ -51,6 +51,29 @@
 3. **RegisterRoutes**：路由组 `r.Use(m.authMW)`，每条路由挂 `middleware.RequirePermission(rbac, resource, action)`。
 4. **Close**：无额外资源需要清理。
 
+## 前端模块（P6，Go-Frontend-Core）
+
+```
+Go-Frontend-Core/src/
+├── api/developmentManager.ts          # 全部 API 封装（项目/部署/字典/需求/生成/资产）
+├── types/developmentManager.ts        # 实体与请求类型
+├── styles/development-manager.scss    # dm- 前缀通用样式（表格/表单/统计卡）
+└── views/modules/zzz/developmentManager/
+    ├── index.vue                      # 项目列表（统计/筛选/CRUD/软删除）
+    ├── ProjectDetailView.vue          # 详情页 + 六个 Tab
+    └── tabs/
+        ├── OverviewTab.vue            # 基本信息 + 项目关联
+        ├── DeploymentTab.vue          # 容器/资源/卷/接入点/白名单/备份
+        ├── DictionaryTab.vue          # 数据表 + 字段 + 扫描导入
+        ├── RequirementsTab.vue        # 需求 CRUD + 状态流转 + 版本历史
+        ├── GenerationTab.vue          # 生成任务 + 重试 + 产物详情
+        └── AssetsTab.vue              # 归类资产索引
+```
+
+- 路由：`/modules/zzz/developmentmanager`（列表）、`/modules/zzz/developmentmanager/:id`（详情）；
+- 侧边栏：业务模块 → 项目开发管理；
+- 状态流转对话框只展示后端状态机允许的下一状态；删除操作带确认弹窗，强制删除以开关形式提供。
+
 ## 迁移与部署注意
 
 - DDL 在 `migrations/mysql/002_development_manager.sql`（P1 三表）、`003_development_manager_deployment.sql`（P2 七表）、`004_development_manager_dictionary.sql`（P3 两表）、`005_development_manager_requirement.sql`（P4 两表）、`006_development_manager_generation.sql`（P5 一表），按序应用，需手动触发：`POST /api/v1/migrate/schema/migrate`。

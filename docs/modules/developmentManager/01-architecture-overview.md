@@ -47,4 +47,5 @@ zzz/developmentManager/
 - **P3（已完成）**：数据字典（表/字段 + `information_schema` 扫描导入）。
 - **P4（已完成）**：需求管理（CRUD + 状态机 + 版本快照）。
 - **P5（已完成）**：生成流程（plan/code/doc，模板主线 + AI 可选降级 + 受限自动提交）。
-- 后续：P6 前端（Go-Frontend-Core）→ P7 收尾 → P8 历史模块迁移。
+- **P6（已完成）**：前端模块（Go-Frontend-Core，Web），列表页 + 六 Tab 详情页。
+- 后续：P7 收尾（发布说明/全量测试）→ P8 历史模块迁移。

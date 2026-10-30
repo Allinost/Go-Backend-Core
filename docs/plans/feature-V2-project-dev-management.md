@@ -309,6 +309,8 @@ GET             /permissions/meta              本模块权限点元数据（供
 
 ## 5. 前端规划（Go-Frontend-Core 模块）
 
+> **状态（2026-10-30）：P6 已实现（Web）**。代码在 `Go-Frontend-Core/src/views/modules/zzz/developmentManager/`，路由 `/modules/zzz/developmentmanager`；小程序/移动端仍按 §0-Q7 等排期。
+
 在 `Go-Frontend-Core`（NKUI 模板基座）中新增 `developmentManager` 管理模块，绑定 NKUI 模板 + 后端 `developmentManager` 模块（本模块即 1.3 中"前端模块绑定模板与后端模块"的首个实例）：
 
 - **项目列表页**：按类型分组的卡片/表格，支持筛选、软删除恢复；

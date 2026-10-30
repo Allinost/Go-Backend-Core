@@ -2,7 +2,7 @@
 
 > 代码位置：`zzz/developmentManager` ｜ 路由前缀：`/api/v1/developmentmanager`
 > 规划：[docs/plans/feature-V2-project-dev-management.md](../../plans/feature-V2-project-dev-management.md)
-> 状态：**P1（模块骨架 + 项目台账）、P2（部署资产）、P3（数据字典）、P4（需求管理）、P5（生成流程）已落地**，P6~P7 按规划推进
+> 状态：**P1（模块骨架 + 项目台账）、P2（部署资产）、P3（数据字典）、P4（需求管理）、P5（生成流程）、P6（前端 Web）已落地**，P7 收尾按规划推进
 
 ## 文档目录
 
@@ -24,3 +24,4 @@
 7. **数据字典（P3）**：手工登记 + `information_schema` 扫描导入初稿；扫描只更新结构信息，不覆盖人工填写的字段含义。
 8. **需求版本留痕（P4）**：创建/修改/状态流转/删除全部追加版本快照；状态只能经 `/status` 流转（受 `dm.requirement:approve` 约束），PUT 不改状态。
 9. **生成流程（P5）**：模板生成为主线，`engine=ai` 在 Provider 不可用/失败时自动降级并记录 `engine_used`；代码产物为草案目录不落主干；`auto_commit` 需权限与开关双满足，且只允许在特性分支提交本次产物。
+10. **前端（P6）**：Go-Frontend-Core 新增 `developmentManager` 模块（Web），列表页 + 六 Tab 详情页；状态流转仅展示合法目标状态，生成页支持触发/重试/产物查看。

@@ -206,6 +206,18 @@
 - 写操作（create/update/delete）审计写入 `services/audit`（记录失败仅告警，不阻断业务）。
 - 所有 ID 为正整数路径参数，非法直接 400。
 
-## P6 规划（前端）
+## P6 前端（Go-Frontend-Core，Web 已完成）
 
-Go-Frontend-Core 中新增 developmentManager 管理模块（先 Web），通过上述 API 完成台账、部署资产、数据字典、需求看板与生成任务的可视化操作。
+前端复用上述全部 API，模块位置 `Go-Frontend-Core/src/views/modules/zzz/developmentManager/`，路由 `/modules/zzz/developmentmanager`：
+
+| 页面 | 能力 |
+|---|---|
+| 项目列表 | 统计卡片、类型/状态/关键词/已删除筛选、新建/编辑/软删除（可选强制删除）、分页 |
+| 项目详情 · 概览 | 基本信息、技术栈、关联项目列表与新增/删除 |
+| 项目详情 · 部署 | 容器 CRUD + 资源分配（1:1）+ 卷映射；接入点 CRUD（端口/反代/地址/白名单）；白名单组与成员；备份记录 |
+| 项目详情 · 数据字典 | 表列表 + 字段字典、手工登记、`scan-import` 一键扫描 |
+| 项目详情 · 需求 | 需求列表/分页、新建编辑、状态流转（仅展示允许的下一状态）、版本历史、软删除 |
+| 项目详情 · 生成 | 选择需求 → 触发 plan/code/doc（模板/AI/手工）、任务列表、失败重试、产物与提交信息 |
+| 项目详情 · 资产 | 归类资产索引登记与删除 |
+
+前端入口：`src/api/developmentManager.ts`（API 封装）、`src/types/developmentManager.ts`（类型）、侧边栏「业务模块 → 项目开发管理」。
