@@ -24,6 +24,7 @@ Query 参数：
 | page_size | int | 否 | 每页条数，默认 20，最大 100 |
 | keyword | string | 否 | 服务名模糊搜索（`LIKE %kw%`） |
 | type | string | 否 | 按服务类型筛选（`JSON_CONTAINS(types, ...)`） |
+| project_id | int | 否 | 按关联项目筛选（`project_id = ?`） |
 | sort_by | string | 否 | 排序字段：`name` / `created_at`，默认 `name` |
 | sort_order | string | 否 | 排序方向：`asc` / `desc`，默认 `asc` |
 
@@ -45,11 +46,14 @@ POST /api/v1/servicenav/services
   "easytier_port": 20001,
   "account": "admin",
   "password_hint": "首次部署时设置的默认密码",
-  "remark": "NAS 文件管理"
+  "remark": "NAS 文件管理",
+  "project_id": 7,
+  "container_id": 3
 }
 ```
 
 校验：`name` 必填且唯一、`types` 非空且必须在 `services_nav_type` 已注册。`protocol` 可选，不传或传空默认 `http`。
+`project_id` / `container_id` / `access_point_id` 可选，用于关联 developmentManager 的项目/容器/接入点。
 
 ### 2.3 获取详情
 
@@ -80,12 +84,46 @@ PUT /api/v1/servicenav/services/:id
 | 修改某字段 | 传入该字段值 |
 | 不修改 | 不传该字段 |
 | 将 `intranet_port` 置为 NULL | `"intranet_port": null, "clear_intranet_port": true` |
+| 解除项目/容器关联 | `"project_id": null, "clear_project": true` / `"container_id": null, "clear_container": true` |
 
 ### 2.5 删除服务条目
 
 ```
 DELETE /api/v1/servicenav/services/:id
 ```
+
+### 2.6 从项目部署接入点快速导入
+
+```
+POST /api/v1/servicenav/import
+```
+
+```json
+{
+  "project_ids": [1, 11, 8],
+  "types": ["web"],
+  "update_existing": false
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| project_ids | int[] | 为空=全部可导入项目 |
+| types | string[] | 可选，导入条目统一附加的服务类型（须已注册） |
+| update_existing | bool | 已导入条目是否按接入点更新（默认跳过） |
+
+响应：
+
+```json
+{ "projects": 2, "access_points": 2, "created": 2, "updated": 0, "skipped": 0 }
+```
+
+规则：
+- **可导入项目类型**：`base`（后端基座）、`frontend_base`（前端基座）、`container_project`（容器项目）、`template`（前端模板）；**模块不导入**（`backend_module` / `frontend_module` 挂载在基座上运行）。
+- 数据源为项目下**未删除且 `url` 非空**的网络接入点；每个接入点生成一条导航。
+- `protocol` 取 `url` 的 scheme（无 scheme 默认 `http`）；`address` 保留**完整 URL**（前端 `withScheme` 已兼容完整地址，避免 http 被默认补成 https）。
+- 幂等键为 `access_point_id`：已导入条目在 `update_existing=false` 时计为 skipped，`true` 时更新。
+- 名称格式：`项目名 · 用途/端口（暴露范围）`，重名自动追加 `#n`。
 
 ---
 

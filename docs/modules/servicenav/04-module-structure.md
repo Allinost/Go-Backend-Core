@@ -7,7 +7,8 @@ internal/modules/servicenav/
 ├── module.go              # Module 接口实现（自动建表 + 路由注册）
 ├── handler.go             # HTTP 处理器（类型/条目 API + swagger 注释）
 ├── service.go             # 业务逻辑（名称唯一、类型校验、删除保护）
-├── repository.go          # 数据访问层（MySQL，含排序白名单）
+├── repository.go          # 数据访问层（MySQL，含排序白名单、项目/容器 JOIN）
+├── import.go              # 从项目部署接入点导入导航（类型范围、URL 拆分、幂等/重名处理）
 ├── model.go               # 数据模型 + DTO + 分页响应
 ├── errors.go              # 模块级错误码
 └── servicenav_test.go     # 单元测试

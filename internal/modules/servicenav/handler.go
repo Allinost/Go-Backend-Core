@@ -201,6 +201,28 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 	response.Success(c, item)
 }
 
+// ImportFromProjects 从项目部署接入点快速导入服务导航
+// @Summary      从项目部署接入点快速导入服务导航
+// @Tags         servicenav
+// @Accept       json
+// @Produce      json
+// @Param        body  body  ImportFromProjectsReq  true  "导入参数"
+// @Success      200  {object}  response.Response{data=ImportFromProjectsResp}
+// @Router       /servicenav/import [post]
+func (h *Handler) ImportFromProjects(c *gin.Context) {
+	var req ImportFromProjectsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误: "+err.Error())
+		return
+	}
+	resp, err := h.svc.ImportFromProjects(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, resp)
+}
+
 // DeleteItem 删除服务条目
 // @Summary      删除服务条目
 // @Tags         servicenav

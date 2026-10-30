@@ -173,7 +173,20 @@ func (r *Repository) ValidateTypes(ctx context.Context, names []string) ([]strin
 
 // ---------- 服务条目 ----------
 
-// ListItems 分页查询服务条目，支持按 keyword 模糊搜索、type 筛选、排序与分页
+const (
+	projectTable   = "zzz_development_manager_project"
+	containerTable = "zzz_development_manager_container"
+
+	// itemSelect 服务条目查询（LEFT JOIN 项目/容器用于展示关联信息）
+	itemSelect = `SELECT i.id, i.name, i.types, i.protocol, i.address, i.intranet_port, i.easytier_port,
+		i.account, i.password_hint, i.remark, i.project_id, i.container_id, i.access_point_id,
+		p.project_key, p.name, c.container_name, i.created_at, i.updated_at
+		FROM ` + tableItem + ` i
+		LEFT JOIN ` + projectTable + ` p ON p.id = i.project_id
+		LEFT JOIN ` + containerTable + ` c ON c.id = i.container_id`
+)
+
+// ListItems 分页查询服务条目，支持按 keyword 模糊搜索、type 筛选、项目筛选、排序与分页
 func (r *Repository) ListItems(ctx context.Context, req *ListItemsReq) ([]ServiceItem, bool, int, error) {
 	var conditions []string
 	var args []any
@@ -181,19 +194,23 @@ func (r *Repository) ListItems(ctx context.Context, req *ListItemsReq) ([]Servic
 	conditions = append(conditions, "1=1")
 
 	if req.Keyword != "" {
-		conditions = append(conditions, "name LIKE ?")
+		conditions = append(conditions, "i.name LIKE ?")
 		args = append(args, "%"+req.Keyword+"%")
 	}
 	if req.Type != "" {
 		typeJSON, _ := json.Marshal(req.Type)
-		conditions = append(conditions, "JSON_CONTAINS(types, ?)")
+		conditions = append(conditions, "JSON_CONTAINS(i.types, ?)")
 		args = append(args, string(typeJSON))
+	}
+	if req.ProjectID != nil {
+		conditions = append(conditions, "i.project_id = ?")
+		args = append(args, *req.ProjectID)
 	}
 
 	where := strings.Join(conditions, " AND ")
 
 	var total int
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s", tableItem, where)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s i WHERE %s", tableItem, where)
 	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, false, 0, err
 	}
@@ -204,8 +221,7 @@ func (r *Repository) ListItems(ctx context.Context, req *ListItemsReq) ([]Servic
 
 	dataArgs := append(args, limit+1, offset)
 	rows, err := r.db.QueryContext(ctx,
-		fmt.Sprintf(`SELECT id, name, types, protocol, address, intranet_port, easytier_port, account, password_hint, remark, created_at, updated_at
-		 FROM %s WHERE %s ORDER BY %s %s LIMIT ? OFFSET ?`, tableItem, where, sortBy, sortOrder),
+		fmt.Sprintf("%s WHERE %s ORDER BY i.%s %s LIMIT ? OFFSET ?", itemSelect, where, sortBy, sortOrder),
 		dataArgs...)
 	if err != nil {
 		return nil, false, 0, err
@@ -225,17 +241,19 @@ func (r *Repository) ListItems(ctx context.Context, req *ListItemsReq) ([]Servic
 
 // GetItem 根据 ID 获取单个服务条目
 func (r *Repository) GetItem(ctx context.Context, id string) (*ServiceItem, error) {
-	row := r.db.QueryRowContext(ctx,
-		`SELECT id, name, types, protocol, address, intranet_port, easytier_port, account, password_hint, remark, created_at, updated_at
-		 FROM `+tableItem+` WHERE id = ?`, id)
+	row := r.db.QueryRowContext(ctx, itemSelect+` WHERE i.id = ?`, id)
 	return scanItem(row)
 }
 
 // GetItemByName 根据名称获取单个服务条目
 func (r *Repository) GetItemByName(ctx context.Context, name string) (*ServiceItem, error) {
-	row := r.db.QueryRowContext(ctx,
-		`SELECT id, name, types, protocol, address, intranet_port, easytier_port, account, password_hint, remark, created_at, updated_at
-		 FROM `+tableItem+` WHERE name = ?`, name)
+	row := r.db.QueryRowContext(ctx, itemSelect+` WHERE i.name = ?`, name)
+	return scanItem(row)
+}
+
+// GetItemByAccessPointID 根据网络接入点 ID 查询已导入条目（用于导入幂等）
+func (r *Repository) GetItemByAccessPointID(ctx context.Context, accessPointID int64) (*ServiceItem, error) {
+	row := r.db.QueryRowContext(ctx, itemSelect+` WHERE i.access_point_id = ?`, accessPointID)
 	return scanItem(row)
 }
 
@@ -247,26 +265,31 @@ func (r *Repository) CreateItem(ctx context.Context, req *CreateItemReq) (*Servi
 		protocol = "http"
 	}
 	item := &ServiceItem{
-		ID:           uuid.New().String(),
-		Name:         req.Name,
-		Types:        req.Types,
-		Protocol:     protocol,
-		Address:      req.Address,
-		IntranetPort: req.IntranetPort,
-		EasyTierPort: req.EasyTierPort,
-		Account:      req.Account,
-		PasswordHint: req.PasswordHint,
-		Remark:       req.Remark,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:            uuid.New().String(),
+		Name:          req.Name,
+		Types:         req.Types,
+		Protocol:      protocol,
+		Address:       req.Address,
+		IntranetPort:  req.IntranetPort,
+		EasyTierPort:  req.EasyTierPort,
+		Account:       req.Account,
+		PasswordHint:  req.PasswordHint,
+		Remark:        req.Remark,
+		ProjectID:     req.ProjectID,
+		ContainerID:   req.ContainerID,
+		AccessPointID: req.AccessPointID,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 
 	typesJSON, _ := json.Marshal(req.Types)
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO `+tableItem+` (id, name, types, protocol, address, intranet_port, easytier_port, account, password_hint, remark, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO `+tableItem+` (id, name, types, protocol, address, intranet_port, easytier_port, account, password_hint, remark,
+		 project_id, container_id, access_point_id, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		item.ID, item.Name, typesJSON, item.Protocol, item.Address, item.IntranetPort, item.EasyTierPort,
-		item.Account, item.PasswordHint, item.Remark, item.CreatedAt, item.UpdatedAt)
+		item.Account, item.PasswordHint, item.Remark, item.ProjectID, item.ContainerID, item.AccessPointID,
+		item.CreatedAt, item.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -315,14 +338,31 @@ func (r *Repository) UpdateItem(ctx context.Context, id string, req *UpdateItemR
 	if req.Remark != nil {
 		item.Remark = *req.Remark
 	}
+	if req.ClearProject {
+		item.ProjectID = nil
+	} else if req.ProjectID != nil {
+		item.ProjectID = req.ProjectID
+	}
+	if req.ClearContainer {
+		item.ContainerID = nil
+	} else if req.ContainerID != nil {
+		item.ContainerID = req.ContainerID
+	}
+	if req.ClearAccessPoint {
+		item.AccessPointID = nil
+	} else if req.AccessPointID != nil {
+		item.AccessPointID = req.AccessPointID
+	}
 	item.UpdatedAt = time.Now()
 
 	typesJSON, _ := json.Marshal(item.Types)
 	_, err = r.db.ExecContext(ctx,
 		`UPDATE `+tableItem+` SET name = ?, types = ?, protocol = ?, address = ?, intranet_port = ?, easytier_port = ?,
-		 account = ?, password_hint = ?, remark = ?, updated_at = ? WHERE id = ?`,
+		 account = ?, password_hint = ?, remark = ?, project_id = ?, container_id = ?, access_point_id = ?,
+		 updated_at = ? WHERE id = ?`,
 		item.Name, typesJSON, item.Protocol, item.Address, item.IntranetPort, item.EasyTierPort,
-		item.Account, item.PasswordHint, item.Remark, item.UpdatedAt, item.ID)
+		item.Account, item.PasswordHint, item.Remark, item.ProjectID, item.ContainerID, item.AccessPointID,
+		item.UpdatedAt, item.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -365,11 +405,15 @@ func scanItemRow(scanner interface {
 }, it *ServiceItem) error {
 	var typesJSON sql.NullString
 	var intranetPort, easytierPort sql.NullInt64
+	var projectID, containerID, accessPointID sql.NullInt64
+	var projectKey, projectName, containerName sql.NullString
 
 	err := scanner.Scan(
 		&it.ID, &it.Name, &typesJSON, &it.Protocol, &it.Address,
 		&intranetPort, &easytierPort,
 		&it.Account, &it.PasswordHint, &it.Remark,
+		&projectID, &containerID, &accessPointID,
+		&projectKey, &projectName, &containerName,
 		&it.CreatedAt, &it.UpdatedAt)
 	if err != nil {
 		return err
@@ -386,6 +430,21 @@ func scanItemRow(scanner interface {
 		v := int(easytierPort.Int64)
 		it.EasyTierPort = &v
 	}
+	if projectID.Valid {
+		v := projectID.Int64
+		it.ProjectID = &v
+	}
+	if containerID.Valid {
+		v := containerID.Int64
+		it.ContainerID = &v
+	}
+	if accessPointID.Valid {
+		v := accessPointID.Int64
+		it.AccessPointID = &v
+	}
+	it.ProjectKey = projectKey.String
+	it.ProjectName = projectName.String
+	it.ContainerName = containerName.String
 	return nil
 }
 

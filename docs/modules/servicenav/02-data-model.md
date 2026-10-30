@@ -25,10 +25,15 @@
 | account | VARCHAR(255) | DEFAULT '' | 账号 |
 | password_hint | VARCHAR(255) | DEFAULT '' | 密码提示（非真实密码，明文返回） |
 | remark | VARCHAR(500) | DEFAULT '' | 备注 |
+| project_id | BIGINT | NULL | 关联 `zzz_development_manager_project.id`（NULL=未关联） |
+| container_id | BIGINT | NULL | 关联 `zzz_development_manager_container.id`（NULL=未关联） |
+| access_point_id | BIGINT | NULL | 关联 `zzz_development_manager_access_point.id`，用于导入幂等 |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP ON UPDATE | 更新时间 |
 
 唯一索引：`uk_name (name)`
+
+> `project_id / container_id / access_point_id` 由模块 `initTables` 的 `ensureColumn` 兼容补充（历史库启动自动加列）；查询时 LEFT JOIN 项目与容器表返回 `project_key / project_name / container_name` 供展示。
 
 ### 2.2 `services_nav_type` — 服务类型
 
@@ -71,10 +76,16 @@ type ServiceItem struct {
     IntranetPort *int      `json:"intranet_port" db:"intranet_port"`
     EasyTierPort *int      `json:"easytier_port" db:"easytier_port"`
     Account      string    `json:"account,omitempty" db:"account"`
-    PasswordHint string    `json:"password_hint,omitempty" db:"password_hint"`
-    Remark       string    `json:"remark,omitempty" db:"remark"`
-    CreatedAt    time.Time `json:"created_at" db:"created_at"`
-    UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+    PasswordHint  string    `json:"password_hint,omitempty" db:"password_hint"`
+    Remark        string    `json:"remark,omitempty" db:"remark"`
+    ProjectID     *int64    `json:"project_id,omitempty" db:"project_id"`
+    ContainerID   *int64    `json:"container_id,omitempty" db:"container_id"`
+    AccessPointID *int64    `json:"access_point_id,omitempty" db:"access_point_id"`
+    ProjectKey    string    `json:"project_key,omitempty" db:"project_key"`
+    ProjectName   string    `json:"project_name,omitempty" db:"project_name"`
+    ContainerName string    `json:"container_name,omitempty" db:"container_name"`
+    CreatedAt     time.Time `json:"created_at" db:"created_at"`
+    UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
 }
 ```
 

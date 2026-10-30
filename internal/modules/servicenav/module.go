@@ -66,6 +66,7 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	// 服务条目（服务导航）管理
 	r.GET("/services", m.h.ListItems)
 	r.POST("/services", m.h.CreateItem)
+	r.POST("/import", m.h.ImportFromProjects)
 	r.GET("/services/:id", m.h.GetItem)
 	r.PUT("/services/:id", m.h.UpdateItem)
 	r.DELETE("/services/:id", m.h.DeleteItem)
@@ -108,6 +109,20 @@ func initTables(db *sql.DB) error {
 	// 兼容已存在的历史表：若缺少 protocol 列则补充（CREATE TABLE IF NOT EXISTS 不会改动已存在的表）
 	if err := ensureColumn(db, tableItem, "protocol", "VARCHAR(20) NOT NULL DEFAULT 'http' AFTER types"); err != nil {
 		return err
+	}
+	// developmentManager 关联列：项目 / 容器 / 网络接入点（可空，NULL=未关联）
+	linkColumns := []struct {
+		name       string
+		definition string
+	}{
+		{"project_id", "BIGINT NULL AFTER remark"},
+		{"container_id", "BIGINT NULL AFTER project_id"},
+		{"access_point_id", "BIGINT NULL AFTER container_id"},
+	}
+	for _, col := range linkColumns {
+		if err := ensureColumn(db, tableItem, col.name, col.definition); err != nil {
+			return err
+		}
 	}
 	logger.Info().Msg("servicenav: 数据表初始化完成")
 	return nil

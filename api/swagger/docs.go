@@ -8910,6 +8910,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/servicenav/import": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicenav"
+                ],
+                "summary": "从项目部署接入点快速导入服务导航",
+                "parameters": [
+                    {
+                        "description": "导入参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_servicenav.ImportFromProjectsReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_modules_servicenav.ImportFromProjectsResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/servicenav/services": {
             "get": {
                 "consumes": [
@@ -15531,11 +15576,17 @@ const docTemplate = `{
                 "types"
             ],
             "properties": {
+                "access_point_id": {
+                    "type": "integer"
+                },
                 "account": {
                     "type": "string"
                 },
                 "address": {
                     "type": "string"
+                },
+                "container_id": {
+                    "type": "integer"
                 },
                 "easytier_port": {
                     "type": "integer"
@@ -15548,6 +15599,9 @@ const docTemplate = `{
                 },
                 "password_hint": {
                     "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
                 },
                 "protocol": {
                     "type": "string"
@@ -15577,6 +15631,49 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_modules_servicenav.ImportFromProjectsReq": {
+            "type": "object",
+            "properties": {
+                "project_ids": {
+                    "description": "为空表示全部可导入项目",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "types": {
+                    "description": "可选：统一附加的服务类型",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "update_existing": {
+                    "description": "已导入条目是否更新",
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_modules_servicenav.ImportFromProjectsResp": {
+            "type": "object",
+            "properties": {
+                "access_points": {
+                    "type": "integer"
+                },
+                "created": {
+                    "type": "integer"
+                },
+                "projects": {
+                    "type": "integer"
+                },
+                "skipped": {
+                    "type": "integer"
+                },
+                "updated": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_modules_servicenav.PaginatedResp-internal_modules_servicenav_ServiceItem": {
             "type": "object",
             "properties": {
@@ -15600,10 +15697,19 @@ const docTemplate = `{
                 "_id": {
                     "type": "string"
                 },
+                "access_point_id": {
+                    "type": "integer"
+                },
                 "account": {
                     "type": "string"
                 },
                 "address": {
+                    "type": "string"
+                },
+                "container_id": {
+                    "type": "integer"
+                },
+                "container_name": {
                     "type": "string"
                 },
                 "created_at": {
@@ -15619,6 +15725,16 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "password_hint": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "description": "关联 developmentManager：项目 / 容器 / 网络接入点（均可空，手工条目可关联）",
+                    "type": "integer"
+                },
+                "project_key": {
+                    "type": "string"
+                },
+                "project_name": {
                     "type": "string"
                 },
                 "protocol": {
@@ -15661,17 +15777,32 @@ const docTemplate = `{
         "internal_modules_servicenav.UpdateItemReq": {
             "type": "object",
             "properties": {
+                "access_point_id": {
+                    "type": "integer"
+                },
                 "account": {
                     "type": "string"
                 },
                 "address": {
                     "type": "string"
                 },
+                "clear_access_point": {
+                    "type": "boolean"
+                },
+                "clear_container": {
+                    "type": "boolean"
+                },
                 "clear_easytier_port": {
                     "type": "boolean"
                 },
                 "clear_intranet_port": {
                     "type": "boolean"
+                },
+                "clear_project": {
+                    "type": "boolean"
+                },
+                "container_id": {
+                    "type": "integer"
                 },
                 "easytier_port": {
                     "type": "integer"
@@ -15684,6 +15815,9 @@ const docTemplate = `{
                 },
                 "password_hint": {
                     "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
                 },
                 "protocol": {
                     "type": "string"
