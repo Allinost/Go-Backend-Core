@@ -20,7 +20,8 @@
 | Q9 | 权限 | 现有 rbac 的 read/write/admin 三点**不够**，扩展为**资源 × 动作权限矩阵**（草案见 §4.1，已按草案执行） |
 | Q9a | 角色与权限管理 | **允许动态增加角色与权限，并允许 admin 分配**：直接复用基座 auth 模块现成的 `/api/v1/auth/admin/*`（权限 CRUD、角色 CRUD、`roles/:name/permissions` 配置、`users/:id/roles` 分配），**不另造管理接口**；§4.1 的 admin/editor/viewer 与权限点仅作**初始幂等播种**，可增删改 |
 | — | 前缀规范落档 | 已写入 `docs/data-model.md` §命名规范（基座独立库、基座表无前缀、模块表带模块前缀 `zzz_*`） |
-| Q10 | 部署建模 | 采用 **A 行式**，但**端口、反代、访问地址、白名单合并为 `access_point` 一张表**（绑定链，行粒度 = 端口 × 地址，仍可 SQL 过滤）；白名单存 **JSON 数组列 `allow_containers`**；资源分配保持**独立 `resource_alloc` 表**（1:1）。部署 5 表，全模块 **13 张表** |
+| Q10 | 部署建模 | 采用 **A 行式**，但**端口、反代、访问地址合并为 `access_point` 一张表**（绑定链，行粒度 = 端口 × 地址，仍可 SQL 过滤）；资源分配保持**独立 `resource_alloc` 表**（1:1）；白名单建模见 Q11 |
+| Q11 | 白名单建模 | 白名单**升格为独立可复用实体**：`whitelist` 组表 + `whitelist_member` 成员行表（`container_id` FK，容器改名自动跟随）；`access_point` 只留 `whitelist_id` 组引用（**NULL = 不限制**），临时/单次名单建一次性组（**只留组引用，无内嵌 JSON 列**）。**允许白名单为空**：接入点可不引用组，组可 0 成员。部署 7 表，全模块 **15 张表** |
 
 ---
 
@@ -119,9 +120,9 @@ docs/
 | deleted, deleted_at | 软删除标记（删除项目时同步置位） |
 | UK(from,to,type) | 防重复关联 |
 
-### 3.2 部署资产（1.2）（定稿：行式建模 + 网络四合一，§0-Q10）
+### 3.2 部署资产（1.2）（定稿：行式建模 + 网络四合一 + 白名单组复用，§0-Q10/Q11）
 
-> 原则：**端口、反代、访问地址、白名单是一条绑定链**，合并为 `access_point` 一张表（行粒度 = 端口 × 访问地址），一行看全"容器端口 → 反代 → 暴露地址 → 白名单"，同时保留 SQL 过滤能力；其余按行式独立建表。
+> 原则：**端口、反代、访问地址是一条绑定链**，合并为 `access_point` 一张表（行粒度 = 端口 × 访问地址），一行看全"容器端口 → 反代 → 暴露地址"，同时保留 SQL 过滤能力；**白名单升格为可复用的独立实体**（组 + 成员两表），接入点通过主键引用组；其余按行式独立建表。
 
 **zzz_development_manager_container — 项目关联容器（一个项目可关联多个容器）**
 `id, project_id, container_name(项目内唯一键), image, compose_ref(docker-compose 文件/服务名), replicas, network_mode, env_notes(json), status_note, deleted`
@@ -139,10 +140,18 @@ docs/
 | 端口 | `listen_port, host_port(空=不映射), protocol(tcp/udp), purpose, exposure(none/intranet/extranet)` | 端口映射与内外网暴露 |
 | 反代 | `proxy_type(nginx/caddy/traefik/other), domain, upstream_url, tls` | **可空 = 无反代直连** |
 | 地址 | `network_zone(intranet/extranet/proxy_net), url, reachable, notes` | **`url IS NULL` ⇒ 不可达**，前端置灰 |
-| 白名单 | `allow_containers JSON` | 允许访问该地址的容器名数组，如 `["api","worker"]`（服务层校验存在性与改名同步） |
+| 白名单 | `whitelist_id FK → whitelist（可空）` | **引用常用白名单组；`NULL` = 该地址不设白名单（不限制）**；**允许为空**（可不引用组）；引用空组 = 当前无任何容器放行（登记语义）；临时名单建一次性组（存储路径唯一，§0-Q11） |
 
 - 行粒度 = **端口 × 访问地址**：同一端口有内网+外网两个地址 → 2 行；多端口共用同一反代域名 → 多行按 `domain` 归组；地址未分配 → 照样 1 行且 `url = NULL`；
-- 典型查询仍是 SQL：`url IS NULL` 查不可达、`exposure='extranet'` 查外网暴露、按 `domain` 分组查反代。
+- 典型查询仍是 SQL：`url IS NULL` 查不可达、`exposure='extranet'` 查外网暴露、按 `domain` 分组查反代、`whitelist_id` 关联查"哪些地址用了某白名单组"。
+
+**zzz_development_manager_whitelist — 常用白名单组（可复用、可命名，被多条接入点引用）**
+`id, project_id, name(项目内唯一组名，如 "ia-market-allow"), note, deleted, 审计字段`
+> **允许白名单为空**：组可以 0 成员（先建组占名、后补成员），服务层不做"组必须有成员"校验。
+
+**zzz_development_manager_whitelist_member — 白名单成员（组 → 允许访问的容器，行式 + FK）**
+`id, whitelist_id, container_id FK → container, note`
+> 容器改名自动跟随（FK）；容器软删除时服务层提示"仍被白名单组 X 引用"。
 
 **zzz_development_manager_backup — 备份情况（记录备份策略与最近执行结果）**
 `id, project_id, container_id(可空), volume_id(可空), backup_type(full/db/volume), strategy_cron, destination, retention_days, last_run_at, last_status(success/failed/running), last_error, restore_note, enabled`
@@ -213,7 +222,7 @@ zzz/developmentManager/            # 包名 developmentmanager；路由前缀 /a
 |---|---|---|
 | `dm.project` | read / create / update / **delete** / restore | 项目台账；delete 级联标记关联，restore 恢复软删除 |
 | `dm.relation` | read / create / delete | 项目关联的增删与查看 |
-| `dm.deployment` | read / create / update / delete | 部署资产全域：容器、网络接入点（端口+反代+地址+白名单）、资源、卷、备份 |
+| `dm.deployment` | read / create / update / delete | 部署资产全域：容器、网络接入点（端口+反代+地址，白名单经组引用）、白名单组、资源、卷、备份 |
 | `dm.dictionary` | read / create / update / delete / **scan** | 数据表字典；scan = 触发从库扫描导入 |
 | `dm.requirement` | read / create / update / delete / **approve** | 需求；approve = 状态流转/评审通过（draft→approved 等） |
 | `dm.generation` | read / execute / **autocommit** | 生成任务；execute = 触发生成；**autocommit = 允许自动提交产物（与 Q5 开关配套的独立权限）** |
@@ -238,7 +247,8 @@ GET|PUT|DELETE  /projects/:id                  详情、更新、软删除（级
 GET|POST        /projects/:id/relations        关联列表、新增关联
 GET|POST        /projects/:id/containers       容器
 POST            /containers/:id/resources|volumes
-GET|POST|PUT|DELETE /projects/:id/access-points 网络接入点（端口+反代+地址+白名单 一条绑定链）
+GET|POST|PUT|DELETE /projects/:id/access-points 网络接入点（端口+反代+地址绑定链；whitelist_id 引用白名单组）
+GET|POST|PUT|DELETE /projects/:id/whitelists   常用白名单组 + 成员（组可复用、允许空组，被多条接入点引用）
 GET|POST        /projects/:id/backups          备份情况
 GET|POST        /projects/:id/tables           数据表字典（含 columns 子资源）
 POST            /tables/:id/scan-import        从库扫描导入初稿
@@ -261,7 +271,7 @@ GET             /permissions/meta              本模块权限点元数据（供
 - **项目列表页**：按类型分组的卡片/表格，支持筛选、软删除恢复；
 - **项目详情页 Tab**：
   1. 概览（基本信息、关联项目关系图）
-  2. 部署（容器 / 网络接入点：端口+反代+访问地址+白名单，`url` 空置灰显示"不可达" / 资源 / 卷 / 备份）
+  2. 部署（容器 / 网络接入点：端口+反代+访问地址，`url` 空置灰显示"不可达"，白名单经组引用 / 白名单组管理 / 资源 / 卷 / 备份）
   3. 数据字典（表 → 字段级联表格，表用途、字段含义列）
   4. 需求（看板 + 列表，增改更新删、版本历史抽屉、状态流转）
   5. 生成（触发方案/代码/文档生成，任务进度与产物链接，engine 可选 ai/template/manual）
@@ -277,7 +287,7 @@ GET             /permissions/meta              本模块权限点元数据（供
 |---|---|---|
 | **P0 规划核对** | 本文件 + 用户订正 | 用户确认规划（本阶段） |
 | **P1 骨架 + 项目台账** | `zzz/developmentManager` 模块骨架、project/relation/asset 表迁移（migrations）、CRUD、软删除级联、seed 登记现有项目、`main.go` 注册 | 接口可建/删项目与关联，删除后关联带 deleted 标记 |
-| **P2 部署资产** | container / resource_alloc / volume_mapping / **access_point（端口+反代+地址+白名单四合一）** / backup 五组实体与 API | 一个项目可完整录入 1.2 所列全部部署信息，接入点一行看全绑定链 |
+| **P2 部署资产** | container / resource_alloc / volume_mapping / **access_point（端口+反代+地址四合一）** / **whitelist + whitelist_member（可复用白名单组）** / backup 七组实体与 API | 一个项目可完整录入 1.2 所列全部部署信息，接入点一行看全绑定链，白名单组可复用 |
 | **P3 数据字典** | db_table/db_column + 扫描导入 + 手工维护 | 表用途、字段含义可录入并展示 |
 | **P4 需求管理** | requirement/version、状态流转、软删除快照 | 增改更新删 + 版本历史全部可回溯 |
 | **P5 生成流程** | generation 任务、plan/doc 模板生成为主 → **末尾接入 services/ai 作为可选 engine（含降级）**；code 产出 patch/分支草案，**`auto_commit` 开关（默认关，受 `dm.generation:autocommit` 权限约束）** | 由需求一键生成方案与文档，AI 关闭时仍可完成，失败可重试 |
