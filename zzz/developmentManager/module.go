@@ -101,6 +101,47 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/projects/:id/assets", need("dm.asset", "create"), m.h.CreateAsset)
 	r.DELETE("/projects/:id/assets/:asset_id", need("dm.asset", "delete"), m.h.DeleteAsset)
 
+	// 部署资产：容器
+	r.GET("/projects/:id/containers", need("dm.deployment", "read"), m.h.ListContainers)
+	r.POST("/projects/:id/containers", need("dm.deployment", "create"), m.h.CreateContainer)
+	r.GET("/containers/:id", need("dm.deployment", "read"), m.h.GetContainer)
+	r.PUT("/containers/:id", need("dm.deployment", "update"), m.h.UpdateContainer)
+	r.DELETE("/containers/:id", need("dm.deployment", "delete"), m.h.DeleteContainer)
+
+	// 部署资产：资源分配（容器 1:1）
+	r.GET("/containers/:id/resources", need("dm.deployment", "read"), m.h.GetResourceAlloc)
+	r.PUT("/containers/:id/resources", need("dm.deployment", "update"), m.h.UpsertResourceAlloc)
+
+	// 部署资产：卷映射
+	r.GET("/containers/:id/volumes", need("dm.deployment", "read"), m.h.ListVolumes)
+	r.POST("/containers/:id/volumes", need("dm.deployment", "create"), m.h.CreateVolume)
+	r.PUT("/volumes/:id", need("dm.deployment", "update"), m.h.UpdateVolume)
+	r.DELETE("/volumes/:id", need("dm.deployment", "delete"), m.h.DeleteVolume)
+
+	// 部署资产：网络接入点（端口+反代+地址+白名单引用）
+	r.GET("/projects/:id/access-points", need("dm.deployment", "read"), m.h.ListAccessPoints)
+	r.POST("/projects/:id/access-points", need("dm.deployment", "create"), m.h.CreateAccessPoint)
+	r.GET("/access-points/:id", need("dm.deployment", "read"), m.h.GetAccessPoint)
+	r.PUT("/access-points/:id", need("dm.deployment", "update"), m.h.UpdateAccessPoint)
+	r.DELETE("/access-points/:id", need("dm.deployment", "delete"), m.h.DeleteAccessPoint)
+
+	// 部署资产：白名单组与成员（组可复用、允许空组）
+	r.GET("/projects/:id/whitelists", need("dm.deployment", "read"), m.h.ListWhitelists)
+	r.POST("/projects/:id/whitelists", need("dm.deployment", "create"), m.h.CreateWhitelist)
+	r.GET("/whitelists/:id", need("dm.deployment", "read"), m.h.GetWhitelist)
+	r.PUT("/whitelists/:id", need("dm.deployment", "update"), m.h.UpdateWhitelist)
+	r.DELETE("/whitelists/:id", need("dm.deployment", "delete"), m.h.DeleteWhitelist)
+	r.GET("/whitelists/:id/members", need("dm.deployment", "read"), m.h.ListWhitelistMembers)
+	r.POST("/whitelists/:id/members", need("dm.deployment", "create"), m.h.AddWhitelistMember)
+	r.DELETE("/whitelists/:id/members/:member_id", need("dm.deployment", "delete"), m.h.RemoveWhitelistMember)
+
+	// 部署资产：备份
+	r.GET("/projects/:id/backups", need("dm.deployment", "read"), m.h.ListBackups)
+	r.POST("/projects/:id/backups", need("dm.deployment", "create"), m.h.CreateBackup)
+	r.GET("/backups/:id", need("dm.deployment", "read"), m.h.GetBackup)
+	r.PUT("/backups/:id", need("dm.deployment", "update"), m.h.UpdateBackup)
+	r.DELETE("/backups/:id", need("dm.deployment", "delete"), m.h.DeleteBackup)
+
 	// 统计与权限元数据
 	r.GET("/stats", need("dm.project", "read"), m.h.Stats)
 	r.GET("/permissions/meta", need("dm.project", "read"), m.h.PermissionMeta)

@@ -77,12 +77,12 @@ func TestValidateProjectReq(t *testing.T) {
 
 func TestStatusForCode(t *testing.T) {
 	cases := map[int]int{
-		ErrProjectNotFound:          404,
-		ErrTargetProjectMissing:     404,
-		ErrDuplicateProjectKey:      409,
-		ErrProjectHasDependents:     409,
-		ErrInvalidProjectKey:        400,
-		ErrInvalidRelationType:      400,
+		ErrProjectNotFound:             404,
+		ErrTargetProjectMissing:        404,
+		ErrDuplicateProjectKey:         409,
+		ErrProjectHasDependents:        409,
+		ErrInvalidProjectKey:           400,
+		ErrInvalidRelationType:         400,
 		ErrProjectHasDependents + 9999: 500, // 未知码兜底
 	}
 	for code, want := range cases {
@@ -93,8 +93,8 @@ func TestStatusForCode(t *testing.T) {
 }
 
 func TestValidCollections(t *testing.T) {
-	if len(ValidProjectTypes) != 4 {
-		t.Errorf("项目类型应为 4 种，实际 %d", len(ValidProjectTypes))
+	if len(ValidProjectTypes) != 5 {
+		t.Errorf("项目类型应为 5 种（含 frontend_base），实际 %d", len(ValidProjectTypes))
 	}
 	if len(ValidRelationTypes) != 4 {
 		t.Errorf("关联类型应为 4 种，实际 %d", len(ValidRelationTypes))

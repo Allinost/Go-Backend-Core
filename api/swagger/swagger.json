@@ -2354,6 +2354,608 @@
                 }
             }
         },
+        "/developmentmanager/access-points/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取网络接入点详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "接入点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.AccessPoint"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "更新网络接入点",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "接入点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "接入点信息（全量）",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.UpdateAccessPointReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.AccessPoint"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "删除网络接入点",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "接入点 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/backups/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取备份记录详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "备份 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Backup"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "更新备份记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "备份 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "备份信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.UpdateBackupReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Backup"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "删除备份记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "备份 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/containers/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取容器详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "容器 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Container"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "更新容器",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "容器 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "容器信息（全量）",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.UpdateContainerReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Container"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "删除容器",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "容器 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/containers/{id}/resources": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取容器资源分配",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "容器 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.ResourceAlloc"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "写入容器资源分配",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "容器 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "资源分配",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.UpsertResourceReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.ResourceAlloc"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/containers/{id}/volumes": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取容器卷映射",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "容器 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否查询已删除（默认否）",
+                        "name": "deleted",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/zzz_developmentManager.VolumeMapping"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "新建卷映射",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "容器 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "卷映射信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.CreateVolumeReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.VolumeMapping"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/developmentmanager/permissions/meta": {
             "get": {
                 "security": [
@@ -2652,6 +3254,127 @@
                 }
             }
         },
+        "/developmentmanager/projects/{id}/access-points": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取项目网络接入点",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "暴露范围 none/intranet/extranet",
+                        "name": "exposure",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "网络区域 intranet/extranet/proxy_net",
+                        "name": "network_zone",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否查询已删除（默认否）",
+                        "name": "deleted",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/zzz_developmentManager.AccessPoint"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "新建网络接入点",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "接入点信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.CreateAccessPointReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.AccessPoint"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/developmentmanager/projects/{id}/assets": {
             "get": {
                 "security": [
@@ -2805,6 +3528,218 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/projects/{id}/backups": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取项目备份记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/zzz_developmentManager.Backup"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "新建备份记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "备份信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.CreateBackupReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Backup"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/projects/{id}/containers": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取项目容器列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否查询已删除（默认否）",
+                        "name": "deleted",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/zzz_developmentManager.Container"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "新建容器",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "容器信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.CreateContainerReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Container"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -2974,6 +3909,115 @@
                 }
             }
         },
+        "/developmentmanager/projects/{id}/whitelists": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取项目白名单组",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否查询已删除（默认否）",
+                        "name": "deleted",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/zzz_developmentManager.Whitelist"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "新建白名单组",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "白名单组信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.CreateWhitelistReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Whitelist"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/developmentmanager/stats": {
             "get": {
                 "security": [
@@ -3005,6 +4049,368 @@
                                     }
                                 }
                             ]
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/volumes/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "更新卷映射",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "卷映射 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "卷映射信息（全量）",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.UpdateVolumeReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.VolumeMapping"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "删除卷映射",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "卷映射 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/whitelists/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取白名单组详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "白名单组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Whitelist"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "更新白名单组",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "白名单组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "白名单组信息（全量）",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.UpdateWhitelistReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.Whitelist"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "删除白名单组",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "白名单组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/whitelists/{id}/members": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取白名单成员",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "白名单组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/zzz_developmentManager.WhitelistMember"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "添加白名单成员",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "白名单组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "成员信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.CreateWhitelistMemberReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.WhitelistMember"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/whitelists/{id}/members/{member_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "移除白名单成员",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "白名单组 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "成员 ID",
+                        "name": "member_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
                         }
                     }
                 }
@@ -14129,6 +15535,236 @@
                 "TaskTypeInterval"
             ]
         },
+        "zzz_developmentManager.AccessPoint": {
+            "type": "object",
+            "properties": {
+                "container_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "deleted": {
+                    "type": "boolean"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "exposure": {
+                    "type": "string"
+                },
+                "host_port": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "listen_port": {
+                    "type": "integer"
+                },
+                "network_zone": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "proxy_type": {
+                    "type": "string"
+                },
+                "purpose": {
+                    "type": "string"
+                },
+                "reachable": {
+                    "type": "boolean"
+                },
+                "tls": {
+                    "type": "boolean"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "upstream_url": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "whitelist_id": {
+                    "type": "integer"
+                },
+                "whitelist_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.Backup": {
+            "type": "object",
+            "properties": {
+                "backup_type": {
+                    "type": "string"
+                },
+                "container_id": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "destination": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "last_run_at": {
+                    "type": "string"
+                },
+                "last_status": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "restore_note": {
+                    "type": "string"
+                },
+                "retention_days": {
+                    "type": "integer"
+                },
+                "strategy_cron": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "volume_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_developmentManager.Container": {
+            "type": "object",
+            "properties": {
+                "compose_ref": {
+                    "type": "string"
+                },
+                "container_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "deleted": {
+                    "type": "boolean"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "env_notes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "network_mode": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "replicas": {
+                    "type": "integer"
+                },
+                "status_note": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.CreateAccessPointReq": {
+            "type": "object",
+            "required": [
+                "listen_port"
+            ],
+            "properties": {
+                "container_id": {
+                    "type": "integer"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "exposure": {
+                    "type": "string"
+                },
+                "host_port": {
+                    "type": "integer"
+                },
+                "listen_port": {
+                    "type": "integer"
+                },
+                "network_zone": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "proxy_type": {
+                    "type": "string"
+                },
+                "purpose": {
+                    "type": "string"
+                },
+                "tls": {
+                    "type": "boolean"
+                },
+                "upstream_url": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "whitelist_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "zzz_developmentManager.CreateAssetReq": {
             "type": "object",
             "required": [
@@ -14159,6 +15795,70 @@
                     "type": "string"
                 },
                 "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.CreateBackupReq": {
+            "type": "object",
+            "required": [
+                "backup_type"
+            ],
+            "properties": {
+                "backup_type": {
+                    "type": "string"
+                },
+                "container_id": {
+                    "type": "integer"
+                },
+                "destination": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "restore_note": {
+                    "type": "string"
+                },
+                "retention_days": {
+                    "type": "integer"
+                },
+                "strategy_cron": {
+                    "type": "string"
+                },
+                "volume_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_developmentManager.CreateContainerReq": {
+            "type": "object",
+            "required": [
+                "container_name"
+            ],
+            "properties": {
+                "compose_ref": {
+                    "type": "string"
+                },
+                "container_name": {
+                    "type": "string"
+                },
+                "env_notes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "image": {
+                    "type": "string"
+                },
+                "network_mode": {
+                    "type": "string"
+                },
+                "replicas": {
+                    "type": "integer"
+                },
+                "status_note": {
                     "type": "string"
                 }
             }
@@ -14218,6 +15918,58 @@
                 },
                 "to_project_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "zzz_developmentManager.CreateVolumeReq": {
+            "type": "object",
+            "required": [
+                "container_path",
+                "host_path"
+            ],
+            "properties": {
+                "container_path": {
+                    "type": "string"
+                },
+                "host_path": {
+                    "type": "string"
+                },
+                "in_backup": {
+                    "type": "boolean"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "purpose": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.CreateWhitelistMemberReq": {
+            "type": "object",
+            "required": [
+                "container_id"
+            ],
+            "properties": {
+                "container_id": {
+                    "type": "integer"
+                },
+                "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.CreateWhitelistReq": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
                 }
             }
         },
@@ -14434,6 +16186,44 @@
                 }
             }
         },
+        "zzz_developmentManager.ResourceAlloc": {
+            "type": "object",
+            "properties": {
+                "container_id": {
+                    "type": "integer"
+                },
+                "cpu_limit": {
+                    "type": "string"
+                },
+                "cpu_shares": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "gpu_note": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "mem_limit": {
+                    "type": "string"
+                },
+                "mem_reservation": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "storage_quota": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "zzz_developmentManager.StatsResp": {
             "type": "object",
             "properties": {
@@ -14460,6 +16250,129 @@
                 },
                 "relations_active": {
                     "type": "integer"
+                }
+            }
+        },
+        "zzz_developmentManager.UpdateAccessPointReq": {
+            "type": "object",
+            "required": [
+                "listen_port"
+            ],
+            "properties": {
+                "container_id": {
+                    "type": "integer"
+                },
+                "domain": {
+                    "type": "string"
+                },
+                "exposure": {
+                    "type": "string"
+                },
+                "host_port": {
+                    "type": "integer"
+                },
+                "listen_port": {
+                    "type": "integer"
+                },
+                "network_zone": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "proxy_type": {
+                    "type": "string"
+                },
+                "purpose": {
+                    "type": "string"
+                },
+                "tls": {
+                    "type": "boolean"
+                },
+                "upstream_url": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "whitelist_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_developmentManager.UpdateBackupReq": {
+            "type": "object",
+            "required": [
+                "backup_type"
+            ],
+            "properties": {
+                "backup_type": {
+                    "type": "string"
+                },
+                "container_id": {
+                    "type": "integer"
+                },
+                "destination": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "last_run_at": {
+                    "type": "string"
+                },
+                "last_status": {
+                    "type": "string"
+                },
+                "restore_note": {
+                    "type": "string"
+                },
+                "retention_days": {
+                    "type": "integer"
+                },
+                "strategy_cron": {
+                    "type": "string"
+                },
+                "volume_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_developmentManager.UpdateContainerReq": {
+            "type": "object",
+            "required": [
+                "container_name"
+            ],
+            "properties": {
+                "compose_ref": {
+                    "type": "string"
+                },
+                "container_name": {
+                    "type": "string"
+                },
+                "env_notes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "image": {
+                    "type": "string"
+                },
+                "network_mode": {
+                    "type": "string"
+                },
+                "replicas": {
+                    "type": "integer"
+                },
+                "status_note": {
+                    "type": "string"
                 }
             }
         },
@@ -14500,6 +16413,169 @@
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.UpdateVolumeReq": {
+            "type": "object",
+            "required": [
+                "container_path",
+                "host_path"
+            ],
+            "properties": {
+                "container_path": {
+                    "type": "string"
+                },
+                "host_path": {
+                    "type": "string"
+                },
+                "in_backup": {
+                    "type": "boolean"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "purpose": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.UpdateWhitelistReq": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.UpsertResourceReq": {
+            "type": "object",
+            "properties": {
+                "cpu_limit": {
+                    "type": "string"
+                },
+                "cpu_shares": {
+                    "type": "integer"
+                },
+                "gpu_note": {
+                    "type": "string"
+                },
+                "mem_limit": {
+                    "type": "string"
+                },
+                "mem_reservation": {
+                    "type": "string"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "storage_quota": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.VolumeMapping": {
+            "type": "object",
+            "properties": {
+                "container_id": {
+                    "type": "integer"
+                },
+                "container_path": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted": {
+                    "type": "boolean"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "host_path": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "in_backup": {
+                    "type": "boolean"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "purpose": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.Whitelist": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "deleted": {
+                    "type": "boolean"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "member_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.WhitelistMember": {
+            "type": "object",
+            "properties": {
+                "container_id": {
+                    "type": "integer"
+                },
+                "container_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "whitelist_id": {
+                    "type": "integer"
                 }
             }
         },

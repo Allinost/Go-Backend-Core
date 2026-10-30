@@ -8,6 +8,7 @@ const (
 	ProjectTypeTemplate       = "template"        // 前端模板
 	ProjectTypeBackendModule  = "backend_module"  // 后端模块
 	ProjectTypeFrontendModule = "frontend_module" // 前端模块
+	ProjectTypeFrontendBase   = "frontend_base"   // 前端基座（NKUI 之上的前端工程，如 Go-Frontend-Core）
 )
 
 // 项目状态
@@ -18,10 +19,10 @@ const (
 
 // 关联类型
 const (
-	RelationUsesBase            = "uses_base"             // 模块 → 后端基座
-	RelationUsesTemplate        = "uses_template"         // 前端模块 → 前端模板
-	RelationBindsBackendModule  = "binds_backend_module"  // 前端模块 → 后端模块
-	RelationRelated             = "related"               // 其他横向关联
+	RelationUsesBase           = "uses_base"            // 模块 → 后端基座
+	RelationUsesTemplate       = "uses_template"        // 前端模块 → 前端模板
+	RelationBindsBackendModule = "binds_backend_module" // 前端模块 → 后端模块
+	RelationRelated            = "related"              // 其他横向关联
 )
 
 // 资产类别
@@ -38,6 +39,7 @@ var ValidProjectTypes = map[string]bool{
 	ProjectTypeTemplate:       true,
 	ProjectTypeBackendModule:  true,
 	ProjectTypeFrontendModule: true,
+	ProjectTypeFrontendBase:   true,
 }
 
 // ValidRelationTypes 关联类型合法集合
@@ -78,19 +80,19 @@ type Project struct {
 
 // ProjectRelation 项目关联实体（含两端项目信息，便于列表展示）
 type ProjectRelation struct {
-	ID             int64     `json:"id" db:"id"`
-	FromProjectID  int64     `json:"from_project_id" db:"from_project_id"`
-	ToProjectID    int64     `json:"to_project_id" db:"to_project_id"`
-	RelationType   string    `json:"relation_type" db:"relation_type"`
-	Note           string    `json:"note" db:"note"`
-	Deleted        bool      `json:"deleted" db:"deleted"`
-	CreatedBy      string    `json:"created_by" db:"created_by"`
-	CreatedAt      time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
-	FromProjectKey string    `json:"from_project_key,omitempty" db:"from_project_key"`
-	FromProjectName string   `json:"from_project_name,omitempty" db:"from_project_name"`
-	ToProjectKey   string    `json:"to_project_key,omitempty" db:"to_project_key"`
-	ToProjectName  string    `json:"to_project_name,omitempty" db:"to_project_name"`
+	ID              int64     `json:"id" db:"id"`
+	FromProjectID   int64     `json:"from_project_id" db:"from_project_id"`
+	ToProjectID     int64     `json:"to_project_id" db:"to_project_id"`
+	RelationType    string    `json:"relation_type" db:"relation_type"`
+	Note            string    `json:"note" db:"note"`
+	Deleted         bool      `json:"deleted" db:"deleted"`
+	CreatedBy       string    `json:"created_by" db:"created_by"`
+	CreatedAt       time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	FromProjectKey  string    `json:"from_project_key,omitempty" db:"from_project_key"`
+	FromProjectName string    `json:"from_project_name,omitempty" db:"from_project_name"`
+	ToProjectKey    string    `json:"to_project_key,omitempty" db:"to_project_key"`
+	ToProjectName   string    `json:"to_project_name,omitempty" db:"to_project_name"`
 }
 
 // ProjectAsset 归类资产索引实体

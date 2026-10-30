@@ -31,7 +31,7 @@
 | 第三方登录 | `zzz/login3rd` | `/api/v1/login3rd` | [modules/login3rd/](modules/login3rd/) ✅ |
 | 店铺采集 | `zzz/shopchecker` | `/api/v1/shopchecker` | [modules/shopChecker/](modules/shopChecker/) ✅ |
 | 商品服务 | `zzz/goodser` | `/api/v1/goodser` | [modules/goodser/dev/](modules/goodser/dev/) ✅ |
-| 项目开发管理 | `zzz/developmentManager` | `/api/v1/developmentmanager` | [modules/developmentManager/](modules/developmentManager/) ✅（P1，规划见 [plans/feature-V2-project-dev-management.md](plans/feature-V2-project-dev-management.md)） |
+| 项目开发管理 | `zzz/developmentManager` | `/api/v1/developmentmanager` | [modules/developmentManager/](modules/developmentManager/) ✅（P1 台账 + P2 部署资产，规划见 [plans/feature-V2-project-dev-management.md](plans/feature-V2-project-dev-management.md)） |
 | 服务导航 | `internal/modules/servicenav` | `/api/v1/servicenav` | [modules/servicenav/](modules/servicenav/) ✅ |
 | Webhook | `internal/modules/webhook` | `/api/v1/webhook` | [modules/webhook/](modules/webhook/) ✅ |
 | 认证 / 运维 / 迁移等 | `internal/modules/{auth,ops,migrate,s0,s1,s2}` | `/api/v1/{name}` | ⬜ 暂无独立文档，见 [API/index.md](API/index.md) |
@@ -72,3 +72,6 @@
    - **开发**：分阶段实施、每阶段可独立验收、小步提交可追溯；
    - **文档**：与代码同提交（模块四件套 / 数据字典 / Swagger / 发布说明），不留事后补。
    - 首个执行范例：[plans/feature-V2-project-dev-management.md](plans/feature-V2-project-dev-management.md)（§0.1 SOP、§0.2 原始需求、§0.3 追溯表）。
+6. **开发环境（Windows）**：命令行统一使用 **Git Bash**（`& "C:\Program Files\Git\bin\bash.exe" -lc "<cmd>"`），不再用 PowerShell 执行开发命令。
+   - 原因：PowerShell 默认编码/重定向会破坏中文（`Set-Content` 写出 ANSI、`>` 重定向乱码），且不支持三元运算符；Git Bash 原生 UTF-8，`go`/`git`/`grep`/`sed` 等命令与 Linux CI 一致。
+   - 约定：写中文文件一律用编辑器工具或 heredoc（`cat > file <<'EOF'`）；禁止用 `Set-Content`/`Out-File` 改写含中文的源码与文档。

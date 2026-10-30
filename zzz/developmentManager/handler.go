@@ -48,12 +48,20 @@ func actorID(c *gin.Context) string {
 // statusForCode 模块业务错误码 → HTTP 状态码（标准码之外的补充映射）
 func statusForCode(code int) int {
 	switch code {
-	case ErrProjectNotFound, ErrRelationNotFound, ErrAssetNotFound, ErrTargetProjectMissing:
+	case ErrProjectNotFound, ErrRelationNotFound, ErrAssetNotFound, ErrTargetProjectMissing,
+		ErrContainerNotFound, ErrResourceNotFound, ErrVolumeNotFound, ErrAccessPointNotFound,
+		ErrWhitelistNotFound, ErrWhitelistMemberNotFound, ErrBackupNotFound:
 		return 404
-	case ErrDuplicateProjectKey, ErrProjectHasDependents, ErrSelfRelation:
+	case ErrDuplicateProjectKey, ErrProjectHasDependents, ErrSelfRelation,
+		ErrDuplicateContainerName, ErrDuplicateWhitelistName,
+		ErrContainerInWhitelist, ErrWhitelistInUse:
 		return 409
 	case ErrInvalidProjectKey, ErrInvalidProjectType, ErrInvalidRelationType,
-		ErrInvalidAssetCategory, ErrInvalidProjectName:
+		ErrInvalidAssetCategory, ErrInvalidProjectName,
+		ErrInvalidContainerName, ErrInvalidPort, ErrInvalidProtocol, ErrInvalidExposure,
+		ErrInvalidProxyType, ErrInvalidNetworkZone, ErrCrossProjectRef, ErrInvalidVolumePath,
+		ErrInvalidBackupType, ErrInvalidBackupStatus, ErrInvalidVolumeMode,
+		ErrInvalidWhitelistName, ErrInvalidReplicas, ErrInvalidResourceAlloc:
 		return 400
 	default:
 		return 500

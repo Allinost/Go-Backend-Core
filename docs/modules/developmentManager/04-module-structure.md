@@ -13,7 +13,12 @@
 | `model.go` | 实体、枚举常量与 `Valid*` 集合、请求结构（含分页 `Normalize/Offset`）、`PaginatedResp[T]`、`StatsResp` |
 | `errors.go` | 错误码常量（46001+）、中文消息表、`DevelopmentManagerError{Code,Message,Detail}` 与 `WithDetail` |
 | `permissions.go` | `PermissionSpecs` 28 个权限点（resource×action+中文说明，`init()` 拼 name）、`SeedPermissions` 幂等播种、`ensureRole` 默认角色（editor/viewer 仅不存在时创建，不覆盖） |
-| `seed.go` | 台账 seed：8 个现有项目（基座/NKUI/前端工程/5 个 zzz 模块）+ 7 条关联 + 3 条资产索引，全部幂等；`seedWithRetry` 迁移未应用时每 5 秒重试至 60 次 |
+| `seed.go` | 台账 seed：8 个现有项目（基座/NKUI/前端基座/5 个 zzz 模块）+ 7 条关联 + 3 条资产索引，全部幂等；`seedWithRetry` 迁移未应用时每 5 秒重试至 60 次 |
+| `deployment_model.go` | P2 部署资产实体（container/resource_alloc/volume_mapping/access_point/whitelist/whitelist_member/backup）、枚举合法集合、请求结构 |
+| `deployment_repository.go` | P2 数据访问：7 实体 CRUD、接入点 LEFT JOIN 白名单组名、白名单成员 JOIN 容器名、容器删除事务级联、资源分配 `ON DUPLICATE KEY UPDATE` |
+| `deployment_service.go` | P2 业务校验：端口/协议/暴露/反代/区域/挂载模式/备份类型、跨项目引用、白名单成员与容器引用约束、`url=NULL` 不可达归一化 |
+| `deployment_handler.go` | P2 HTTP 处理器（29 条路由）+ swag 注解 + 审计 |
+| `deployment_test.go` | P2 校验逻辑、枚举集合、错误码映射单测 |
 | `service_test.go` | 校验逻辑、错误码→状态映射、枚举集合数量 |
 | `permissions_test.go` | 权限命名规范/数量（28）/去重；seed 数据一致性（关联两端与资产归属均已登记、类型合法） |
 
@@ -32,13 +37,14 @@
 
 ## 迁移与部署注意
 
-- DDL 在 `migrations/mysql/002_development_manager.sql`，需手动触发应用：`POST /api/v1/migrate/schema/migrate`。
+- DDL 在 `migrations/mysql/002_development_manager.sql`（P1 三表）与 `003_development_manager_deployment.sql`（P2 七表），按序应用，需手动触发：`POST /api/v1/migrate/schema/migrate`。
 - 迁移按英文分号拆分执行：迁移 SQL 的注释与字符串内**不得出现英文分号**。
 - 权限播种与路由注册不依赖迁移（无表也能启动）；台账 seed 依赖迁移，未应用时后台重试并在日志中提示。
 - Swagger 已随模块生成：`swag init -g cmd/server/docs.go -o api/swagger --parseDependency --parseInternal`。
 
 ## 已知限制 / 待确认
 
-- `dm.project:restore` 权限点已播种，但项目恢复接口（`undelete`）规划在收尾阶段实现，P1 尚未提供。
-- seed 中 `go-frontend-core` 暂登记为 `frontend_module` 类型（规划 4 类无"前端基座"独立类型），待用户确认是否新增类型。
+- `dm.project:restore` 权限点已播种，但项目恢复接口（`undelete`）规划在收尾阶段实现，暂未提供。
+- 部署资产的列表接口不分页（单项目内条目量级小），接入点支持按暴露范围/网络区域筛选；如需分页在 P7 统一补齐。
+- 项目类型已扩展为 5 类（2026-10-30 用户确认新增 `frontend_base` 前端基座），`go-frontend-core` 登记为此类型。
 - 历史 zzz 模块的 `initTables` 建表方式未改造（P8 统一迁移到 migrations）。

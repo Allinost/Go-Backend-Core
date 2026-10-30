@@ -1,6 +1,6 @@
 # developmentManager 数据模型
 
-> 表前缀规范见 [docs/data-model.md](../../../data-model.md)：模块表统一 `zzz_development_manager_` 前缀，建表统一走 migrations 迁移（模块不 initTables）。本模块规划共 **15 张表**，P1 已建 3 张。
+> 表前缀规范见 [docs/data-model.md](../../../data-model.md)：模块表统一 `zzz_development_manager_` 前缀，建表统一走 migrations 迁移（模块不 initTables）。本模块规划共 **15 张表**，P1 已建 3 张、P2 已建 7 张（累计落地 10 张）。
 
 ## 总览
 
@@ -9,13 +9,13 @@
 | 1 | `zzz_development_manager_project` | P1 | 项目台账（基座/模板/模块） |
 | 2 | `zzz_development_manager_project_relation` | P1 | 项目关联（基座/模板/模块绑定） |
 | 3 | `zzz_development_manager_project_asset` | P1 | 归类资产索引（需求/代码/文档/附件路径索引） |
-| 4 | `zzz_development_manager_container` | P2 | 项目关联容器 |
-| 5 | `zzz_development_manager_resource_alloc` | P2 | 资源分配（容器 1:1） |
-| 6 | `zzz_development_manager_volume_mapping` | P2 | 卷映射 |
-| 7 | `zzz_development_manager_access_point` | P2 | 网络接入点（端口+反代+地址+白名单引用 四合一） |
-| 8 | `zzz_development_manager_whitelist` | P2 | 常用白名单组（可复用，允许空组） |
-| 9 | `zzz_development_manager_whitelist_member` | P2 | 白名单成员（FK → container） |
-| 10 | `zzz_development_manager_backup` | P2 | 备份策略与最近执行结果 |
+| 4 | `zzz_development_manager_container` | P2 ✅ | 项目关联容器 |
+| 5 | `zzz_development_manager_resource_alloc` | P2 ✅ | 资源分配（容器 1:1） |
+| 6 | `zzz_development_manager_volume_mapping` | P2 ✅ | 卷映射 |
+| 7 | `zzz_development_manager_access_point` | P2 ✅ | 网络接入点（端口+反代+地址+白名单引用 四合一） |
+| 8 | `zzz_development_manager_whitelist` | P2 ✅ | 常用白名单组（可复用，允许空组） |
+| 9 | `zzz_development_manager_whitelist_member` | P2 ✅ | 白名单成员（FK → container） |
+| 10 | `zzz_development_manager_backup` | P2 ✅ | 备份策略与最近执行结果 |
 | 11 | `zzz_development_manager_db_table` | P3 | 数据表登记 |
 | 12 | `zzz_development_manager_db_column` | P3 | 字段字典 |
 | 13 | `zzz_development_manager_requirement` | P4 | 需求登记与状态流转 |
@@ -33,7 +33,7 @@
 | id | bigint PK | 主键 |
 | project_key | varchar(64) UK | 项目唯一键（目录/接口引用用，如 `go-backend-core`；格式：小写字母/数字/中划线，2-64 位） |
 | name | varchar(128) | 项目名称（2-128 字符） |
-| type | varchar(32) | 项目类型：`base` / `template` / `backend_module` / `frontend_module` |
+| type | varchar(32) | 项目类型：`base` / `template` / `backend_module` / `frontend_module` / `frontend_base` |
 | description | text | 项目简介 |
 | repo_url | varchar(255) | 代码仓库地址（可空） |
 | repo_path | varchar(255) | 仓库本地路径（可空，相对仓库根目录） |
@@ -77,7 +77,28 @@
   3. 级联标记该项目全部资产索引。
 - **删除保护**：存在启用中的被依赖关联（其他项目 `uses_base` 等指向它）时默认拒绝（错误码 46106），返回被依赖清单；请求加 `force=1` 强制删除。
 
-## P2~P5 规划表要点（详见规划 §3.2~§3.4）
+## P2 已建表（migrations/mysql/003_development_manager_deployment.sql）
+
+7 张表按"容器 → 资源/卷 → 白名单组/成员 → 接入点 → 备份"顺序创建，满足外键引用。
+
+| 表 | 关键字段 | 语义要点 |
+|---|---|---|
+| `container` | project_id、container_name、image、compose_ref、replicas、network_mode、env_notes(JSON)、status_note、deleted | 容器名项目内唯一（服务层校验，兼容软删除后可重名）；删除时事务内级联软删除其卷与接入点；仍被白名单组引用时拒绝 |
+| `resource_alloc` | container_id **UK**、cpu_limit/cpu_shares、mem_limit/mem_reservation、gpu_note、storage_quota、notes | 与容器 1:1，`PUT` 语义 upsert；资源量用字符串保留单位（2g / 500m） |
+| `volume_mapping` | container_id、host_path、container_path、mode(rw/ro)、purpose、in_backup、deleted | 宿主目录 ↔ 容器目录，标记是否纳入备份 |
+| `whitelist` | project_id、name、note、deleted | 组名项目内唯一；**允许 0 成员**（先建组后补成员） |
+| `whitelist_member` | whitelist_id **FK**、container_id **FK**、note | UK(whitelist_id, container_id) 防重复；容器改名自动跟随 |
+| `access_point` | project_id、container_id、listen_port、host_port、protocol、exposure、proxy_type、domain、upstream_url、tls、network_zone、url、reachable、whitelist_id、deleted | 行粒度 = 端口 × 访问地址；`url=NULL` ⇔ 不可达（服务层联动 `reachable`）；`whitelist_id=NULL` = 不限制；反代字段可空 = 直连 |
+| `backup` | project_id、container_id、volume_id、backup_type(full/db/volume)、strategy_cron、destination、retention_days、last_run_at、last_status、last_error、restore_note、enabled | 策略与最近执行结果同表；备份记录硬删除（无软删除） |
+
+### P2 删除与引用约束
+
+- **容器删除**：事务内软删除容器 + 其卷映射 + 其接入点；若其仍为某白名单组成员则拒绝（提示组名，需先移除成员）。
+- **白名单组删除**：若仍被未删除的接入点引用则拒绝（提示引用条数）；否则事务内删除成员并软删除组。
+- **白名单成员删除**：硬删除（成员是关系行，无独立生命周期）。
+- **跨项目引用**：接入点引用的容器/白名单组、备份引用的容器/卷、成员引用的容器必须与所属项目一致，否则返回 46207。
+
+## P3~P5 规划表要点（详见规划 §3.2~§3.4）
 
 - **access_point 四合一**：端口（listen/host_port/protocol/exposure）+ 反代（proxy_type/domain/upstream_url/tls，可空=直连）+ 访问地址（url **NULL=不可达**）+ `whitelist_id`（**NULL=不限制**）；行粒度 = 端口 × 访问地址。
 - **whitelist 组复用**：组 + 成员两表，组**允许 0 成员**；成员 FK → container，容器改名自动跟随。

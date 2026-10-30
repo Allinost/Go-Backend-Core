@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS zzz_development_manager_project (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
   project_key VARCHAR(64) NOT NULL COMMENT '项目唯一键（目录与接口引用用，如 go-backend-core）',
   name VARCHAR(128) NOT NULL COMMENT '项目名称',
-  type VARCHAR(32) NOT NULL COMMENT '项目类型 base=后端基座 / template=前端模板 / backend_module=后端模块 / frontend_module=前端模块',
+  type VARCHAR(32) NOT NULL COMMENT '项目类型 base=后端基座 / template=前端模板 / backend_module=后端模块 / frontend_module=前端模块 / frontend_base=前端基座',
   description TEXT NULL COMMENT '项目简介',
   repo_url VARCHAR(255) NOT NULL DEFAULT '' COMMENT '代码仓库地址（可空）',
   repo_path VARCHAR(255) NOT NULL DEFAULT '' COMMENT '仓库本地路径（可空，相对仓库根目录）',

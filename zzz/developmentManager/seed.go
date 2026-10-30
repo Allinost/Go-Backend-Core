@@ -24,7 +24,7 @@ var seedProjects = []seedProjectEntry{
 		TechStack:   []string{"Go", "Gin", "MySQL", "Redis"}},
 	{Key: "nkui", Name: "NKUI", Type: ProjectTypeTemplate, RepoPath: "../NKUI",
 		Description: "前端模板（Web/移动/小程序多端）", TechStack: []string{"Vue3", "NKUI"}},
-	{Key: "go-frontend-core", Name: "Go-Frontend-Core", Type: ProjectTypeFrontendModule, RepoPath: "../Go-Frontend-Core",
+	{Key: "go-frontend-core", Name: "Go-Frontend-Core", Type: ProjectTypeFrontendBase, RepoPath: "../Go-Frontend-Core",
 		Description: "前端核心工程（NKUI 之上的基座），关联 NKUI 模板与 Go-Backend-Core 后端",
 		TechStack:   []string{"Vue3", "TypeScript", "Vite"}},
 	{Key: "goodser", Name: "商品服务", Type: ProjectTypeBackendModule, RepoPath: "zzz/goodser",

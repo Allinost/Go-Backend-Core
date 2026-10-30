@@ -1039,6 +1039,158 @@ definitions:
     - TaskTypeCron
     - TaskTypeOnce
     - TaskTypeInterval
+  zzz_developmentManager.AccessPoint:
+    properties:
+      container_id:
+        type: integer
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted:
+        type: boolean
+      deleted_at:
+        type: string
+      domain:
+        type: string
+      exposure:
+        type: string
+      host_port:
+        type: integer
+      id:
+        type: integer
+      listen_port:
+        type: integer
+      network_zone:
+        type: string
+      notes:
+        type: string
+      project_id:
+        type: integer
+      protocol:
+        type: string
+      proxy_type:
+        type: string
+      purpose:
+        type: string
+      reachable:
+        type: boolean
+      tls:
+        type: boolean
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+      upstream_url:
+        type: string
+      url:
+        type: string
+      whitelist_id:
+        type: integer
+      whitelist_name:
+        type: string
+    type: object
+  zzz_developmentManager.Backup:
+    properties:
+      backup_type:
+        type: string
+      container_id:
+        type: integer
+      created_at:
+        type: string
+      destination:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: integer
+      last_error:
+        type: string
+      last_run_at:
+        type: string
+      last_status:
+        type: string
+      project_id:
+        type: integer
+      restore_note:
+        type: string
+      retention_days:
+        type: integer
+      strategy_cron:
+        type: string
+      updated_at:
+        type: string
+      volume_id:
+        type: integer
+    type: object
+  zzz_developmentManager.Container:
+    properties:
+      compose_ref:
+        type: string
+      container_name:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted:
+        type: boolean
+      deleted_at:
+        type: string
+      env_notes:
+        additionalProperties:
+          type: string
+        type: object
+      id:
+        type: integer
+      image:
+        type: string
+      network_mode:
+        type: string
+      project_id:
+        type: integer
+      replicas:
+        type: integer
+      status_note:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
+  zzz_developmentManager.CreateAccessPointReq:
+    properties:
+      container_id:
+        type: integer
+      domain:
+        type: string
+      exposure:
+        type: string
+      host_port:
+        type: integer
+      listen_port:
+        type: integer
+      network_zone:
+        type: string
+      notes:
+        type: string
+      protocol:
+        type: string
+      proxy_type:
+        type: string
+      purpose:
+        type: string
+      tls:
+        type: boolean
+      upstream_url:
+        type: string
+      url:
+        type: string
+      whitelist_id:
+        type: integer
+    required:
+    - listen_port
+    type: object
   zzz_developmentManager.CreateAssetReq:
     properties:
       category:
@@ -1061,6 +1213,48 @@ definitions:
     - category
     - title
     - uri
+    type: object
+  zzz_developmentManager.CreateBackupReq:
+    properties:
+      backup_type:
+        type: string
+      container_id:
+        type: integer
+      destination:
+        type: string
+      enabled:
+        type: boolean
+      restore_note:
+        type: string
+      retention_days:
+        type: integer
+      strategy_cron:
+        type: string
+      volume_id:
+        type: integer
+    required:
+    - backup_type
+    type: object
+  zzz_developmentManager.CreateContainerReq:
+    properties:
+      compose_ref:
+        type: string
+      container_name:
+        type: string
+      env_notes:
+        additionalProperties:
+          type: string
+        type: object
+      image:
+        type: string
+      network_mode:
+        type: string
+      replicas:
+        type: integer
+      status_note:
+        type: string
+    required:
+    - container_name
     type: object
   zzz_developmentManager.CreateProjectReq:
     properties:
@@ -1100,6 +1294,40 @@ definitions:
     required:
     - relation_type
     - to_project_id
+    type: object
+  zzz_developmentManager.CreateVolumeReq:
+    properties:
+      container_path:
+        type: string
+      host_path:
+        type: string
+      in_backup:
+        type: boolean
+      mode:
+        type: string
+      purpose:
+        type: string
+    required:
+    - container_path
+    - host_path
+    type: object
+  zzz_developmentManager.CreateWhitelistMemberReq:
+    properties:
+      container_id:
+        type: integer
+      note:
+        type: string
+    required:
+    - container_id
+    type: object
+  zzz_developmentManager.CreateWhitelistReq:
+    properties:
+      name:
+        type: string
+      note:
+        type: string
+    required:
+    - name
     type: object
   zzz_developmentManager.PaginatedResp-zzz_developmentManager_Project:
     properties:
@@ -1241,6 +1469,31 @@ definitions:
       updated_at:
         type: string
     type: object
+  zzz_developmentManager.ResourceAlloc:
+    properties:
+      container_id:
+        type: integer
+      cpu_limit:
+        type: string
+      cpu_shares:
+        type: integer
+      created_at:
+        type: string
+      gpu_note:
+        type: string
+      id:
+        type: integer
+      mem_limit:
+        type: string
+      mem_reservation:
+        type: string
+      notes:
+        type: string
+      storage_quota:
+        type: string
+      updated_at:
+        type: string
+    type: object
   zzz_developmentManager.StatsResp:
     properties:
       assets_total:
@@ -1259,6 +1512,87 @@ definitions:
         type: integer
       relations_active:
         type: integer
+    type: object
+  zzz_developmentManager.UpdateAccessPointReq:
+    properties:
+      container_id:
+        type: integer
+      domain:
+        type: string
+      exposure:
+        type: string
+      host_port:
+        type: integer
+      listen_port:
+        type: integer
+      network_zone:
+        type: string
+      notes:
+        type: string
+      protocol:
+        type: string
+      proxy_type:
+        type: string
+      purpose:
+        type: string
+      tls:
+        type: boolean
+      upstream_url:
+        type: string
+      url:
+        type: string
+      whitelist_id:
+        type: integer
+    required:
+    - listen_port
+    type: object
+  zzz_developmentManager.UpdateBackupReq:
+    properties:
+      backup_type:
+        type: string
+      container_id:
+        type: integer
+      destination:
+        type: string
+      enabled:
+        type: boolean
+      last_error:
+        type: string
+      last_run_at:
+        type: string
+      last_status:
+        type: string
+      restore_note:
+        type: string
+      retention_days:
+        type: integer
+      strategy_cron:
+        type: string
+      volume_id:
+        type: integer
+    required:
+    - backup_type
+    type: object
+  zzz_developmentManager.UpdateContainerReq:
+    properties:
+      compose_ref:
+        type: string
+      container_name:
+        type: string
+      env_notes:
+        additionalProperties:
+          type: string
+        type: object
+      image:
+        type: string
+      network_mode:
+        type: string
+      replicas:
+        type: integer
+      status_note:
+        type: string
+    required:
+    - container_name
     type: object
   zzz_developmentManager.UpdateProjectReq:
     properties:
@@ -1286,6 +1620,113 @@ definitions:
     - name
     - project_key
     - type
+    type: object
+  zzz_developmentManager.UpdateVolumeReq:
+    properties:
+      container_path:
+        type: string
+      host_path:
+        type: string
+      in_backup:
+        type: boolean
+      mode:
+        type: string
+      purpose:
+        type: string
+    required:
+    - container_path
+    - host_path
+    type: object
+  zzz_developmentManager.UpdateWhitelistReq:
+    properties:
+      name:
+        type: string
+      note:
+        type: string
+    required:
+    - name
+    type: object
+  zzz_developmentManager.UpsertResourceReq:
+    properties:
+      cpu_limit:
+        type: string
+      cpu_shares:
+        type: integer
+      gpu_note:
+        type: string
+      mem_limit:
+        type: string
+      mem_reservation:
+        type: string
+      notes:
+        type: string
+      storage_quota:
+        type: string
+    type: object
+  zzz_developmentManager.VolumeMapping:
+    properties:
+      container_id:
+        type: integer
+      container_path:
+        type: string
+      created_at:
+        type: string
+      deleted:
+        type: boolean
+      deleted_at:
+        type: string
+      host_path:
+        type: string
+      id:
+        type: integer
+      in_backup:
+        type: boolean
+      mode:
+        type: string
+      purpose:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  zzz_developmentManager.Whitelist:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted:
+        type: boolean
+      deleted_at:
+        type: string
+      id:
+        type: integer
+      member_count:
+        type: integer
+      name:
+        type: string
+      note:
+        type: string
+      project_id:
+        type: integer
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    type: object
+  zzz_developmentManager.WhitelistMember:
+    properties:
+      container_id:
+        type: integer
+      container_name:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      note:
+        type: string
+      whitelist_id:
+        type: integer
     type: object
   zzz_goodser.AddStatusCodeReq:
     properties:
@@ -5392,6 +5833,354 @@ paths:
       summary: 哈希计算
       tags:
       - crypto
+  /developmentmanager/access-points/{id}:
+    delete:
+      parameters:
+      - description: 接入点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除网络接入点
+      tags:
+      - developmentManager
+    get:
+      parameters:
+      - description: 接入点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.AccessPoint'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取网络接入点详情
+      tags:
+      - developmentManager
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 接入点 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 接入点信息（全量）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.UpdateAccessPointReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.AccessPoint'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新网络接入点
+      tags:
+      - developmentManager
+  /developmentmanager/backups/{id}:
+    delete:
+      parameters:
+      - description: 备份 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除备份记录
+      tags:
+      - developmentManager
+    get:
+      parameters:
+      - description: 备份 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Backup'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取备份记录详情
+      tags:
+      - developmentManager
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 备份 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 备份信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.UpdateBackupReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Backup'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新备份记录
+      tags:
+      - developmentManager
+  /developmentmanager/containers/{id}:
+    delete:
+      parameters:
+      - description: 容器 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除容器
+      tags:
+      - developmentManager
+    get:
+      parameters:
+      - description: 容器 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Container'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取容器详情
+      tags:
+      - developmentManager
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 容器 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 容器信息（全量）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.UpdateContainerReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Container'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新容器
+      tags:
+      - developmentManager
+  /developmentmanager/containers/{id}/resources:
+    get:
+      parameters:
+      - description: 容器 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.ResourceAlloc'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取容器资源分配
+      tags:
+      - developmentManager
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 容器 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 资源分配
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.UpsertResourceReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.ResourceAlloc'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 写入容器资源分配
+      tags:
+      - developmentManager
+  /developmentmanager/containers/{id}/volumes:
+    get:
+      parameters:
+      - description: 容器 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 是否查询已删除（默认否）
+        in: query
+        name: deleted
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_developmentManager.VolumeMapping'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取容器卷映射
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 容器 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 卷映射信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateVolumeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.VolumeMapping'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 新建卷映射
+      tags:
+      - developmentManager
   /developmentmanager/permissions/meta:
     get:
       produces:
@@ -5564,6 +6353,77 @@ paths:
       summary: 更新项目
       tags:
       - developmentManager
+  /developmentmanager/projects/{id}/access-points:
+    get:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 暴露范围 none/intranet/extranet
+        in: query
+        name: exposure
+        type: string
+      - description: 网络区域 intranet/extranet/proxy_net
+        in: query
+        name: network_zone
+        type: string
+      - description: 是否查询已删除（默认否）
+        in: query
+        name: deleted
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_developmentManager.AccessPoint'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目网络接入点
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 接入点信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateAccessPointReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.AccessPoint'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 新建网络接入点
+      tags:
+      - developmentManager
   /developmentmanager/projects/{id}/assets:
     get:
       parameters:
@@ -5656,6 +6516,128 @@ paths:
       security:
       - BearerAuth: []
       summary: 删除项目资产索引
+      tags:
+      - developmentManager
+  /developmentmanager/projects/{id}/backups:
+    get:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_developmentManager.Backup'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目备份记录
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 备份信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateBackupReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Backup'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 新建备份记录
+      tags:
+      - developmentManager
+  /developmentmanager/projects/{id}/containers:
+    get:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 是否查询已删除（默认否）
+        in: query
+        name: deleted
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_developmentManager.Container'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目容器列表
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 容器信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateContainerReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Container'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 新建容器
       tags:
       - developmentManager
   /developmentmanager/projects/{id}/relations:
@@ -5756,6 +6738,69 @@ paths:
       summary: 删除项目关联
       tags:
       - developmentManager
+  /developmentmanager/projects/{id}/whitelists:
+    get:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 是否查询已删除（默认否）
+        in: query
+        name: deleted
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_developmentManager.Whitelist'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目白名单组
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 白名单组信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateWhitelistReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Whitelist'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 新建白名单组
+      tags:
+      - developmentManager
   /developmentmanager/stats:
     get:
       produces:
@@ -5773,6 +6818,218 @@ paths:
       security:
       - BearerAuth: []
       summary: 获取仪表盘统计
+      tags:
+      - developmentManager
+  /developmentmanager/volumes/{id}:
+    delete:
+      parameters:
+      - description: 卷映射 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除卷映射
+      tags:
+      - developmentManager
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 卷映射 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 卷映射信息（全量）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.UpdateVolumeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.VolumeMapping'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新卷映射
+      tags:
+      - developmentManager
+  /developmentmanager/whitelists/{id}:
+    delete:
+      parameters:
+      - description: 白名单组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除白名单组
+      tags:
+      - developmentManager
+    get:
+      parameters:
+      - description: 白名单组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Whitelist'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取白名单组详情
+      tags:
+      - developmentManager
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 白名单组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 白名单组信息（全量）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.UpdateWhitelistReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.Whitelist'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新白名单组
+      tags:
+      - developmentManager
+  /developmentmanager/whitelists/{id}/members:
+    get:
+      parameters:
+      - description: 白名单组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_developmentManager.WhitelistMember'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取白名单成员
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 白名单组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 成员信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateWhitelistMemberReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.WhitelistMember'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 添加白名单成员
+      tags:
+      - developmentManager
+  /developmentmanager/whitelists/{id}/members/{member_id}:
+    delete:
+      parameters:
+      - description: 白名单组 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 成员 ID
+        in: path
+        name: member_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 移除白名单成员
       tags:
       - developmentManager
   /login3rd/accounts:
