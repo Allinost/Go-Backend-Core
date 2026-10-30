@@ -13,7 +13,7 @@
 | `model.go` | 实体、枚举常量与 `Valid*` 集合、请求结构（含分页 `Normalize/Offset`）、`PaginatedResp[T]`、`StatsResp` |
 | `errors.go` | 错误码常量（46001+）、中文消息表、`DevelopmentManagerError{Code,Message,Detail}` 与 `WithDetail` |
 | `permissions.go` | `PermissionSpecs` 28 个权限点（resource×action+中文说明，`init()` 拼 name）、`SeedPermissions` 幂等播种、`ensureRole` 默认角色（editor/viewer 仅不存在时创建，不覆盖） |
-| `seed.go` | 台账 seed：9 个项目（基座/NKUI/前端基座/5 个 zzz 模块/本地容器栈）+ 7 条关联 + **26 条历史资产索引** + **21 条历史需求**（P0–P17、各业务模块、前端/NKUI/容器栈），全部幂等；目录型资产可再通过「展开」生成文件级索引；`seedWithRetry` 迁移未应用时每 5 秒重试至 60 次 |
+| `seed.go` | 台账 seed：9 个项目（基座/NKUI/前端基座/5 个 zzz 模块/本地容器栈）+ 7 条关联 + **26 条历史资产索引** + **21 条历史需求**（P0–P17、各业务模块、前端/NKUI/容器栈）+ **30 张老模块表/347 个字段的数据字典**，全部幂等；目录型资产可再通过「展开」生成文件级索引；`seedWithRetry` 迁移未应用时每 5 秒重试至 60 次 |
 | `asset_expand.go` | 目录型资产展开：路径解析（仓库根/项目 repo_path）、安全边界、递归扫描（跳过依赖与构建目录）、文件级资产幂等登记 |
 | `deployment_model.go` | P2 部署资产实体（container/resource_alloc/volume_mapping/access_point/whitelist/whitelist_member/backup）、枚举合法集合、请求结构 |
 | `deployment_repository.go` | P2 数据访问：7 实体 CRUD、接入点 LEFT JOIN 白名单组名、白名单成员 JOIN 容器名、容器删除事务级联、资源分配 `ON DUPLICATE KEY UPDATE` |
@@ -78,7 +78,7 @@ Go-Frontend-Core/src/
 
 ## 迁移与部署注意
 
-- DDL 在 `migrations/mysql/002_development_manager.sql`（P1 三表）、`003_development_manager_deployment.sql`（P2 七表）、`004_development_manager_dictionary.sql`（P3 两表）、`005_development_manager_requirement.sql`（P4 两表）、`006_development_manager_generation.sql`（P5 一表）、`007_project_type_container.sql`（类型注释扩展）、`008_legacy_modules_schema.sql`（老模块 31 张表统一迁移），按序应用，需手动触发：`POST /api/v1/migrate/schema/migrate`。
+- DDL 在 `migrations/mysql/002_development_manager.sql`（P1 三表）、`003_development_manager_deployment.sql`（P2 七表）、`004_development_manager_dictionary.sql`（P3 两表）、`005_development_manager_requirement.sql`（P4 两表）、`006_development_manager_generation.sql`（P5 一表）、`007_project_type_container.sql`（类型注释扩展）、`008_legacy_modules_schema.sql`（老模块 30 张表统一迁移）、`009_rename_legacy_tables.sql`（旧表统一 `zzz_` 前缀），按序应用，需手动触发：`POST /api/v1/migrate/schema/migrate`。
 - 迁移按英文分号拆分执行：迁移 SQL 的注释与字符串内**不得出现英文分号**。
 - 权限播种与路由注册不依赖迁移（无表也能启动）；台账 seed 依赖迁移，未应用时后台重试并在日志中提示。
 - Swagger 已随模块生成：`swag init -g cmd/server/docs.go -o api/swagger --parseDependency --parseInternal`。
@@ -91,4 +91,4 @@ Go-Frontend-Core/src/
 - 生成产物写入进程工作目录（`docs/projects/<项目 key>/`），部署时需保证服务对仓库目录有写权限。
 - 自动提交依赖本机 `git`，且只允许在非 main/master 分支提交；建议在开发/受控环境使用。
 - 项目类型已扩展为 5 类（2026-10-30 用户确认新增 `frontend_base` 前端基座），`go-frontend-core` 登记为此类型。
-- 历史模块 `initTables` 已在 P8 收敛到 `migrations/mysql/008_legacy_modules_schema.sql`（31 张表）；`auth` 等 GORM `AutoMigrate` 基座模块尚未改造。
+- 历史模块 `initTables` 已在 P8 收敛到 `migrations/mysql/008_legacy_modules_schema.sql`（30 张表），`009` 统一 `zzz_` 前缀并登记数据字典；`auth` 等 GORM `AutoMigrate` 基座模块尚未改造。

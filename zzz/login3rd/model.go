@@ -6,18 +6,18 @@ import (
 	"time"
 )
 
-// Platform 第三方平台注册信息，对应 login3rd_platforms 表
+// Platform 第三方平台注册信息，对应 zzz_login3rd_platforms 表
 type Platform struct {
-	ID        string       `json:"id" db:"id"`                    // 平台标识 jd/taobao/pdd/_1688/tjupt
-	Name      string       `json:"name" db:"name"`                // 显示名称
-	Category  string       `json:"category" db:"category"`        // shopping/pt/sign
-	LoginType string       `json:"login_type" db:"login_type"`    // browser/oauth/qrcode
-	HasAuto   bool         `json:"has_auto" db:"has_auto"`        // 是否支持账号密码自动登录
-	LoginURL  string       `json:"login_url" db:"login_url"`      // 登录页 URL
-	HomeURL   string       `json:"home_url" db:"home_url"`        // 登录后首页 URL（提取 cookie）
-	FormCfg   *FormConfig  `json:"form_config,omitempty" db:"form_config"` // 自动填表单配置
-	IconURL   string       `json:"icon_url,omitempty" db:"icon_url"`
-	CreatedAt time.Time    `json:"created_at" db:"created_at"`
+	ID        string      `json:"id" db:"id"`                             // 平台标识 jd/taobao/pdd/_1688/tjupt
+	Name      string      `json:"name" db:"name"`                         // 显示名称
+	Category  string      `json:"category" db:"category"`                 // shopping/pt/sign
+	LoginType string      `json:"login_type" db:"login_type"`             // browser/oauth/qrcode
+	HasAuto   bool        `json:"has_auto" db:"has_auto"`                 // 是否支持账号密码自动登录
+	LoginURL  string      `json:"login_url" db:"login_url"`               // 登录页 URL
+	HomeURL   string      `json:"home_url" db:"home_url"`                 // 登录后首页 URL（提取 cookie）
+	FormCfg   *FormConfig `json:"form_config,omitempty" db:"form_config"` // 自动填表单配置
+	IconURL   string      `json:"icon_url,omitempty" db:"icon_url"`
+	CreatedAt time.Time   `json:"created_at" db:"created_at"`
 }
 
 // FormConfig 浏览器自动填表单的配置，存放在 platform.form_config 字段
@@ -33,35 +33,35 @@ type FormConfig struct {
 	MaxAutoRetry      int      `json:"max_auto_retry,omitempty"`      // 自动填最大重试
 }
 
-// Account 第三方账号与当前登录态，对应 login3rd_accounts 表
+// Account 第三方账号与当前登录态，对应 zzz_login3rd_accounts 表
 type Account struct {
-	ID               int64         `json:"id" db:"id"`
-	PlatformID       string        `json:"platform_id" db:"platform_id"`
+	ID         int64  `json:"id" db:"id"`
+	PlatformID string `json:"platform_id" db:"platform_id"`
 
 	// 用户标识
-	Label            string        `json:"label" db:"label"`
+	Label string `json:"label" db:"label"`
 
 	// 凭证（存储时加密，响应时脱敏）
-	Username         string        `json:"username" db:"username"`
-	EncryptedPwd     string        `json:"-" db:"encrypted_password"`
-	EncryptedToken   string        `json:"-" db:"encrypted_token"`
+	Username       string `json:"username" db:"username"`
+	EncryptedPwd   string `json:"-" db:"encrypted_password"`
+	EncryptedToken string `json:"-" db:"encrypted_token"`
 
 	// Webhook 通知
-	WebhookIDs       []string      `json:"webhook_ids,omitempty" db:"webhook_ids"`
+	WebhookIDs []string `json:"webhook_ids,omitempty" db:"webhook_ids"`
 
 	// Session（当前登录态，替代文件系统 profile）
-	SessionData      *SessionData  `json:"session_data,omitempty" db:"session_data"`
-	LoginMethod      string        `json:"login_method,omitempty" db:"login_method"`          // auto / remote / manual
-	SessionExpiresAt *time.Time    `json:"session_expires_at,omitempty" db:"session_expires_at"`
-	LastVerifiedAt   *time.Time    `json:"last_verified_at,omitempty" db:"last_verified_at"`
-	VerifiedStatus   string        `json:"verified_status" db:"verified_status"`              // valid / expired / unknown
+	SessionData      *SessionData `json:"session_data,omitempty" db:"session_data"`
+	LoginMethod      string       `json:"login_method,omitempty" db:"login_method"` // auto / remote / manual
+	SessionExpiresAt *time.Time   `json:"session_expires_at,omitempty" db:"session_expires_at"`
+	LastVerifiedAt   *time.Time   `json:"last_verified_at,omitempty" db:"last_verified_at"`
+	VerifiedStatus   string       `json:"verified_status" db:"verified_status"` // valid / expired / unknown
 
 	// 状态
-	Status           string        `json:"status" db:"status"`                     // active / expired / disabled
-	LastLoginAt      *time.Time    `json:"last_login_at,omitempty" db:"last_login_at"`
-	LastError        string        `json:"last_error,omitempty" db:"last_error"`
-	CreatedAt        time.Time     `json:"created_at" db:"created_at"`
-	UpdatedAt        time.Time     `json:"updated_at" db:"updated_at"`
+	Status      string     `json:"status" db:"status"` // active / expired / disabled
+	LastLoginAt *time.Time `json:"last_login_at,omitempty" db:"last_login_at"`
+	LastError   string     `json:"last_error,omitempty" db:"last_error"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // SessionData 登录会话数据，存放在 accounts.session_data 字段
@@ -86,21 +86,21 @@ type SessionCookie struct {
 // ---------- 请求/响应结构 ----------
 
 type CreateAccountReq struct {
-	PlatformID string   `json:"platform_id" binding:"required"`   // 平台标识
-	Label      string   `json:"label" binding:"required"`         // 自定义名称
-	Username   string   `json:"username"`                         // 用户名
-	Password   string   `json:"password"`                         // 明文密码（仅用于创建，不存储明文）
-	Token      string   `json:"token"`                            // 备用 token
-	WebhookIDs []string `json:"webhook_ids"`                      // webhook 配置 ID 列表
+	PlatformID string   `json:"platform_id" binding:"required"` // 平台标识
+	Label      string   `json:"label" binding:"required"`       // 自定义名称
+	Username   string   `json:"username"`                       // 用户名
+	Password   string   `json:"password"`                       // 明文密码（仅用于创建，不存储明文）
+	Token      string   `json:"token"`                          // 备用 token
+	WebhookIDs []string `json:"webhook_ids"`                    // webhook 配置 ID 列表
 }
 
 type UpdateAccountReq struct {
-	Label      *string   `json:"label"`
-	Username   *string   `json:"username"`
-	Password   *string   `json:"password"`
-	Token      *string   `json:"token"`
-	WebhookIDs []string  `json:"webhook_ids"`
-	Status     *string   `json:"status"`
+	Label      *string  `json:"label"`
+	Username   *string  `json:"username"`
+	Password   *string  `json:"password"`
+	Token      *string  `json:"token"`
+	WebhookIDs []string `json:"webhook_ids"`
+	Status     *string  `json:"status"`
 }
 
 type ListAccountsReq struct {
@@ -126,16 +126,16 @@ func (r *ListAccountsReq) Offset() int {
 
 // AccountStatusResp 账号状态详情响应
 type AccountStatusResp struct {
-	Account          Account    `json:"account"`
-	Platform         Platform   `json:"platform"`
-	SessionValid     bool       `json:"session_valid"`
-	SessionExpiresIn string     `json:"session_expires_in,omitempty"`
-	CanAutoLogin     bool       `json:"can_auto_login"`
+	Account          Account  `json:"account"`
+	Platform         Platform `json:"platform"`
+	SessionValid     bool     `json:"session_valid"`
+	SessionExpiresIn string   `json:"session_expires_in,omitempty"`
+	CanAutoLogin     bool     `json:"can_auto_login"`
 }
 
 // PaginatedResp 通用分页响应
 type PaginatedResp[T any] struct {
-	Items   []T   `json:"items"`
-	HasMore bool  `json:"has_more"`
-	Total   int   `json:"total"`
+	Items   []T  `json:"items"`
+	HasMore bool `json:"has_more"`
+	Total   int  `json:"total"`
 }

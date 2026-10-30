@@ -10,7 +10,7 @@
 | 服务条目 CRUD | ✅ | 增/删/改/查（详情），见 [03-api-design.md](03-api-design.md) |
 | 服务类型 CRUD | ✅ | 类型独立管理，条目多选引用 |
 | 列表查询 | ✅ | 名称模糊搜索 + 类型筛选 + 排序 + 分页 |
-| 建表 | ✅ | `services_nav_item` / `services_nav_type` 已收敛到 migrations 008（P8） |
+| 建表 | ✅ | `zzz_servicenav_item` / `zzz_servicenav_type` 已收敛到 migrations 008（P8） |
 | 旧表兼容 | ✅ | `ensureColumn` 自动为已存在的表补充 `protocol` 列 |
 | 传输协议字段 | ✅ | `protocol` 默认 `http`，可设 `https` 等 |
 | 密码提示字段 | ✅ | `password_hint`（非真实密码，明文返回） |
@@ -43,14 +43,14 @@ internal/modules/servicenav/
 
 | 表 | 说明 |
 |----|------|
-| `services_nav_item` | 服务条目（name 唯一；types JSON；protocol；address；intranet_port NULL；easytier_port；account；password_hint；remark） |
-| `services_nav_type` | 服务类型（name 唯一；remark） |
+| `zzz_servicenav_item` | 服务条目（name 唯一；types JSON；protocol；address；intranet_port NULL；easytier_port；account；password_hint；remark） |
+| `zzz_servicenav_type` | 服务类型（name 唯一；remark） |
 
 ### 3.2 迭代变更
 
 | 变更 | SQL | 触发 |
 |------|-----|------|
-| 新增 `protocol` 列 | `ALTER TABLE services_nav_item ADD COLUMN protocol VARCHAR(20) NOT NULL DEFAULT 'http' AFTER types` | 模块启动 `ensureColumn` 自动检测并执行 |
+| 新增 `protocol` 列 | `ALTER TABLE zzz_servicenav_item ADD COLUMN protocol VARCHAR(20) NOT NULL DEFAULT 'http' AFTER types` | 模块启动 `ensureColumn` 自动检测并执行 |
 
 > 注意：`CREATE TABLE IF NOT EXISTS` 不会修改已存在的表，因此所有后续加列都必须通过 `ensureColumn`（基于 `information_schema.COLUMNS` 检测）兜底，而非只改建表 DDL。
 

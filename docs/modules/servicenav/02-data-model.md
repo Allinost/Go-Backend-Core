@@ -3,7 +3,7 @@
 ## 1. 数据库
 
 - **数据库**: 使用当前开发库（MySQL `main` 连接池）
-- **表名**: `services_nav_item` / `services_nav_type`（由 `migrations/mysql/008_legacy_modules_schema.sql` 统一建表）
+- **表名**: `zzz_servicenav_item` / `zzz_servicenav_type`（由 `migrations/mysql/008_legacy_modules_schema.sql` 统一建表）
 - **字符集**: `utf8mb4`
 - **引擎**: InnoDB
 
@@ -11,7 +11,7 @@
 
 ## 2. 表结构
 
-### 2.1 `services_nav_item` — 服务条目
+### 2.1 `zzz_servicenav_item` — 服务条目
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -35,7 +35,7 @@
 
 > 建表由 `migrations/mysql/008_legacy_modules_schema.sql` 统一管理（含 `protocol` 与三个关联列）；查询时 LEFT JOIN 项目与容器表返回 `project_key / project_name / container_name` 供展示。
 
-### 2.2 `services_nav_type` — 服务类型
+### 2.2 `zzz_servicenav_type` — 服务类型
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
@@ -56,7 +56,7 @@ package servicenav
 
 import "time"
 
-// ServiceType 服务类型，对应 services_nav_type 表
+// ServiceType 服务类型，对应 zzz_servicenav_type 表
 type ServiceType struct {
     ID        string    `json:"_id" db:"id"`
     Name      string    `json:"name" db:"name"`
@@ -65,7 +65,7 @@ type ServiceType struct {
     UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// ServiceItem 服务条目（服务导航），对应 services_nav_item 表
+// ServiceItem 服务条目（服务导航），对应 zzz_servicenav_item 表
 // IntranetPort 为 NULL 表示不支持内网访问
 type ServiceItem struct {
     ID           string    `json:"_id" db:"id"`

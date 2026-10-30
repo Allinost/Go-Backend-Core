@@ -4,7 +4,7 @@ package servicenav
 
 import "time"
 
-// ServiceType 服务类型，对应 services_nav_type 表
+// ServiceType 服务类型，对应 zzz_servicenav_type 表
 type ServiceType struct {
 	ID        string    `json:"_id" db:"id"`
 	Name      string    `json:"name" db:"name"`
@@ -13,7 +13,7 @@ type ServiceType struct {
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// ServiceItem 服务条目（服务导航），对应 services_nav_item 表
+// ServiceItem 服务条目（服务导航），对应 zzz_servicenav_item 表
 // IntranetPort 为 NULL 表示不支持内网访问
 type ServiceItem struct {
 	ID           string   `json:"_id" db:"id"`

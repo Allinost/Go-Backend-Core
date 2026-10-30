@@ -27,7 +27,7 @@ func TestSanitizeSort_Valid(t *testing.T) {
 
 func TestSanitizeSort_FallbackToNameAsc(t *testing.T) {
 	// 非法字段回退到 name，方向合法则保留
-	gotBy, gotOrder := sanitizeSort("name; DROP TABLE services_nav_item", "desc")
+	gotBy, gotOrder := sanitizeSort("name; DROP TABLE zzz_servicenav_item", "desc")
 	assert.Equal(t, "name", gotBy)
 	assert.Equal(t, "DESC", gotOrder)
 

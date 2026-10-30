@@ -27,7 +27,7 @@
 | Q14 | 容器项目与容器管理（2026-10-30 追加） | 明确部署语义：**后端基座 / 前端基座是部署单元，业务模块挂载到基座上运行**；新增项目类型 **`container_project`（容器项目）**，专门管理 docker compose 部署栈；前端在「运维管理」下新增与「项目开发管理」同级的 **「容器管理」** 页面，汇总容器项目及其容器/接入点，并可直达项目详情的部署 Tab |
 | Q15 | 服务导航关联与导入（2026-10-30 追加） | 服务导航条目增加 `project_id / container_id / access_point_id` 关联；新增 **从项目部署接入点快速导入**：可导入类型限定 **后端基座 / 前端基座 / 容器项目 / 前端模板**，**模块不导入**（模块挂载在基座上）；以 `access_point_id` 幂等，支持更新已导入条目；前端服务导航页增加「关联项目」列、表单项目/容器选择与导入弹窗 |
 | Q16 | 历史资料统一纳管（2026-10-30 追加） | 把已有项目的文档与历史需求统一登记进 developmentManager：**26 条资产索引**（后端架构/规范/API/发布记录/周报/各模块文档、前端 AGENTS、NKUI 设计 48 篇 + 组件/指南文档、compose 文件）+ **21 条历史需求**（P0–P17 里程碑、服务导航/Webhook、goodser/shopchecker/login3rd/ia、前端基座、NKUI、本地容器栈、V2 项目开发管理）；通过 seed 幂等导入（资产按 URI、需求按项目+标题去重），不移动原文件、保持 docs 单一事实源 |
-| Q17 | 老模块建表迁移（P8，2026-10-30 完成） | `goodser / shopchecker / login3rd / ia / webhook / servicenav` 的 `initTables()` DDL 全部收敛到 `migrations/mysql/008_legacy_modules_schema.sql`（31 张表 + goodser 系统状态码 seed）；模块 `Init` 不再自建表，登录平台 seed 改为容错启动（未应用迁移仅告警） |
+| Q17 | 老模块建表迁移（P8，2026-10-30 完成） | `goodser / shopchecker / login3rd / ia / webhook / servicenav` 的 `initTables()` DDL 全部收敛到 `migrations/mysql/008_legacy_modules_schema.sql`（30 张表 + goodser 系统状态码 seed），并由 `009_rename_legacy_tables.sql` 统一为 `zzz_login3rd_* / zzz_webhook_* / zzz_servicenav_*`；30 张表/347 字段已登记数据字典；模块 `Init` 不再自建表，登录平台 seed 改为容错启动 |
 | Q18 | 资产目录展开导入（2026-10-30） | 目录型资产（`format=dir`）支持展开为文件级索引：`POST /projects/:id/assets/expand`（单个）与 `/assets/expand-all`（全部）；递归扫描但跳过 `.git / node_modules / dist / 隐藏目录`，单目录上限 2000 文件；已登记 URI 幂等跳过；路径限制在仓库根或项目 `repo_path` 内。本次已展开 NKUI 与后端/各模块文档共 185 个文件 |
 
 ### 0.1 开发 SOP：用户描述 → 规划 → 开发 → 文档
@@ -346,7 +346,7 @@ GET             /permissions/meta              本模块权限点元数据（供
 | **P5 生成流程** | generation 任务、plan/doc 模板生成为主 → **末尾接入 services/ai 作为可选 engine（含降级）**；code 产出 patch/分支草案，**`auto_commit` 开关（默认关，受 `dm.generation:autocommit` 权限约束）** | 由需求一键生成方案与文档，AI 关闭时仍可完成，失败可重试 |
 | **P6 前端模块** | Go-Frontend-Core 中 developmentManager 模块（Web） | 全流程可视化操作走通 |
 | **P7 收尾** | Swagger(`make swagger`)、docs/projects 归档、测试、发布说明 | 通过 golangci-lint + 单测，文档齐全 |
-| **P8 历史模块规范化**（✅ 2026-10-30 完成） | `goodser / shopchecker / login3rd / ia / webhook / servicenav` 的 `initTables()` DDL 收敛到 `migrations/mysql/008_legacy_modules_schema.sql`（31 张表），模块启动不再自建表；`auth` 等 GORM `AutoMigrate` 基座模块另行处理 | 迁移版本表可见全部 DDL，模块初始化只装配依赖；本机模块接口冒烟全部 200 |
+| **P8 历史模块规范化**（✅ 2026-10-30 完成） | `goodser / shopchecker / login3rd / ia / webhook / servicenav` 的 `initTables()` DDL 收敛到 `migrations/mysql/008_legacy_modules_schema.sql`（30 张表），并由 `009` 统一 `zzz_` 前缀、登记数据字典；模块启动不再自建表；`auth` 等 GORM `AutoMigrate` 基座模块另行处理 | 迁移版本表可见全部 DDL，模块初始化只装配依赖；本机模块接口冒烟全部 200 |
 
 依赖关系：P1 → P2/P3/P4（可并行）→ P5 → P6 → P7；P8 独立穿插、单独提交。
 

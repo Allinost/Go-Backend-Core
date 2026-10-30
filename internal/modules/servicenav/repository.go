@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Repository 数据访问层，封装 services_nav_item 与 services_nav_type 的 CRUD 操作
+// Repository 数据访问层，封装 zzz_servicenav_item 与 zzz_servicenav_type 的 CRUD 操作
 type Repository struct {
 	db *sql.DB
 }

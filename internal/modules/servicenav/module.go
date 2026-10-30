@@ -11,8 +11,8 @@ import (
 
 // 数据表名
 const (
-	tableItem = "services_nav_item"
-	tableType = "services_nav_type"
+	tableItem = "zzz_servicenav_item"
+	tableType = "zzz_servicenav_type"
 )
 
 // Module 服务导航模块，实现 modules.Module 接口

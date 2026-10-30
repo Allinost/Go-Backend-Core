@@ -27,5 +27,5 @@
 10. **前端（P6）**：Go-Frontend-Core 新增 `developmentManager` 模块（Web），列表页 + 六 Tab 详情页；状态流转仅展示合法目标状态，生成页支持触发/重试/产物查看。
 11. **容器项目与容器管理（Q14）**：新增 `container_project` 类型管理 docker compose 部署栈；「容器管理」页面位于运维管理下，与项目开发管理同级，汇总容器项目及容器/接入点并可直达部署 Tab。
 12. **历史资料统一纳管（Q16）**：把后端基座、5 个 zzz 模块、前端基座、NKUI 模板、容器栈的现有文档与历史需求统一登记进项目台账（26 条资产索引 + 21 条历史需求），seed 幂等，后续启动不重复导入。
-13. **老模块建表迁移（Q17/P8）**：6 个老模块（goodser/shopchecker/login3rd/ia/webhook/servicenav）的 31 张表收敛到 `008_legacy_modules_schema.sql`，模块启动不再自建表。
+13. **老模块建表迁移（Q17/P8）**：6 个老模块（goodser/shopchecker/login3rd/ia/webhook/servicenav）的 30 张表收敛到 `008_legacy_modules_schema.sql`，并由 `009` 统一 `zzz_` 前缀；30 张表/347 字段已登记数据字典，模块启动不再自建表。
 14. **资产目录展开（Q18）**：目录型资产可展开为文件级索引（单个/全部），已展开 NKUI 与后端/各模块文档 **185 个文件**；跳过依赖与构建目录，重复展开幂等。

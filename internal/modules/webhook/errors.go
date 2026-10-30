@@ -10,11 +10,11 @@ const (
 	ErrConfigNotFound      = 40003
 
 	// 参数校验错误 (40100-40199)
-	ErrInvalidType       = 40100
-	ErrInvalidURL        = 40101
-	ErrInvalidStatus     = 40102
-	ErrInvalidWhitelist  = 40103
-	ErrInvalidRateLimit  = 40104
+	ErrInvalidType      = 40100
+	ErrInvalidURL       = 40101
+	ErrInvalidStatus    = 40102
+	ErrInvalidWhitelist = 40103
+	ErrInvalidRateLimit = 40104
 
 	// 发送相关错误 (40200-40299)
 	ErrSendFailed        = 40200

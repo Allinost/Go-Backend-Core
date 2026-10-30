@@ -5,7 +5,7 @@
 | 文件 | 内容 |
 |------|------|
 | [01-architecture-overview.md](01-architecture-overview.md) | 模块定位、架构总览、支持类型、核心能力、集成方式 |
-| [02-data-model.md](02-data-model.md) | 数据表设计（webhook_configs / delivery_logs / rate_limits）、Go 模型、DTO |
+| [02-data-model.md](02-data-model.md) | 数据表设计（zzz_webhook_configs / delivery_logs / rate_limits）、Go 模型、DTO |
 | [03-api-design.md](03-api-design.md) | 配置管理 API、投递 API、日志查询、统计 |
 | [04-module-structure.md](04-module-structure.md) | 模块文件组织、Sender/限流/去重实现、业务模块集成示例 |
 

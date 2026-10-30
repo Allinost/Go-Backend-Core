@@ -22,8 +22,8 @@ internal/modules/servicenav/
 package servicenav
 
 const (
-    tableItem = "services_nav_item"
-    tableType = "services_nav_type"
+    tableItem = "zzz_servicenav_item"
+    tableType = "zzz_servicenav_type"
 )
 
 func (m *Module) Name() string { return "servicenav" }
@@ -54,7 +54,7 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 }
 ```
 
-建表语句见 `migrations/mysql/008_legacy_modules_schema.sql`：`services_nav_item / services_nav_type`（P8 收敛）。
+建表语句见 `migrations/mysql/008_legacy_modules_schema.sql`：`zzz_servicenav_item / zzz_servicenav_type`（P8 收敛）。
 
 ---
 
@@ -170,7 +170,7 @@ func (r *Repository) ValidateTypes(ctx, names []string) ([]string, error)
 // 统计引用了某类型名称的条目数（类型删除保护）
 func (r *Repository) CountItemsByType(ctx, name string) (int, error) {
     typeJSON, _ := json.Marshal(name)
-    // SELECT COUNT(*) FROM services_nav_item WHERE JSON_CONTAINS(types, ?)
+    // SELECT COUNT(*) FROM zzz_servicenav_item WHERE JSON_CONTAINS(types, ?)
 }
 ```
 

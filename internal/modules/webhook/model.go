@@ -124,13 +124,13 @@ type DeliveryLog struct {
 
 // SendReq 发送消息请求体
 type SendReq struct {
-	WebhookIDs []string       `json:"webhook_ids"`      // 精确指定 Webhook ID，为空时按 tags 或全部活跃配置发送
-	Tags       []string       `json:"tags"`              // 按标签匹配（OR 关系）
-	Source     string         `json:"source"`            // 来源标识，用于统计
-	Title      string         `json:"title"`             // 消息标题
-	Content    string         `json:"content"`           // 消息正文
-	Data       map[string]any `json:"data,omitempty"`    // 扩展数据（仅通用类型会透传）
-	MsgType    string         `json:"msg_type"`          // 消息类型：text / markdown / card / interactive
+	WebhookIDs []string       `json:"webhook_ids"`    // 精确指定 Webhook ID，为空时按 tags 或全部活跃配置发送
+	Tags       []string       `json:"tags"`           // 按标签匹配（OR 关系）
+	Source     string         `json:"source"`         // 来源标识，用于统计
+	Title      string         `json:"title"`          // 消息标题
+	Content    string         `json:"content"`        // 消息正文
+	Data       map[string]any `json:"data,omitempty"` // 扩展数据（仅通用类型会透传）
+	MsgType    string         `json:"msg_type"`       // 消息类型：text / markdown / card / interactive
 }
 
 // SendResult 批量发送结果
@@ -144,7 +144,7 @@ type SendResult struct {
 type WebhookResult struct {
 	WebhookID   string `json:"webhook_id"`
 	WebhookName string `json:"webhook_name"`
-	Status      string `json:"status"`     // success / failed / rate_limited / deduped
+	Status      string `json:"status"` // success / failed / rate_limited / deduped
 	Error       string `json:"error,omitempty"`
 	DurationMS  int    `json:"duration_ms"`
 }
@@ -226,13 +226,13 @@ func (r *ListConfigsReq) Normalize() {
 }
 
 type ListDeliveryLogsReq struct {
-	Page       int    `form:"page"`
-	PageSize   int    `form:"page_size"`
-	WebhookID  string `form:"webhook_id"`
-	Source     string `form:"source"`
-	Status     string `form:"status"`
-	StartTime  string `form:"start"`
-	EndTime    string `form:"end"`
+	Page      int    `form:"page"`
+	PageSize  int    `form:"page_size"`
+	WebhookID string `form:"webhook_id"`
+	Source    string `form:"source"`
+	Status    string `form:"status"`
+	StartTime string `form:"start"`
+	EndTime   string `form:"end"`
 }
 
 func (r *ListDeliveryLogsReq) Normalize() {
@@ -250,28 +250,28 @@ type BatchDeleteDeliveryLogsReq struct {
 }
 
 type PaginatedResp[T any] struct {
-	Items   []T   `json:"items"`
-	HasMore bool  `json:"has_more"`
-	Total   int   `json:"total"`
+	Items   []T  `json:"items"`
+	HasMore bool `json:"has_more"`
+	Total   int  `json:"total"`
 }
 
 type StatsResp struct {
-	TotalConfigs    int            `json:"total_configs"`
-	ActiveConfigs   int            `json:"active_configs"`
-	TotalSentToday  int            `json:"total_sent_today"`
-	SuccessToday    int            `json:"success_today"`
-	FailedToday     int            `json:"failed_today"`
-	RateLimitedToday int           `json:"rate_limited_today"`
-	ByType          map[string]int `json:"by_type"`
-	BySource        map[string]int `json:"by_source"`
+	TotalConfigs     int            `json:"total_configs"`
+	ActiveConfigs    int            `json:"active_configs"`
+	TotalSentToday   int            `json:"total_sent_today"`
+	SuccessToday     int            `json:"success_today"`
+	FailedToday      int            `json:"failed_today"`
+	RateLimitedToday int            `json:"rate_limited_today"`
+	ByType           map[string]int `json:"by_type"`
+	BySource         map[string]int `json:"by_source"`
 }
 
 type ConfigStatsResp struct {
-	TotalSent   int        `json:"total_sent"`
-	TotalFailed int        `json:"total_failed"`
-	LastSentAt  *time.Time `json:"last_sent_at"`
+	TotalSent     int        `json:"total_sent"`
+	TotalFailed   int        `json:"total_failed"`
+	LastSentAt    *time.Time `json:"last_sent_at"`
 	LastSuccessAt *time.Time `json:"last_success_at"`
-	LastError   string     `json:"last_error"`
+	LastError     string     `json:"last_error"`
 }
 
 func (r *ListConfigsReq) Offset() int {
@@ -282,5 +282,5 @@ func (r *ListDeliveryLogsReq) Offset() int {
 	return (r.Page - 1) * r.PageSize
 }
 
-func intPtr(i int) *int { return &i }
+func intPtr(i int) *int       { return &i }
 func strPtr(s string) *string { return &s }

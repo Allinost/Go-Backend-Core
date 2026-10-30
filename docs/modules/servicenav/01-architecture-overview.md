@@ -8,15 +8,15 @@
 
 | 问题 | 方案 |
 |------|------|
-| 服务访问信息散落在聊天记录/笔记里，难找难维护 | 集中维护在 `services_nav_item` 表，提供统一管理 API |
-| 服务类型随意、口径不一 | 独立 `services_nav_type` 表管理类型，条目引用已注册类型 |
+| 服务访问信息散落在聊天记录/笔记里，难找难维护 | 集中维护在 `zzz_servicenav_item` 表，提供统一管理 API |
+| 服务类型随意、口径不一 | 独立 `zzz_servicenav_type` 表管理类型，条目引用已注册类型 |
 | 内网不开放的服务无法标注端口 | `intranet_port` 支持 NULL 表达「不支持内网访问」 |
 | 密码记在明文笔记里容易泄露 | 明确字段语义为「密码提示」，仅辅助回忆，不存真实密码 |
 
 ### 1.2 实体关系
 
 ```
-services_nav_type (服务类型)             services_nav_item (服务条目)
+zzz_servicenav_type (服务类型)             zzz_servicenav_item (服务条目)
 ┌──────────────────────┐               ┌──────────────────────────────────┐
 │ id PK                │               │ id PK                            │
 │ name UNIQUE          │◄──引用───     │ name UNIQUE                      │
@@ -33,7 +33,7 @@ services_nav_type (服务类型)             services_nav_item (服务条目)
 | 层面 | 策略 | 示例 |
 |------|------|------|
 | 代码目录 | `internal/modules/servicenav/` | `internal/modules/servicenav/service.go` |
-| 表名 | `services_nav_{表名}` | `services_nav_item`, `services_nav_type` |
+| 表名 | `services_nav_{表名}` | `zzz_servicenav_item`, `zzz_servicenav_type` |
 | 路由前缀 | `/api/v1/servicenav` | `/api/v1/servicenav/services` |
 | 模块名 | `servicenav` | `modules.Register(&servicenav.Module{})` |
 

@@ -124,9 +124,9 @@ CREATE TABLE s2_products (
 2. **模块表进基座库、必须带模块前缀**：业务模块的表建在基座数据库中，**按规定设置模块前缀**——本项目统一为 `zzz`，即 `{模块前缀}_{模块名}_{实体}`：
    - `zzz_ia_positions`、`zzz_goodser_products`、`zzz_shopchecker_price_records`
    - `zzz_development_manager_project`（项目开发管理模块）
-   - `login3rd_*` 属历史遗留，后续随 P8 规范化一并改为 `zzz_login3rd_*`
+   - P8 已统一历史表命名：`zzz_login3rd_*`、`zzz_webhook_*`、`zzz_servicenav_*`（由 `009_rename_legacy_tables.sql` 从旧名改名）
 3. **模块前缀与模块目录/路由对应**：模块目录 `zzz/<name>` → 表前缀 `zzz_<name 小写蛇形>_` → 路由前缀 `/api/v1/<name>`（目录允许驼峰，表名与包名取小写蛇形）。
-4. **新建表一律走 `migrations/mysql/NNN_*.sql` 统一迁移**（**现状：所有业务模块均为 MySQL、无 pg**；日后引入 pg 再同步补 `migrations/postgres/` 方言），不再在模块内 `initTables()` 自建。存量 `initTables()` 已于 feature-V2 P8 收敛到 `migrations/mysql/008_legacy_modules_schema.sql`（goodser/shopchecker/login3rd/ia/webhook/servicenav，31 张表）；`auth` 等使用 GORM `AutoMigrate` 的基座模块另行改造。
+4. **新建表一律走 `migrations/mysql/NNN_*.sql` 统一迁移**（**现状：所有业务模块均为 MySQL、无 pg**；日后引入 pg 再同步补 `migrations/postgres/` 方言），不再在模块内 `initTables()` 自建。存量 `initTables()` 已于 feature-V2 P8 收敛到 `migrations/mysql/008_legacy_modules_schema.sql`（goodser/shopchecker/login3rd/ia/webhook/servicenav，30 张表），并由 `009_rename_legacy_tables.sql` 统一为 `zzz_` 前缀；30 张表已登记进 developmentManager 数据字典。`auth` 等使用 GORM `AutoMigrate` 的基座模块另行改造。
 5. 表全名不得超过 64 字符（MySQL 上限）；建表 DDL 必须注明**表用途**，每个字段注明**含义**（登记进数据字典）。
 
 ### 通用命名

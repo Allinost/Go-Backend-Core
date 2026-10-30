@@ -52,7 +52,7 @@ POST /api/v1/servicenav/services
 }
 ```
 
-校验：`name` 必填且唯一、`types` 非空且必须在 `services_nav_type` 已注册。`protocol` 可选，不传或传空默认 `http`。
+校验：`name` 必填且唯一、`types` 非空且必须在 `zzz_servicenav_type` 已注册。`protocol` 可选，不传或传空默认 `http`。
 `project_id` / `container_id` / `access_point_id` 可选，用于关联 developmentManager 的项目/容器/接入点。
 
 ### 2.3 获取详情

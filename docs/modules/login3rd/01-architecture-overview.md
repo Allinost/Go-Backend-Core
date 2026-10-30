@@ -8,7 +8,7 @@
 
 | 问题 | 方案 |
 |------|------|
-| 多平台登录态散落、易过期难维护 | 集中存 `login3rd_accounts`，统一 CRUD 与状态跟踪 |
+| 多平台登录态散落、易过期难维护 | 集中存 `zzz_login3rd_accounts`，统一 CRUD 与状态跟踪 |
 | 手工反复登录效率低 | 三种登录方式：自动填表 / 远程浏览器人工登录 / 手动抓 Cookie |
 | Cookie 静默过期导致采集失败 | 24h 会话健康检查降级链 + webhook 过期告警 |
 | 凭据明文存储风险 | 密码 AES-256-GCM 加密入库，API 不回传密文 |
@@ -30,7 +30,7 @@ service.go          账号 CRUD · 加解密 · 登录/验证/刷新/登出 · �
    └─ provider/          Provider 接口 + JD 实现（Verify 为主）
         │                 └─ browser/  chromedp 登录流 + 远程浏览器管理
         ▼
-repository.go       原生 SQL · login3rd_platforms / login3rd_accounts
+repository.go       原生 SQL · zzz_login3rd_platforms / zzz_login3rd_accounts
         │
         ▼
 MySQL main 连接池
@@ -46,7 +46,7 @@ MySQL main 连接池
 | 层面 | 策略 | 示例 |
 |------|------|------|
 | 代码目录 | `zzz/login3rd/` | `zzz/login3rd/service.go`、`provider/`、`browser/` |
-| 表名 | `login3rd_{表名}` | `login3rd_platforms`、`login3rd_accounts` |
+| 表名 | `login3rd_{表名}` | `zzz_login3rd_platforms`、`zzz_login3rd_accounts` |
 | 路由前缀 | `/api/v1/login3rd` | `/api/v1/login3rd/accounts` |
 | 模块名 | `login3rd` | `modules.Register(&login3rd.Module{})`（`module.go:32`） |
 | 错误码 | `1001–1014` | 1004 登录会话已过期 |

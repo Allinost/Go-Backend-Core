@@ -24,7 +24,7 @@ func NewRepository(db *sql.DB) *Repository {
 func (r *Repository) ListPlatforms(ctx context.Context) ([]Platform, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, name, category, login_type, has_auto, login_url, home_url, form_config, icon_url, created_at
-		 FROM login3rd_platforms ORDER BY category, id`)
+		 FROM zzz_login3rd_platforms ORDER BY category, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func (r *Repository) ListPlatforms(ctx context.Context) ([]Platform, error) {
 func (r *Repository) GetPlatform(ctx context.Context, id string) (*Platform, error) {
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, name, category, login_type, has_auto, login_url, home_url, form_config, icon_url, created_at
-		 FROM login3rd_platforms WHERE id = ?`, id)
+		 FROM zzz_login3rd_platforms WHERE id = ?`, id)
 	return scanPlatform(row)
 }
 
@@ -50,7 +50,7 @@ func (r *Repository) SeedPlatforms(ctx context.Context) error {
 			formStr = &s
 		}
 		_, err := r.db.ExecContext(ctx,
-			`INSERT INTO login3rd_platforms
+			`INSERT INTO zzz_login3rd_platforms
 			 (id, name, category, login_type, has_auto, login_url, home_url, form_config)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 			 ON DUPLICATE KEY UPDATE
@@ -150,7 +150,7 @@ func (r *Repository) CreateAccount(ctx context.Context, a *Account) (*Account, e
 	webhookJSON, _ := json.Marshal(a.WebhookIDs)
 	sessionJSON, _ := json.Marshal(a.SessionData)
 	res, err := r.db.ExecContext(ctx,
-		`INSERT INTO login3rd_accounts
+		`INSERT INTO zzz_login3rd_accounts
 		 (platform_id, label, username, encrypted_password, encrypted_token, webhook_ids,
 		  session_data, login_method, session_expires_at, last_verified_at, verified_status,
 		  status, last_login_at, last_error)
@@ -176,7 +176,7 @@ func (r *Repository) GetAccount(ctx context.Context, id int64) (*Account, error)
 		       webhook_ids, session_data, login_method, session_expires_at,
 		       last_verified_at, verified_status, status, last_login_at, last_error,
 		       created_at, updated_at
-		FROM login3rd_accounts WHERE id = ?`, id)
+		FROM zzz_login3rd_accounts WHERE id = ?`, id)
 	return scanAccount(row)
 }
 
@@ -187,7 +187,7 @@ func (r *Repository) GetAccountByPlatform(ctx context.Context, platformID string
 		       webhook_ids, session_data, login_method, session_expires_at,
 		       last_verified_at, verified_status, status, last_login_at, last_error,
 		       created_at, updated_at
-		FROM login3rd_accounts WHERE platform_id = ? ORDER BY id`, platformID)
+		FROM zzz_login3rd_accounts WHERE platform_id = ? ORDER BY id`, platformID)
 	if err != nil {
 		return nil, err
 	}
@@ -214,14 +214,14 @@ func (r *Repository) ListAccounts(ctx context.Context, req *ListAccountsReq) ([]
 	}
 
 	var total int
-	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM login3rd_accounts `+where, args...).Scan(&total)
+	r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM zzz_login3rd_accounts `+where, args...).Scan(&total)
 
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, platform_id, label, username, encrypted_password, encrypted_token,
 		       webhook_ids, session_data, login_method, session_expires_at,
 		       last_verified_at, verified_status, status, last_login_at, last_error,
 		       created_at, updated_at
-		FROM login3rd_accounts `+where+` ORDER BY id DESC LIMIT ? OFFSET ?`,
+		FROM zzz_login3rd_accounts `+where+` ORDER BY id DESC LIMIT ? OFFSET ?`,
 		append(args, req.PageSize, req.Offset())...)
 	if err != nil {
 		return nil, false, 0, err
@@ -250,13 +250,13 @@ func (r *Repository) UpdateAccount(ctx context.Context, id int64, updates map[st
 		args = append(args, v)
 	}
 	args = append(args, id)
-	_, err := r.db.ExecContext(ctx, `UPDATE login3rd_accounts SET `+setClauses+` WHERE id = ?`, args...)
+	_, err := r.db.ExecContext(ctx, `UPDATE zzz_login3rd_accounts SET `+setClauses+` WHERE id = ?`, args...)
 	return err
 }
 
 // DeleteAccount 删除账号
 func (r *Repository) DeleteAccount(ctx context.Context, id int64) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM login3rd_accounts WHERE id = ?`, id)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM zzz_login3rd_accounts WHERE id = ?`, id)
 	return err
 }
 
@@ -264,7 +264,7 @@ func (r *Repository) DeleteAccount(ctx context.Context, id int64) error {
 func (r *Repository) UpdateSession(ctx context.Context, id int64, sessionData *SessionData, expiresAt *time.Time, method string) error {
 	sessionJSON, _ := json.Marshal(sessionData)
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE login3rd_accounts SET session_data = ?, login_method = ?,
+		`UPDATE zzz_login3rd_accounts SET session_data = ?, login_method = ?,
 		 session_expires_at = ?, last_login_at = NOW(), verified_status = 'valid', status = 'active', last_error = ''
 		 WHERE id = ?`,
 		nullJSON(sessionJSON), method, expiresAt, id)
@@ -275,12 +275,12 @@ func (r *Repository) UpdateSession(ctx context.Context, id int64, sessionData *S
 func (r *Repository) UpdateVerifiedStatus(ctx context.Context, id int64, status string) error {
 	if status == "valid" {
 		_, err := r.db.ExecContext(ctx,
-			`UPDATE login3rd_accounts SET verified_status = 'valid', status = 'active', last_verified_at = NOW(), last_error = '' WHERE id = ?`,
+			`UPDATE zzz_login3rd_accounts SET verified_status = 'valid', status = 'active', last_verified_at = NOW(), last_error = '' WHERE id = ?`,
 			id)
 		return err
 	}
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE login3rd_accounts SET verified_status = ?, last_verified_at = NOW() WHERE id = ?`,
+		`UPDATE zzz_login3rd_accounts SET verified_status = ?, last_verified_at = NOW() WHERE id = ?`,
 		status, id)
 	return err
 }
@@ -288,7 +288,7 @@ func (r *Repository) UpdateVerifiedStatus(ctx context.Context, id int64, status 
 // TouchSession 标记 session 使用成功：刷新验证时间并顺延会话有效期（供价格采集成功后调用）
 func (r *Repository) TouchSession(ctx context.Context, id int64, expiresAt time.Time) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE login3rd_accounts SET verified_status = 'valid', status = 'active',
+		`UPDATE zzz_login3rd_accounts SET verified_status = 'valid', status = 'active',
 		 last_verified_at = NOW(), last_error = '', session_expires_at = ?
 		 WHERE id = ?`,
 		expiresAt, id)
@@ -298,7 +298,7 @@ func (r *Repository) TouchSession(ctx context.Context, id int64, expiresAt time.
 // MarkExpired 标记账号 session 为过期
 func (r *Repository) MarkExpired(ctx context.Context, id int64, errMsg string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE login3rd_accounts SET verified_status = 'expired', status = 'expired', last_error = ? WHERE id = ?`,
+		`UPDATE zzz_login3rd_accounts SET verified_status = 'expired', status = 'expired', last_error = ? WHERE id = ?`,
 		errMsg, id)
 	return err
 }

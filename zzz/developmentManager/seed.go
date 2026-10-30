@@ -190,6 +190,53 @@ var seedRequirements = []seedRequirement{
 		Content: "项目台账、部署资产、数据字典、需求与生成、前端管理端；历史资料统一纳入。\n\n规划：`docs/plans/feature-V2-project-dev-management.md`"},
 }
 
+// seedLegacyTable 历史模块数据表（P8 迁移后统一登记进数据字典）
+type seedLegacyTable struct {
+	Key     string
+	Table   string
+	Module  string
+	Purpose string
+}
+
+var seedLegacyTables = []seedLegacyTable{
+	// goodser
+	{Key: "goodser", Table: "zzz_goodser_inventories", Module: "goodser", Purpose: "库存分区"},
+	{Key: "goodser", Table: "zzz_goodser_products", Module: "goodser", Purpose: "商品主数据与库存数量"},
+	{Key: "goodser", Table: "zzz_goodser_recycled_seq_numbers", Module: "goodser", Purpose: "回收序号池"},
+	{Key: "goodser", Table: "zzz_goodser_seq_counters", Module: "goodser", Purpose: "分区序号计数器"},
+	{Key: "goodser", Table: "zzz_goodser_outbound_orders", Module: "goodser", Purpose: "出库单"},
+	{Key: "goodser", Table: "zzz_goodser_inbound_logs", Module: "goodser", Purpose: "入库记录"},
+	{Key: "goodser", Table: "zzz_goodser_status_codes", Module: "goodser", Purpose: "商品状态码"},
+	{Key: "goodser", Table: "zzz_goodser_tags", Module: "goodser", Purpose: "商品标签"},
+	// shopchecker
+	{Key: "shopchecker", Table: "zzz_shopchecker_products", Module: "shopchecker", Purpose: "价格监控商品"},
+	{Key: "shopchecker", Table: "zzz_shopchecker_price_records", Module: "shopchecker", Purpose: "采集价格记录"},
+	{Key: "shopchecker", Table: "zzz_shopchecker_notification_logs", Module: "shopchecker", Purpose: "降价通知记录"},
+	// login3rd
+	{Key: "go-backend-core", Table: "zzz_login3rd_platforms", Module: "login3rd", Purpose: "第三方登录平台"},
+	{Key: "go-backend-core", Table: "zzz_login3rd_accounts", Module: "login3rd", Purpose: "第三方账号与会话"},
+	// ia
+	{Key: "ia", Table: "zzz_ia_accounts", Module: "ia", Purpose: "投资账户"},
+	{Key: "ia", Table: "zzz_ia_assets", Module: "ia", Purpose: "投资标的主数据"},
+	{Key: "ia", Table: "zzz_ia_cash_flows", Module: "ia", Purpose: "资金流水"},
+	{Key: "ia", Table: "zzz_ia_transactions", Module: "ia", Purpose: "交易流水"},
+	{Key: "ia", Table: "zzz_ia_fees", Module: "ia", Purpose: "独立费用"},
+	{Key: "ia", Table: "zzz_ia_positions", Module: "ia", Purpose: "实时持仓"},
+	{Key: "ia", Table: "zzz_ia_price_history", Module: "ia", Purpose: "价格/净值历史"},
+	{Key: "ia", Table: "zzz_ia_portfolio_snapshots", Module: "ia", Purpose: "组合每日快照"},
+	{Key: "ia", Table: "zzz_ia_realized_pnl", Module: "ia", Purpose: "已实现收益台账"},
+	{Key: "ia", Table: "zzz_ia_dca_plans", Module: "ia", Purpose: "定投计划"},
+	{Key: "ia", Table: "zzz_ia_fx_rates", Module: "ia", Purpose: "汇率"},
+	{Key: "ia", Table: "zzz_ia_allocations", Module: "ia", Purpose: "资产配比目标"},
+	{Key: "ia", Table: "zzz_ia_price_alerts", Module: "ia", Purpose: "价格告警"},
+	// webhook
+	{Key: "go-backend-core", Table: "zzz_webhook_configs", Module: "webhook", Purpose: "Webhook 配置"},
+	{Key: "go-backend-core", Table: "zzz_webhook_delivery_logs", Module: "webhook", Purpose: "Webhook 投递日志"},
+	// servicenav
+	{Key: "go-backend-core", Table: "zzz_servicenav_item", Module: "servicenav", Purpose: "服务导航条目"},
+	{Key: "go-backend-core", Table: "zzz_servicenav_type", Module: "servicenav", Purpose: "服务导航类型"},
+}
+
 // seedAll 幂等登记项目/关联/资产（表未迁移时报错交由上层重试）
 func seedAll(ctx context.Context, repo *Repository) error {
 	ids := make(map[string]int64, len(seedProjects))
@@ -319,6 +366,49 @@ func seedAll(ctx context.Context, repo *Repository) error {
 			return err
 		}
 	}
+
+	// 历史模块数据表登记进数据字典（表结构由 migrations 008/009 管理）
+	schema, err := repo.CurrentSchema(ctx)
+	if err != nil {
+		return err
+	}
+	if schema != "" {
+		for _, lt := range seedLegacyTables {
+			projectID, ok := ids[lt.Key]
+			if !ok {
+				continue
+			}
+			t, err := repo.GetTableByName(ctx, projectID, schema, lt.Table)
+			if err != nil {
+				if !isDMCode(err, ErrTableNotFound) {
+					return err
+				}
+				t, err = repo.CreateTable(ctx, &DBTable{
+					ProjectID:   projectID,
+					DBType:      DBTypeMySQL,
+					TableSchema: schema,
+					TableName:   lt.Table,
+					Purpose:     lt.Purpose,
+					Status:      TableStatusActive,
+					ModuleName:  lt.Module,
+					CreatedBy:   "seed",
+					UpdatedBy:   "seed",
+				})
+				if err != nil {
+					return err
+				}
+			}
+			cols, err := repo.ScanTableColumns(ctx, schema, lt.Table)
+			if err != nil {
+				return err
+			}
+			for i := range cols {
+				if _, err := repo.UpsertScannedColumn(ctx, t.ID, &cols[i]); err != nil {
+					return err
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -343,6 +433,7 @@ func (m *Module) seedWithRetry() {
 			Int("projects", len(seedProjects)).
 			Int("assets", len(seedAssets)).
 			Int("requirements", len(seedRequirements)).
+			Int("legacy_tables", len(seedLegacyTables)).
 			Msg("developmentmanager: 项目台账 seed 完成")
 		return
 	}

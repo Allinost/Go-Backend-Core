@@ -56,4 +56,24 @@ func TestSeedAssetsAndRequirements(t *testing.T) {
 	if len(seedRequirements) < 15 {
 		t.Errorf("历史需求过少：%d", len(seedRequirements))
 	}
+
+	legacyTables := make(map[string]bool)
+	for _, lt := range seedLegacyTables {
+		if !projectKeys[lt.Key] {
+			t.Errorf("数据表归属项目未登记：%s (%s)", lt.Key, lt.Table)
+		}
+		if len(lt.Table) < 5 || lt.Table[:4] != "zzz_" {
+			t.Errorf("历史表未使用 zzz_ 前缀：%s", lt.Table)
+		}
+		if lt.Module == "" || lt.Purpose == "" {
+			t.Errorf("历史表缺少模块/用途：%s", lt.Table)
+		}
+		if legacyTables[lt.Table] {
+			t.Errorf("历史表重复登记：%s", lt.Table)
+		}
+		legacyTables[lt.Table] = true
+	}
+	if len(seedLegacyTables) != 30 {
+		t.Errorf("历史模块表应为 30 张，实际 %d", len(seedLegacyTables))
+	}
 }

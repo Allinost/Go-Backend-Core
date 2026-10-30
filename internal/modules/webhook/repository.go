@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	tableConfigs      = "webhook_configs"
-	tableDeliveryLogs = "webhook_delivery_logs"
+	tableConfigs      = "zzz_webhook_configs"
+	tableDeliveryLogs = "zzz_webhook_delivery_logs"
 )
 
 // Repository 数据访问层，封装 MySQL 和 Redis 操作

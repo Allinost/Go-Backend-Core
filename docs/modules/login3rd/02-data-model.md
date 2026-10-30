@@ -3,7 +3,7 @@
 ## 1. 数据库
 
 - **数据库**: MySQL `main` 连接池（`database.DB.MySQL["main"]`）
-- **表名**: `login3rd_platforms` / `login3rd_accounts`（2 张）
+- **表名**: `zzz_login3rd_platforms` / `zzz_login3rd_accounts`（2 张）
 - **建表方式**: `migrations/mysql/008_legacy_modules_schema.sql` 统一建表（P8），模块启动时 `repo.SeedPlatforms` 幂等写入平台数据
 - **ORM**: 不用 GORM；原生 `database/sql` + 手写 SQL，model 用 `db:`/`json:` tag
 - **不走 `migrations/` 目录**（与 `ia` 模块一致）
@@ -12,7 +12,7 @@
 
 ## 2. 表结构
 
-### 2.1 `login3rd_platforms` — 平台（`module.go:162-173`）
+### 2.1 `zzz_login3rd_platforms` — 平台（`module.go:162-173`）
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -38,7 +38,7 @@
 | `LoginWaitSelector` | 登录后等待出现的元素 |
 | `MaxAutoRetry` | 自动填表最大重试次数 |
 
-### 2.2 `login3rd_accounts` — 账号（`module.go:175-194`，含外键 → platforms.id）
+### 2.2 `zzz_login3rd_accounts` — 账号（`module.go:175-194`，含外键 → platforms.id）
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -74,11 +74,11 @@ type SessionData struct {
 ## 3. ER 概览
 
 ```
-login3rd_platforms (7, seed)
+zzz_login3rd_platforms (7, seed)
         │ 1
         │
         │ N   外键 platform_id
-login3rd_accounts
+zzz_login3rd_accounts
    ├── session_data JSON（Cookie 会话）
    ├── encrypted_password / encrypted_token（AES-256-GCM）
    └── webhook_ids JSON ──► webhook 模块（告警投递）
