@@ -76,3 +76,4 @@
    - 原因：PowerShell 默认编码/重定向会破坏中文（`Set-Content` 写出 ANSI、`>` 重定向乱码），且不支持三元运算符；Git Bash 原生 UTF-8，`go`/`git`/`grep`/`sed` 等命令与 Linux CI 一致。
    - 约定：写中文文件一律用编辑器工具或 heredoc（`cat > file <<'EOF'`）；禁止用 `Set-Content`/`Out-File` 改写含中文的源码与文档。
    - 注意：从 PowerShell 调用 bash 时，`-lc` 的参数用**单引号**包裹，避免 `$?`、`$变量` 被 PowerShell 提前展开（双引号下会得到 `True`/空值而不是脚本结果）。
+   - 复杂命令（含管道、正则、内嵌引号、中文）**写入临时 `.sh` 脚本后执行 `bash script.sh`**，避免 PowerShell 与 bash 双层引号/转义差异导致命令被拆断。
