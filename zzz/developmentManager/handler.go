@@ -50,18 +50,22 @@ func statusForCode(code int) int {
 	switch code {
 	case ErrProjectNotFound, ErrRelationNotFound, ErrAssetNotFound, ErrTargetProjectMissing,
 		ErrContainerNotFound, ErrResourceNotFound, ErrVolumeNotFound, ErrAccessPointNotFound,
-		ErrWhitelistNotFound, ErrWhitelistMemberNotFound, ErrBackupNotFound:
+		ErrWhitelistNotFound, ErrWhitelistMemberNotFound, ErrBackupNotFound,
+		ErrTableNotFound, ErrColumnNotFound:
 		return 404
 	case ErrDuplicateProjectKey, ErrProjectHasDependents, ErrSelfRelation,
 		ErrDuplicateContainerName, ErrDuplicateWhitelistName,
-		ErrContainerInWhitelist, ErrWhitelistInUse:
+		ErrContainerInWhitelist, ErrWhitelistInUse,
+		ErrDuplicateTable, ErrDuplicateColumn:
 		return 409
 	case ErrInvalidProjectKey, ErrInvalidProjectType, ErrInvalidRelationType,
 		ErrInvalidAssetCategory, ErrInvalidProjectName,
 		ErrInvalidContainerName, ErrInvalidPort, ErrInvalidProtocol, ErrInvalidExposure,
 		ErrInvalidProxyType, ErrInvalidNetworkZone, ErrCrossProjectRef, ErrInvalidVolumePath,
 		ErrInvalidBackupType, ErrInvalidBackupStatus, ErrInvalidVolumeMode,
-		ErrInvalidWhitelistName, ErrInvalidReplicas, ErrInvalidResourceAlloc:
+		ErrInvalidWhitelistName, ErrInvalidReplicas, ErrInvalidResourceAlloc,
+		ErrInvalidDBType, ErrInvalidTableName, ErrInvalidTableStatus,
+		ErrInvalidColumnName, ErrScanUnsupported:
 		return 400
 	default:
 		return 500

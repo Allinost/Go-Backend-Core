@@ -2,7 +2,7 @@
 
 > 代码位置：`zzz/developmentManager` ｜ 路由前缀：`/api/v1/developmentmanager`
 > 规划：[docs/plans/feature-V2-project-dev-management.md](../../plans/feature-V2-project-dev-management.md)
-> 状态：**P1（模块骨架 + 项目台账）、P2（部署资产）已落地**，P3~P7 按规划推进
+> 状态：**P1（模块骨架 + 项目台账）、P2（部署资产）、P3（数据字典）已落地**，P4~P7 按规划推进
 
 ## 文档目录
 
@@ -21,3 +21,4 @@
 4. **鉴权**：全路由组挂 `auth` 模块登录中间件 + 逐路由 `RequirePermission`（本模块是首个使用 RBAC 的 zzz 模块）。
 5. **seed 幂等**：启动后台登记现有项目（基座/模板/前端基座/zzz 模块）+ 关联 + 资产索引，迁移未应用时自动重试。
 6. **部署建模（P2）**：端口+反代+访问地址合并 `access_point`（行粒度=端口×地址，`url=NULL` 即不可达）；白名单独立为可复用组+成员（允许空组），接入点只存 `whitelist_id`（NULL=不限制）；资源分配独立 1:1 表。容器删除级联卷与接入点，被白名单引用时需先移除成员。
+7. **数据字典（P3）**：手工登记 + `information_schema` 扫描导入初稿；扫描只更新结构信息，不覆盖人工填写的字段含义。

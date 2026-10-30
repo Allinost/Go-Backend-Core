@@ -2619,6 +2619,94 @@ const docTemplate = `{
                 }
             }
         },
+        "/developmentmanager/columns/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "更新字段",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "字段 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "字段信息（全量）",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.UpdateColumnReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.DBColumn"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "删除字段",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "字段 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/developmentmanager/containers/{id}": {
             "get": {
                 "security": [
@@ -3912,6 +4000,127 @@ const docTemplate = `{
                 }
             }
         },
+        "/developmentmanager/projects/{id}/tables": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取项目数据表字典",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "状态 active/deprecated/dropped",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "归属模块",
+                        "name": "module_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "关键词（匹配表名/用途）",
+                        "name": "keyword",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/zzz_developmentManager.DBTable"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "登记数据表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "数据表信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.CreateTableReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.DBTable"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/developmentmanager/projects/{id}/whitelists": {
             "get": {
                 "security": [
@@ -4048,6 +4257,285 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/zzz_developmentManager.StatsResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/tables/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取数据表详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "数据表 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.DBTable"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "更新数据表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "数据表 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "数据表信息（全量）",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.UpdateTableReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.DBTable"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "删除数据表登记",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "数据表 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/tables/{id}/columns": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "获取表字段字典",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "数据表 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/zzz_developmentManager.DBColumn"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "新增字段",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "数据表 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "字段信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_developmentManager.CreateColumnReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.DBColumn"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/developmentmanager/tables/{id}/scan-import": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "developmentManager"
+                ],
+                "summary": "从库扫描导入字段初稿",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "数据表 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_developmentManager.ScanImportResp"
                                         }
                                     }
                                 }
@@ -15834,6 +16322,42 @@ const docTemplate = `{
                 }
             }
         },
+        "zzz_developmentManager.CreateColumnReq": {
+            "type": "object",
+            "required": [
+                "column_name",
+                "data_type"
+            ],
+            "properties": {
+                "column_name": {
+                    "type": "string"
+                },
+                "data_type": {
+                    "type": "string"
+                },
+                "default_value": {
+                    "type": "string"
+                },
+                "example": {
+                    "type": "string"
+                },
+                "is_index": {
+                    "type": "boolean"
+                },
+                "is_pk": {
+                    "type": "boolean"
+                },
+                "meaning": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "nullable": {
+                    "type": "boolean"
+                }
+            }
+        },
         "zzz_developmentManager.CreateContainerReq": {
             "type": "object",
             "required": [
@@ -15924,6 +16448,35 @@ const docTemplate = `{
                 }
             }
         },
+        "zzz_developmentManager.CreateTableReq": {
+            "type": "object",
+            "required": [
+                "table_name"
+            ],
+            "properties": {
+                "created_note": {
+                    "type": "string"
+                },
+                "db_type": {
+                    "type": "string"
+                },
+                "module_name": {
+                    "type": "string"
+                },
+                "purpose": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "table_name": {
+                    "type": "string"
+                },
+                "table_schema": {
+                    "type": "string"
+                }
+            }
+        },
         "zzz_developmentManager.CreateVolumeReq": {
             "type": "object",
             "required": [
@@ -15972,6 +16525,97 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.DBColumn": {
+            "type": "object",
+            "properties": {
+                "column_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "data_type": {
+                    "type": "string"
+                },
+                "default_value": {
+                    "type": "string"
+                },
+                "example": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_index": {
+                    "type": "boolean"
+                },
+                "is_pk": {
+                    "type": "boolean"
+                },
+                "meaning": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "nullable": {
+                    "type": "boolean"
+                },
+                "table_id": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.DBTable": {
+            "type": "object",
+            "properties": {
+                "column_count": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "created_note": {
+                    "type": "string"
+                },
+                "db_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "module_name": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "purpose": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "table_name": {
+                    "type": "string"
+                },
+                "table_schema": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
                     "type": "string"
                 }
             }
@@ -16227,6 +16871,23 @@ const docTemplate = `{
                 }
             }
         },
+        "zzz_developmentManager.ScanImportResp": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "integer"
+                },
+                "scanned": {
+                    "type": "integer"
+                },
+                "table_id": {
+                    "type": "integer"
+                },
+                "updated": {
+                    "type": "integer"
+                }
+            }
+        },
         "zzz_developmentManager.StatsResp": {
             "type": "object",
             "properties": {
@@ -16347,6 +17008,42 @@ const docTemplate = `{
                 }
             }
         },
+        "zzz_developmentManager.UpdateColumnReq": {
+            "type": "object",
+            "required": [
+                "column_name",
+                "data_type"
+            ],
+            "properties": {
+                "column_name": {
+                    "type": "string"
+                },
+                "data_type": {
+                    "type": "string"
+                },
+                "default_value": {
+                    "type": "string"
+                },
+                "example": {
+                    "type": "string"
+                },
+                "is_index": {
+                    "type": "boolean"
+                },
+                "is_pk": {
+                    "type": "boolean"
+                },
+                "meaning": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "nullable": {
+                    "type": "boolean"
+                }
+            }
+        },
         "zzz_developmentManager.UpdateContainerReq": {
             "type": "object",
             "required": [
@@ -16415,6 +17112,35 @@ const docTemplate = `{
                     }
                 },
                 "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_developmentManager.UpdateTableReq": {
+            "type": "object",
+            "required": [
+                "table_name"
+            ],
+            "properties": {
+                "created_note": {
+                    "type": "string"
+                },
+                "db_type": {
+                    "type": "string"
+                },
+                "module_name": {
+                    "type": "string"
+                },
+                "purpose": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "table_name": {
+                    "type": "string"
+                },
+                "table_schema": {
                     "type": "string"
                 }
             }

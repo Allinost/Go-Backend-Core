@@ -1,6 +1,6 @@
 # developmentManager 数据模型
 
-> 表前缀规范见 [docs/data-model.md](../../../data-model.md)：模块表统一 `zzz_development_manager_` 前缀，建表统一走 migrations 迁移（模块不 initTables）。本模块规划共 **15 张表**，P1 已建 3 张、P2 已建 7 张（累计落地 10 张）。
+> 表前缀规范见 [docs/data-model.md](../../../data-model.md)：模块表统一 `zzz_development_manager_` 前缀，建表统一走 migrations 迁移（模块不 initTables）。本模块规划共 **15 张表**，P1 已建 3 张、P2 已建 7 张、P3 已建 2 张（累计落地 12 张）。
 
 ## 总览
 
@@ -16,8 +16,8 @@
 | 8 | `zzz_development_manager_whitelist` | P2 ✅ | 常用白名单组（可复用，允许空组） |
 | 9 | `zzz_development_manager_whitelist_member` | P2 ✅ | 白名单成员（FK → container） |
 | 10 | `zzz_development_manager_backup` | P2 ✅ | 备份策略与最近执行结果 |
-| 11 | `zzz_development_manager_db_table` | P3 | 数据表登记 |
-| 12 | `zzz_development_manager_db_column` | P3 | 字段字典 |
+| 11 | `zzz_development_manager_db_table` | P3 ✅ | 数据表登记 |
+| 12 | `zzz_development_manager_db_column` | P3 ✅ | 字段字典 |
 | 13 | `zzz_development_manager_requirement` | P4 | 需求登记与状态流转 |
 | 14 | `zzz_development_manager_requirement_version` | P4 | 需求版本快照（增改删全留痕） |
 | 15 | `zzz_development_manager_generation` | P5 | 生成任务（plan/code/doc） |
@@ -98,7 +98,19 @@
 - **白名单成员删除**：硬删除（成员是关系行，无独立生命周期）。
 - **跨项目引用**：接入点引用的容器/白名单组、备份引用的容器/卷、成员引用的容器必须与所属项目一致，否则返回 46207。
 
-## P3~P5 规划表要点（详见规划 §3.2~§3.4）
+## P3 已建表（migrations/mysql/004_development_manager_dictionary.sql）
+
+| 表 | 关键字段 | 语义要点 |
+|---|---|---|
+| `db_table` | project_id、db_type(mysql/postgres)、table_schema、table_name、purpose、status(active/deprecated/dropped)、module_name、created_note | UK(project_id, table_schema, table_name)；库名留空时创建时自动取 `DATABASE()`；删除为硬删除并级联删字段 |
+| `db_column` | table_id、column_name、data_type、nullable、default_value、meaning、example、is_pk、is_index、note | UK(table_id, column_name)；`default_value` 可 NULL（区分"无默认值"）；扫描导入以列注释作为 `meaning` 初稿，已有非空含义不覆盖 |
+
+扫描导入（`POST /tables/:id/scan-import`）读取 `information_schema.COLUMNS`：
+- 只支持 `db_type=mysql`（本期）；按 `ORDINAL_POSITION` 顺序导入；
+- 已存在字段更新 `data_type / nullable / default_value / is_pk / is_index`，**保留人工填写的 `meaning`**（`meaning` 为空时才用列注释填充）；
+- 返回 `{scanned, created, updated}`；表中不存在或无字段时返回 46307。
+
+## P4~P5 规划表要点（详见规划 §3.4）
 
 - **access_point 四合一**：端口（listen/host_port/protocol/exposure）+ 反代（proxy_type/domain/upstream_url/tls，可空=直连）+ 访问地址（url **NULL=不可达**）+ `whitelist_id`（**NULL=不限制**）；行粒度 = 端口 × 访问地址。
 - **whitelist 组复用**：组 + 成员两表，组**允许 0 成员**；成员 FK → container，容器改名自动跟随。

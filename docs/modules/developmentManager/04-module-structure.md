@@ -19,6 +19,11 @@
 | `deployment_service.go` | P2 业务校验：端口/协议/暴露/反代/区域/挂载模式/备份类型、跨项目引用、白名单成员与容器引用约束、`url=NULL` 不可达归一化 |
 | `deployment_handler.go` | P2 HTTP 处理器（29 条路由）+ swag 注解 + 审计 |
 | `deployment_test.go` | P2 校验逻辑、枚举集合、错误码映射单测 |
+| `dictionary_model.go` | P3 数据表/字段实体、扫描结果结构、请求结构 |
+| `dictionary_repository.go` | P3 表/字段 CRUD、`information_schema.COLUMNS` 扫描、扫描 upsert（保留人工含义） |
+| `dictionary_service.go` | P3 标识符校验、库名缺省解析、扫描导入编排 |
+| `dictionary_handler.go` | P3 HTTP 处理器（10 条路由）+ swag 注解 + 审计 |
+| `dictionary_test.go` | P3 标识符/字段归一化/枚举/错误码单测 |
 | `service_test.go` | 校验逻辑、错误码→状态映射、枚举集合数量 |
 | `permissions_test.go` | 权限命名规范/数量（28）/去重；seed 数据一致性（关联两端与资产归属均已登记、类型合法） |
 
@@ -37,7 +42,7 @@
 
 ## 迁移与部署注意
 
-- DDL 在 `migrations/mysql/002_development_manager.sql`（P1 三表）与 `003_development_manager_deployment.sql`（P2 七表），按序应用，需手动触发：`POST /api/v1/migrate/schema/migrate`。
+- DDL 在 `migrations/mysql/002_development_manager.sql`（P1 三表）、`003_development_manager_deployment.sql`（P2 七表）、`004_development_manager_dictionary.sql`（P3 两表），按序应用，需手动触发：`POST /api/v1/migrate/schema/migrate`。
 - 迁移按英文分号拆分执行：迁移 SQL 的注释与字符串内**不得出现英文分号**。
 - 权限播种与路由注册不依赖迁移（无表也能启动）；台账 seed 依赖迁移，未应用时后台重试并在日志中提示。
 - Swagger 已随模块生成：`swag init -g cmd/server/docs.go -o api/swagger --parseDependency --parseInternal`。

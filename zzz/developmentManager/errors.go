@@ -14,6 +14,8 @@ const (
 	ErrWhitelistNotFound       = 46008
 	ErrWhitelistMemberNotFound = 46009
 	ErrBackupNotFound          = 46010
+	ErrTableNotFound           = 46011
+	ErrColumnNotFound          = 46012
 	ErrInvalidProjectKey       = 46100
 	ErrInvalidProjectType      = 46101
 	ErrDuplicateProjectKey     = 46102
@@ -43,6 +45,16 @@ const (
 	ErrInvalidWhitelistName   = 46215
 	ErrInvalidReplicas        = 46216
 	ErrInvalidResourceAlloc   = 46217
+
+	// 数据字典校验（P3）
+	ErrInvalidDBType      = 46300
+	ErrInvalidTableName   = 46301
+	ErrDuplicateTable     = 46302
+	ErrInvalidTableStatus = 46303
+	ErrInvalidColumnName  = 46304
+	ErrDuplicateColumn    = 46305
+	ErrScanUnsupported    = 46306
+	ErrScanFailed         = 46307
 )
 
 var errMsgs = map[int]string{
@@ -85,6 +97,17 @@ var errMsgs = map[int]string{
 	ErrInvalidWhitelistName:   "白名单组名不能为空（1-128 字符）",
 	ErrInvalidReplicas:        "副本数不能为负数",
 	ErrInvalidResourceAlloc:   "资源分配参数非法（CPU 权重不能为负数）",
+
+	ErrTableNotFound:      "数据表不存在",
+	ErrColumnNotFound:     "字段不存在",
+	ErrInvalidDBType:      "无效的数据库类型（mysql/postgres）",
+	ErrInvalidTableName:   "表名非法（1-128 位，仅允许字母/数字/下划线）",
+	ErrDuplicateTable:     "同一库内该表已登记",
+	ErrInvalidTableStatus: "无效的表状态（active/deprecated/dropped）",
+	ErrInvalidColumnName:  "字段名非法（1-128 位，仅允许字母/数字/下划线）",
+	ErrDuplicateColumn:    "同表内该字段已存在",
+	ErrScanUnsupported:    "当前数据库类型不支持扫描导入（本期仅支持 mysql）",
+	ErrScanFailed:         "扫描 information_schema 失败",
 }
 
 // DevelopmentManagerError 模块业务错误，携带模块级错误码

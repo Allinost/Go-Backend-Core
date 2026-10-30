@@ -1235,6 +1235,30 @@ definitions:
     required:
     - backup_type
     type: object
+  zzz_developmentManager.CreateColumnReq:
+    properties:
+      column_name:
+        type: string
+      data_type:
+        type: string
+      default_value:
+        type: string
+      example:
+        type: string
+      is_index:
+        type: boolean
+      is_pk:
+        type: boolean
+      meaning:
+        type: string
+      note:
+        type: string
+      nullable:
+        type: boolean
+    required:
+    - column_name
+    - data_type
+    type: object
   zzz_developmentManager.CreateContainerReq:
     properties:
       compose_ref:
@@ -1295,6 +1319,25 @@ definitions:
     - relation_type
     - to_project_id
     type: object
+  zzz_developmentManager.CreateTableReq:
+    properties:
+      created_note:
+        type: string
+      db_type:
+        type: string
+      module_name:
+        type: string
+      purpose:
+        type: string
+      status:
+        type: string
+      table_name:
+        type: string
+      table_schema:
+        type: string
+    required:
+    - table_name
+    type: object
   zzz_developmentManager.CreateVolumeReq:
     properties:
       container_path:
@@ -1328,6 +1371,66 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  zzz_developmentManager.DBColumn:
+    properties:
+      column_name:
+        type: string
+      created_at:
+        type: string
+      data_type:
+        type: string
+      default_value:
+        type: string
+      example:
+        type: string
+      id:
+        type: integer
+      is_index:
+        type: boolean
+      is_pk:
+        type: boolean
+      meaning:
+        type: string
+      note:
+        type: string
+      nullable:
+        type: boolean
+      table_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  zzz_developmentManager.DBTable:
+    properties:
+      column_count:
+        type: integer
+      created_at:
+        type: string
+      created_by:
+        type: string
+      created_note:
+        type: string
+      db_type:
+        type: string
+      id:
+        type: integer
+      module_name:
+        type: string
+      project_id:
+        type: integer
+      purpose:
+        type: string
+      status:
+        type: string
+      table_name:
+        type: string
+      table_schema:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
     type: object
   zzz_developmentManager.PaginatedResp-zzz_developmentManager_Project:
     properties:
@@ -1494,6 +1597,17 @@ definitions:
       updated_at:
         type: string
     type: object
+  zzz_developmentManager.ScanImportResp:
+    properties:
+      created:
+        type: integer
+      scanned:
+        type: integer
+      table_id:
+        type: integer
+      updated:
+        type: integer
+    type: object
   zzz_developmentManager.StatsResp:
     properties:
       assets_total:
@@ -1573,6 +1687,30 @@ definitions:
     required:
     - backup_type
     type: object
+  zzz_developmentManager.UpdateColumnReq:
+    properties:
+      column_name:
+        type: string
+      data_type:
+        type: string
+      default_value:
+        type: string
+      example:
+        type: string
+      is_index:
+        type: boolean
+      is_pk:
+        type: boolean
+      meaning:
+        type: string
+      note:
+        type: string
+      nullable:
+        type: boolean
+    required:
+    - column_name
+    - data_type
+    type: object
   zzz_developmentManager.UpdateContainerReq:
     properties:
       compose_ref:
@@ -1620,6 +1758,25 @@ definitions:
     - name
     - project_key
     - type
+    type: object
+  zzz_developmentManager.UpdateTableReq:
+    properties:
+      created_note:
+        type: string
+      db_type:
+        type: string
+      module_name:
+        type: string
+      purpose:
+        type: string
+      status:
+        type: string
+      table_name:
+        type: string
+      table_schema:
+        type: string
+    required:
+    - table_name
     type: object
   zzz_developmentManager.UpdateVolumeReq:
     properties:
@@ -5985,6 +6142,58 @@ paths:
       summary: 更新备份记录
       tags:
       - developmentManager
+  /developmentmanager/columns/{id}:
+    delete:
+      parameters:
+      - description: 字段 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除字段
+      tags:
+      - developmentManager
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 字段 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 字段信息（全量）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.UpdateColumnReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.DBColumn'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新字段
+      tags:
+      - developmentManager
   /developmentmanager/containers/{id}:
     delete:
       parameters:
@@ -6738,6 +6947,77 @@ paths:
       summary: 删除项目关联
       tags:
       - developmentManager
+  /developmentmanager/projects/{id}/tables:
+    get:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 状态 active/deprecated/dropped
+        in: query
+        name: status
+        type: string
+      - description: 归属模块
+        in: query
+        name: module_name
+        type: string
+      - description: 关键词（匹配表名/用途）
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_developmentManager.DBTable'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取项目数据表字典
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 数据表信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateTableReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.DBTable'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 登记数据表
+      tags:
+      - developmentManager
   /developmentmanager/projects/{id}/whitelists:
     get:
       parameters:
@@ -6818,6 +7098,166 @@ paths:
       security:
       - BearerAuth: []
       summary: 获取仪表盘统计
+      tags:
+      - developmentManager
+  /developmentmanager/tables/{id}:
+    delete:
+      parameters:
+      - description: 数据表 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除数据表登记
+      tags:
+      - developmentManager
+    get:
+      parameters:
+      - description: 数据表 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.DBTable'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取数据表详情
+      tags:
+      - developmentManager
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 数据表 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 数据表信息（全量）
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.UpdateTableReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.DBTable'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新数据表
+      tags:
+      - developmentManager
+  /developmentmanager/tables/{id}/columns:
+    get:
+      parameters:
+      - description: 数据表 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_developmentManager.DBColumn'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取表字段字典
+      tags:
+      - developmentManager
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 数据表 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 字段信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_developmentManager.CreateColumnReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.DBColumn'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 新增字段
+      tags:
+      - developmentManager
+  /developmentmanager/tables/{id}/scan-import:
+    post:
+      parameters:
+      - description: 数据表 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_developmentManager.ScanImportResp'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 从库扫描导入字段初稿
       tags:
       - developmentManager
   /developmentmanager/volumes/{id}:

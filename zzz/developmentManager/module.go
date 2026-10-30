@@ -142,6 +142,18 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.PUT("/backups/:id", need("dm.deployment", "update"), m.h.UpdateBackup)
 	r.DELETE("/backups/:id", need("dm.deployment", "delete"), m.h.DeleteBackup)
 
+	// 数据字典：数据表与字段
+	r.GET("/projects/:id/tables", need("dm.dictionary", "read"), m.h.ListTables)
+	r.POST("/projects/:id/tables", need("dm.dictionary", "create"), m.h.CreateTable)
+	r.GET("/tables/:id", need("dm.dictionary", "read"), m.h.GetTable)
+	r.PUT("/tables/:id", need("dm.dictionary", "update"), m.h.UpdateTable)
+	r.DELETE("/tables/:id", need("dm.dictionary", "delete"), m.h.DeleteTable)
+	r.GET("/tables/:id/columns", need("dm.dictionary", "read"), m.h.ListColumns)
+	r.POST("/tables/:id/columns", need("dm.dictionary", "create"), m.h.CreateColumn)
+	r.POST("/tables/:id/scan-import", need("dm.dictionary", "scan"), m.h.ScanImportColumns)
+	r.PUT("/columns/:id", need("dm.dictionary", "update"), m.h.UpdateColumn)
+	r.DELETE("/columns/:id", need("dm.dictionary", "delete"), m.h.DeleteColumn)
+
 	// 统计与权限元数据
 	r.GET("/stats", need("dm.project", "read"), m.h.Stats)
 	r.GET("/permissions/meta", need("dm.project", "read"), m.h.PermissionMeta)

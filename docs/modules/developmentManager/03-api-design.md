@@ -78,6 +78,26 @@
 - 接入点 `host_port`、`container_id`、`whitelist_id` 可不传（NULL）；`protocol` 缺省 tcp、`exposure`/`network_zone` 缺省 intranet、`proxy_type` 留空表示无反代直连。
 - 跨项目引用（容器/卷/白名单组）返回 46207。
 
+## P3 已实现路由（数据字典，统一 `dm.dictionary` 权限）
+
+| 方法 | 路径 | 权限动作 | 说明 |
+|---|---|---|---|
+| GET | `/projects/:id/tables` | read | 数据表列表。query：`status`（active/deprecated/dropped）、`module_name`、`keyword`（匹配表名/用途） |
+| POST | `/projects/:id/tables` | create | 登记数据表。body：`table_name`（必填，字母/数字/下划线）、`db_type`（缺省 mysql）、`table_schema`（缺省当前库）、`purpose`、`status`（缺省 active）、`module_name`、`created_note` |
+| GET | `/tables/:id` | read | 表详情（含 `column_count`） |
+| PUT | `/tables/:id` | update | 全量更新表登记 |
+| DELETE | `/tables/:id` | delete | 删除表登记及其字段（硬删除） |
+| GET | `/tables/:id/columns` | read | 字段列表（主键优先） |
+| POST | `/tables/:id/columns` | create | 新增字段。body：`column_name`、`data_type`（必填）、`nullable`（缺省 true）、`default_value`（可空）、`meaning`、`example`、`is_pk`、`is_index`、`note` |
+| PUT | `/columns/:id` | update | 全量更新字段 |
+| DELETE | `/columns/:id` | delete | 删除字段（硬删除） |
+| POST | `/tables/:id/scan-import` | **scan** | 从 `information_schema` 扫描字段并导入/更新；返回 `{table_id, scanned, created, updated}` |
+
+扫描导入约定：
+- 仅 `db_type=mysql` 支持（`postgres` 返回 46306）；
+- 已有字段更新类型/可空/默认值/主键/索引，**不覆盖已填写的中文含义**；
+- 库名/表名/字段名均只允许字母、数字、下划线。
+
 ## 业务错误码（46001+ 区段）
 
 模块错误类型 `DevelopmentManagerError{Code, Message, Detail}`；handler 按码映射 HTTP 状态（非 release 模式才透出 `Detail`）。
@@ -121,6 +141,16 @@
 | 46215 | 400 | 白名单组名为空或超长 |
 | 46216 | 400 | 副本数为负 |
 | 46217 | 400 | 资源分配参数非法 |
+| 46011 | 404 | 数据表不存在 |
+| 46012 | 404 | 字段不存在 |
+| 46300 | 400 | 无效数据库类型 |
+| 46301 | 400 | 表名非法 |
+| 46302 | 409 | 同库表重复登记 |
+| 46303 | 400 | 无效表状态 |
+| 46304 | 400 | 字段名/类型非法 |
+| 46305 | 409 | 同表字段重复 |
+| 46306 | 400 | 该数据库类型不支持扫描导入 |
+| 46307 | 500 | 扫描 information_schema 失败/未找到表 |
 
 鉴权失败/无权限走基座标准错误（`CodeUnauth`/`CodeForbidden`）。
 
@@ -130,6 +160,6 @@
 - 写操作（create/update/delete）审计写入 `services/audit`（记录失败仅告警，不阻断业务）。
 - 所有 ID 为正整数路径参数，非法直接 400。
 
-## P3~P5 规划路由（规划 §4 API 概要）
+## P4~P5 规划路由（规划 §4 API 概要）
 
-数据表 `/projects/:id/tables`（含 columns 子资源与 `POST /tables/:id/scan-import`）、需求 `/projects/:id/requirements`（PUT 自动产生版本、`/requirements/:id/versions` 修订历史）、生成 `POST /requirements/:id/generations`（body：`kind`/`engine`/`auto_commit`）与 `GET /generations/:id`。
+需求 `/projects/:id/requirements`（PUT 自动产生版本、`/requirements/:id/versions` 修订历史）、生成 `POST /requirements/:id/generations`（body：`kind`/`engine`/`auto_commit`）与 `GET /generations/:id`。
