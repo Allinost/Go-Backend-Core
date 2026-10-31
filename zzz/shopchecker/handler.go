@@ -29,7 +29,7 @@ func NewHandler(svc *Service, registry *collector.Registry) *Handler {
 // @Produce      json
 // @Param        page      query  int     false  "页码，默认 1"
 // @Param        page_size query  int     false  "每页数量，默认 20，最大 100"
-// @Param        platform  query  string  false  "筛选平台：jd（京东桌面版）/ jdm（京东移动版）/ taobao（淘宝）/ pdd（拼多多）/ qixian（七鲜）"
+// @Param        platform  query  string  false  "筛选平台：jd（京东桌面版）/ jdm（京东移动版）/ taobao（淘宝）/ tmall（天猫）/ pdd（拼多多）/ qixian（七鲜）"
 // @Param        keyword   query  string  false  "搜索关键词，匹配商品名称"
 // @Param        enabled   query  bool    false  "筛选启用状态"
 // @Success      200  {object}  response.Response{data=PaginatedResp[Product]}
@@ -58,10 +58,10 @@ func (h *Handler) ListProducts(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Description  创建一个新的商品价格监控任务。支持以下平台和 URL 格式：
-// @Description  - platform: jd（京东桌面版）、jdm（京东移动版）、taobao（淘宝/天猫）、pdd（拼多多）、qixian（七鲜）
+// @Description  - platform: jd（京东桌面版）、jdm（京东移动版）、taobao（淘宝）、tmall（天猫，与淘宝共享登录）、pdd（拼多多）、qixian（七鲜）
 // @Description  - url: 商品页完整 URL、分享短链接（如 e.tb.cn/xxx）、或含 ID 的链接均可自动识别
 // @Description  - check_interval: 检查间隔，如 "1h"（1小时）、"30m"（30分钟）、"24h"（24小时），默认 "1h"
-// @Description  - target_price: 目标价格，当现价低于此值时触发通知（淘宝同时支持国补/百亿补贴后价格对比）
+// @Description  - target_price: 目标价格，当到手价低于此值时触发通知（京东/淘宝/天猫支持国补后的到手价对比）
 // @Description  - price_drop_ratio: 降价百分比阈值，降幅达到此比例时触发通知
 // @Description  - cron_expr: cron 表达式，优先级高于 check_interval（如 "0 9 * * *" 表示每天 9 点检查）
 // @Param        body  body  CreateProductReq  true  "商品监控配置"

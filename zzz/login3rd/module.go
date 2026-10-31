@@ -51,11 +51,17 @@ func (m *Module) Init(cfg *config.Config) error {
 
 	m.svc = NewService(m.repo, m.whSvc)
 
-	// 注册 Provider（七鲜/京东移动版使用京东移动版登录，复用京东 Provider 做 session 验证/刷新）
+	// 注册 Provider（京东/七鲜/京东移动版共用京东登录；淘宝/天猫共用淘宝登录；拼多多独立）
 	jdProv := provider.NewJDCollector()
 	m.svc.RegisterProvider(jdProv)
 	m.svc.RegisterProviderAs("qixian", jdProv)
 	m.svc.RegisterProviderAs("jdm", jdProv)
+
+	tbProv := provider.NewTaobaoProvider()
+	m.svc.RegisterProvider(tbProv)
+	m.svc.RegisterProviderAs("tmall", tbProv)
+
+	m.svc.RegisterProvider(provider.NewPDDProvider())
 
 	// 平台 seed（表由 migrations 管理，未应用迁移时仅告警，不阻断启动）
 	if err := m.repo.SeedPlatforms(context.Background()); err != nil {

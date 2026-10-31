@@ -3,6 +3,7 @@ package login3rd
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -143,7 +144,11 @@ func (s *Service) UpdateAccount(ctx context.Context, id int64, req *UpdateAccoun
 		updates["encrypted_token"] = enc
 	}
 	if req.WebhookIDs != nil {
-		updates["webhook_ids"] = req.WebhookIDs
+		whJSON, err := json.Marshal(req.WebhookIDs)
+		if err != nil {
+			return nil, err
+		}
+		updates["webhook_ids"] = nullJSON(whJSON)
 	}
 	if req.Status != nil {
 		updates["status"] = *req.Status
@@ -332,7 +337,8 @@ func (s *Service) VerifySession(ctx context.Context, accountID int64) (bool, err
 
 	prov, ok := s.providers[a.PlatformID]
 	if !ok {
-		return false, nil
+		// 未注册 Provider 的平台无法验证，不能据此把账号标记为过期。
+		return false, fmt.Errorf("平台 %s 未注册 Provider，跳过会话验证", a.PlatformID)
 	}
 
 	valid, err := prov.Verify(ctx, toProviderSession(a.SessionData))
@@ -439,59 +445,106 @@ func (s *Service) MarkExpired(ctx context.Context, id int64, errMsg string) erro
 // 标记该平台所有非禁用账号为失效，并通过各账号绑定的 webhook 发送含远程登录地址的告警。
 // 返回是否有通知实际发送到渠道 webhook 和涉及的全部账号 webhook ID（用于 shopchecker 记录日志）。
 func (s *Service) NotifyLoginExpired(ctx context.Context, platformID, errMsg string) (notified bool, webhookIDs []string) {
-	accounts, err := s.repo.GetAccountByPlatform(ctx, platformID)
-	if err != nil {
+	accounts := s.listAliasAccounts(ctx, platformID)
+	if len(accounts) == 0 {
 		return false, nil
 	}
 
+	// 同一登录组（京东/七鲜/京东移动版、淘宝/天猫）只发一条告警、只创建一个远程登录会话，
+	// 避免一次过期弹三个浏览器窗口、发三条重复消息。
+	webhookSet := map[string]bool{}
+	var notifyAccount *Account
 	for i := range accounts {
-		a := accounts[i]
+		a := &accounts[i]
 		if a.Status == "disabled" {
 			continue
 		}
-		// 同步账号登录状态为失效
-		s.repo.MarkExpired(ctx, a.ID, errMsg)
-		webhookIDs = append(webhookIDs, a.WebhookIDs...)
-		if len(a.WebhookIDs) == 0 {
-			continue
+		if err := s.repo.MarkExpired(ctx, a.ID, errMsg); err != nil {
+			return false, nil
 		}
-
-		// 创建远程登录会话，获取可点击的重新登录地址
-		token := ""
-		if t, err := s.CreateRemoteSession(ctx, a.ID); err == nil {
-			token = t
+		for _, id := range a.WebhookIDs {
+			if id != "" && !webhookSet[id] {
+				webhookSet[id] = true
+				webhookIDs = append(webhookIDs, id)
+			}
 		}
-
-		title := fmt.Sprintf("⚠️ %s 登录已失效", a.Label)
-		content := fmt.Sprintf("平台「%s」（账号：%s）登录已失效，请重新登录。\n错误信息：%s", a.PlatformID, a.Label, errMsg)
-		if token != "" {
-			content += fmt.Sprintf("\n点击下方链接在浏览器中完成登录（5 分钟内有效）：\n%s/api/v1/login3rd/remote/session/%s", getHost(), token)
-		}
-		if err := s.SendWebhookNotification(ctx, a.ID, title, content); err == nil {
-			notified = true
+		// 优先使用当前平台自己的账号生成登录链接，其次使用组内任一账号。
+		if notifyAccount == nil || (a.PlatformID == platformID && notifyAccount.PlatformID != platformID) {
+			notifyAccount = a
 		}
 	}
-	return notified, webhookIDs
+	if len(webhookIDs) == 0 || notifyAccount == nil {
+		return false, webhookIDs
+	}
+
+	token := ""
+	if t, err := s.CreateRemoteSession(ctx, notifyAccount.ID); err == nil {
+		token = t
+	}
+
+	title := fmt.Sprintf("⚠️ %s 登录已失效", platformID)
+	content := fmt.Sprintf("平台「%s」（账号：%s）登录已失效，请重新登录。\n错误信息：%s",
+		notifyAccount.PlatformID, notifyAccount.Label, errMsg)
+	if token != "" {
+		content += fmt.Sprintf("\n点击下方链接在浏览器中完成登录（5 分钟内有效）：\n%s/api/v1/login3rd/remote/session/%s", getHost(), token)
+	}
+	p, _ := s.repo.GetPlatform(ctx, notifyAccount.PlatformID)
+	loginURL := ""
+	if p != nil {
+		loginURL = p.LoginURL
+	}
+	_, err := s.whSvc.Send(ctx, &webhook.SendReq{
+		WebhookIDs: webhookIDs,
+		Source:     "login3rd",
+		Title:      title,
+		Content:    content,
+		MsgType:    "text",
+		Data: map[string]any{
+			"platform":   platformID,
+			"account_id": notifyAccount.ID,
+			"login_url":  loginURL,
+		},
+	})
+	return err == nil, webhookIDs
 }
 
-// IsPlatformLoginExpired 判断平台下是否存在标记为登录失效的账号（disabled 账号跳过）
+// IsPlatformLoginExpired 判断平台（含共享登录平台）是否完全没有可用会话。
+// 只要京东/七鲜/京东移动版任一账号有效，三者都不会被跳过；淘宝/天猫同理。
 func (s *Service) IsPlatformLoginExpired(ctx context.Context, platformID string) (bool, error) {
 	if platformID == "" {
 		return false, nil
 	}
-	accounts, err := s.repo.GetAccountByPlatform(ctx, platformID)
-	if err != nil {
-		return false, err
+	accounts := s.listAliasAccounts(ctx, platformID)
+	if len(accounts) == 0 {
+		return false, nil
 	}
-	for _, a := range accounts {
+	hasExpired := false
+	for i := range accounts {
+		a := &accounts[i]
 		if a.Status == "disabled" {
 			continue
 		}
+		if accountSessionUsable(a) {
+			return false, nil
+		}
 		if a.VerifiedStatus == "expired" || a.Status == "expired" {
-			return true, nil
+			hasExpired = true
 		}
 	}
-	return false, nil
+	return hasExpired, nil
+}
+
+// listAliasAccounts 汇总平台及共享登录平台下的账号。
+func (s *Service) listAliasAccounts(ctx context.Context, platformID string) []Account {
+	var result []Account
+	for _, candidate := range SessionPlatformCandidates(platformID) {
+		accounts, err := s.repo.GetAccountByPlatform(ctx, candidate)
+		if err != nil {
+			continue
+		}
+		result = append(result, accounts...)
+	}
+	return result
 }
 
 // TouchSession 价格采集成功后延寿：把平台下非禁用账号的会话有效期顺延到
@@ -500,12 +553,11 @@ func (s *Service) TouchSession(ctx context.Context, platformID string, keepAlive
 	if platformID == "" {
 		return nil
 	}
-	accounts, err := s.repo.GetAccountByPlatform(ctx, platformID)
-	if err != nil {
-		return err
-	}
-	for _, a := range accounts {
-		if a.Status == "disabled" {
+	accounts := s.listAliasAccounts(ctx, platformID)
+	for i := range accounts {
+		a := &accounts[i]
+		// 只顺延当前确实可用的账号，避免把已过期账号错误地标回 valid。
+		if !accountSessionUsable(a) {
 			continue
 		}
 		newExpiry := time.Now().Add(keepAlive)

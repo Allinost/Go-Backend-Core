@@ -380,13 +380,19 @@ func (r *Repository) UpdateCheckResult(ctx context.Context, productID string, pr
 	return err
 }
 
-// SavePriceRecord 保存价格记录
-func (r *Repository) SavePriceRecord(ctx context.Context, productID string, price float64, title, stockStatus, errMsg string) (*PriceRecord, error) {
+// SavePriceRecord 保存价格记录（含原价与采集原始数据）
+func (r *Repository) SavePriceRecord(ctx context.Context, productID string, price, originalPrice float64, title, stockStatus, errMsg string, rawData any) (*PriceRecord, error) {
 	now := time.Now()
+	var raw any
+	if rawData != nil {
+		if b, err := json.Marshal(rawData); err == nil && string(b) != "null" {
+			raw = string(b)
+		}
+	}
 	result, err := r.db.ExecContext(ctx,
 		`INSERT INTO `+tablePriceRecords+` (product_id, price, original_price, title, stock_status, is_notified, raw_data, error_msg, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		productID, price, 0, title, stockStatus, false, nil, errMsg, now,
+		productID, price, originalPrice, title, stockStatus, false, raw, errMsg, now,
 	)
 	if err != nil {
 		return nil, err
@@ -398,14 +404,33 @@ func (r *Repository) SavePriceRecord(ctx context.Context, productID string, pric
 	}
 
 	return &PriceRecord{
-		ID:          id,
-		ProductID:   productID,
-		Price:       price,
-		Title:       title,
-		StockStatus: stockStatus,
-		ErrorMsg:    errMsg,
-		CreatedAt:   now,
+		ID:            id,
+		ProductID:     productID,
+		Price:         price,
+		OriginalPrice: originalPrice,
+		Title:         title,
+		StockStatus:   stockStatus,
+		ErrorMsg:      errMsg,
+		CreatedAt:     now,
 	}, nil
+}
+
+// UpdateCheckFailure 记录失败检查时间，保留上一次有效价格/库存，避免一次网络失败把历史价格清零。
+func (r *Repository) UpdateCheckFailure(ctx context.Context, productID string, checkedAt, nextCheckAt time.Time) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE `+tableProducts+` SET last_checked_at = ?, next_check_at = ? WHERE id = ?`,
+		checkedAt, nextCheckAt, productID,
+	)
+	return err
+}
+
+// UpdateNextCheck 仅更新下次检查时间（修改检查周期后立即生效）。
+func (r *Repository) UpdateNextCheck(ctx context.Context, productID string, nextCheckAt time.Time) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE `+tableProducts+` SET next_check_at = ? WHERE id = ?`,
+		nextCheckAt, productID,
+	)
+	return err
 }
 
 // MarkPriceRecordNotified 标记价格记录已通知
@@ -463,6 +488,9 @@ func (r *Repository) ListPriceRecords(ctx context.Context, productID string, req
 // SaveNotificationLog 保存通知记录
 func (r *Repository) SaveNotificationLog(ctx context.Context, nl *NotificationLog) error {
 	whJSON, _ := json.Marshal(nl.WebhookIDs)
+	if nl.CreatedAt.IsZero() {
+		nl.CreatedAt = time.Now()
+	}
 
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO `+tableNotifLogs+` (product_id, price_record_id, webhook_ids, old_price, new_price, old_stock_status, new_stock_status, notify_type, result_summary, created_at)

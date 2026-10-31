@@ -45,6 +45,7 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.colRegistry = collector.NewRegistry()
 	m.colRegistry.Register(string(PlatformJD), collector.NewJDCollector())
 	m.colRegistry.Register(string(PlatformTaobao), collector.NewTaobaoCollector())
+	m.colRegistry.Register(string(PlatformTmall), collector.NewTmallCollector())
 	m.colRegistry.Register(string(PlatformPDD), collector.NewPDDCollector())
 	m.colRegistry.Register(string(PlatformQixian), collector.NewQixianCollector())
 	m.colRegistry.Register(string(PlatformJDMobile), collector.NewJDMobileCollector())

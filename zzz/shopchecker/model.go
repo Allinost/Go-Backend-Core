@@ -10,6 +10,7 @@ type Platform string
 const (
 	PlatformJD       Platform = "jd"
 	PlatformTaobao   Platform = "taobao"
+	PlatformTmall    Platform = "tmall"
 	PlatformPDD      Platform = "pdd"
 	PlatformQixian   Platform = "qixian"
 	PlatformJDMobile Platform = "jdm"

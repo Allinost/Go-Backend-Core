@@ -16,7 +16,7 @@
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| id | VARCHAR(64) PK | 平台 ID：`jd` / `qixian` / `jdm` / `taobao` / `pdd` / `_1688` / `tjupt` |
+| id | VARCHAR(64) PK | 平台 ID：`jd` / `qixian` / `jdm` / `taobao` / `tmall` / `pdd` / `_1688` / `tjupt` |
 | name | VARCHAR | 平台名称 |
 | category | VARCHAR | 分类：`shopping` / `pt` |
 | login_type | VARCHAR | 登录方式：`browser` / `oauth` / `qrcode` |
@@ -42,7 +42,7 @@
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| id | VARCHAR PK | UUID |
+| id | BIGINT PK AUTO_INCREMENT | ?? ID |
 | platform_id | VARCHAR FK | 所属平台 |
 | label / username | VARCHAR | 备注名 / 登录用户名 |
 | **encrypted_password** | TEXT | **AES-256-GCM 加密**的密码（`json:"-"`） |
@@ -74,7 +74,7 @@ type SessionData struct {
 ## 3. ER 概览
 
 ```
-zzz_login3rd_platforms (7, seed)
+zzz_login3rd_platforms (8, seed)
         │ 1
         │
         │ N   外键 platform_id

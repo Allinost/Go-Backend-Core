@@ -5960,10 +5960,16 @@
                                         "data": {
                                             "type": "object",
                                             "properties": {
+                                                "is_local": {
+                                                    "type": "boolean"
+                                                },
                                                 "token": {
                                                     "type": "string"
                                                 },
                                                 "url": {
+                                                    "type": "string"
+                                                },
+                                                "ws_url": {
                                                     "type": "string"
                                                 }
                                             }
@@ -9514,7 +9520,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "筛选平台：jd（京东桌面版）/ jdm（京东移动版）/ taobao（淘宝）/ pdd（拼多多）/ qixian（七鲜）",
+                        "description": "筛选平台：jd（京东桌面版）/ jdm（京东移动版）/ taobao（淘宝）/ tmall（天猫）/ pdd（拼多多）/ qixian（七鲜）",
                         "name": "platform",
                         "in": "query"
                     },
@@ -9553,7 +9559,7 @@
                 }
             },
             "post": {
-                "description": "创建一个新的商品价格监控任务。支持以下平台和 URL 格式：\n- platform: jd（京东桌面版）、jdm（京东移动版）、taobao（淘宝/天猫）、pdd（拼多多）、qixian（七鲜）\n- url: 商品页完整 URL、分享短链接（如 e.tb.cn/xxx）、或含 ID 的链接均可自动识别\n- check_interval: 检查间隔，如 \"1h\"（1小时）、\"30m\"（30分钟）、\"24h\"（24小时），默认 \"1h\"\n- target_price: 目标价格，当现价低于此值时触发通知（淘宝同时支持国补/百亿补贴后价格对比）\n- price_drop_ratio: 降价百分比阈值，降幅达到此比例时触发通知\n- cron_expr: cron 表达式，优先级高于 check_interval（如 \"0 9 * * *\" 表示每天 9 点检查）",
+                "description": "创建一个新的商品价格监控任务。支持以下平台和 URL 格式：\n- platform: jd（京东桌面版）、jdm（京东移动版）、taobao（淘宝）、tmall（天猫，与淘宝共享登录）、pdd（拼多多）、qixian（七鲜）\n- url: 商品页完整 URL、分享短链接（如 e.tb.cn/xxx）、或含 ID 的链接均可自动识别\n- check_interval: 检查间隔，如 \"1h\"（1小时）、\"30m\"（30分钟）、\"24h\"（24小时），默认 \"1h\"\n- target_price: 目标价格，当到手价低于此值时触发通知（京东/淘宝/天猫支持国补后的到手价对比）\n- price_drop_ratio: 降价百分比阈值，降幅达到此比例时触发通知\n- cron_expr: cron 表达式，优先级高于 check_interval（如 \"0 9 * * *\" 表示每天 9 点检查）",
                 "consumes": [
                     "application/json"
                 ],

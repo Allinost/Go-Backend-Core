@@ -129,3 +129,54 @@ type PriceResult struct {
 - 商品粒度调度：每个商品独立记录 `next_check_at`，调度器每秒轮询一次，到期即执行
 - 并发控制：通过 `worker_concurrency` 限制同时抓取的商品数量
 - 失败重试：单次抓取失败时，按指数退避策略最多重试 3 次，仍失败则跳过本轮
+
+---
+
+## 6. 国补与到手价（2026-10）
+
+- 京东 `jd` / `jdm` / `qixian`、淘宝、天猫均支持国补/补贴计算；单笔补贴上限常见 500 元，比例常见 15%。
+- `PriceResult` 包含 `BasePrice`、`SubsidyAmount`、`SubsidyRate`、`PriceSource`、`CurrentPrice`、`OriginalPrice`。
+- 页面明确给出手价时优先采用页面价，避免用“最高减 X 元”等营销文案二次改价。
+- 价格入库同时保存 `original_price` 与 `raw_data`，失败时保留上一次有效价格/库存。
+
+---
+
+## 7. 京东频控与备用价格源（2026-10）
+
+京东 PC 商品页短时间多次访问会跳转 `pc-frequent-pro.pf.jd.com/?from=pc_item&reason=403`。当前策略：
+
+- 京东采集器串行执行，同一采集器两次请求至少间隔 15 秒。
+- 单个商品按 `check_interval` 调度，默认 1h；高频商品可单独设为 6h/12h。
+- 检测到 PC 频控页时按“频率限制”处理，下次检查至少退避 6 小时，不标记登录失效。
+- 登录态优先直接走浏览器，不再先等待 `p.3.cn` 超时。
+- 可选京东联盟开放接口兜底：配置 `JD_UNION_APP_KEY` / `JD_UNION_APP_SECRET` 后，
+  浏览器失败时调用 `jd.union.open.goods.promotiongoodsinfo.query` 获取展示价。
+- 联盟价格通常不含国补/PLUS 叠加，浏览器采集仍是国补到手价的首选。
+
+---
+
+## 8. 京东购物车价格路径（2026-10）
+
+- 购物车页 `https://cart.jd.com/cart_index` 由 `pcCart_jc_getCurrentCart` 接口驱动，
+  请求需要页面 JS 生成 `h5st` 签名，直接用 Go 构造请求不可行。
+- 采集器改为浏览器渲染购物车，按 `item.jd.com/<sku>.html` 定位商品行，
+  解析“到手价”与“京东价/划线价”，返回 `PriceSource=jd_cart`。
+- 模式通过 `JD_CART_MODE` 控制：
+  - `only`：购物车优先，未找到再走商品页；
+  - `fallback`：商品页失败（含频控）后回退购物车，默认值；
+  - `off`：关闭购物车路径。
+- 实测（2026-10-31）：当前账号/IP 的商品页、搜索页、购物车接口均返回 403，
+  购物车路径不能绕过同一套风控；需要等冷却后再验证。购物车为空时返回“未找到该 SKU”，不触发退避。
+
+---
+
+## 9. 浏览器 Profile 持久化（2026-10）
+
+此前每次采集都用 `os.MkdirTemp` 新建 Chrome Profile，平台会把每次采集当成一台新设备，
+同一账号短时间内在多台“新设备”上访问，容易触发风控。
+
+- 现在默认复用固定 Profile：`<用户缓存目录>/go-backend-core/browser-profiles/<platform>`。
+- `SHOPCHECKER_BROWSER_PROFILE_DIR` 可自定义根目录。
+- `SHOPCHECKER_BROWSER_PROFILE=temp` 可退回临时 Profile（排查 Profile 锁问题时使用）。
+- 京东/七鲜/京东移动版共用 `jd` Profile；淘宝/天猫共用 `taobao` Profile。
+- 同一平台采集仍保持串行，避免多个 Chrome 实例争抢同一个 Profile。

@@ -19,7 +19,6 @@ import (
 	"github.com/Allinost/go-backend-core/zzz/login3rd"
 	"github.com/Allinost/go-backend-core/zzz/login3rd/provider"
 	"github.com/chromedp/cdproto/emulation"
-	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 )
 
@@ -36,6 +35,7 @@ type JDCollector struct {
 	platformID  string
 	mobile      bool
 	mu          sync.Mutex
+	lastRequest time.Time
 }
 
 // NewJDCollector 创建京东采集器（桌面版页面 + 京东平台 session）
@@ -77,6 +77,18 @@ func (c *JDCollector) FetchPrice(ctx context.Context, rawURL string) (*PriceResu
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// 同一京东采集器串行执行，并保持至少 15s 间隔，避免多商品同时刷新触发频控。
+	if !c.lastRequest.IsZero() {
+		if wait := 15*time.Second - time.Since(c.lastRequest); wait > 0 {
+			select {
+			case <-time.After(wait):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+	}
+	c.lastRequest = time.Now()
+
 	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 
@@ -93,16 +105,65 @@ func (c *JDCollector) FetchPrice(ctx context.Context, rawURL string) (*PriceResu
 	sessionCookie := sessionCookieHeader(c.getSessionCookies(ctx))
 	fmt.Fprintf(os.Stderr, "[%s] FetchPrice sku=%s session_cookie=%s\n", c.platformID, skuID, fmt.Sprintf("%t(len=%d)", sessionCookie != "", len(sessionCookie)))
 
-	price, origPrice := c.fetchPriceHTTP(httpCtx, skuID, sessionCookie)
+	// 已登录时直接走浏览器：p.3.cn 在当前网络不可达且移动页需要登录，先走 HTTP 只会浪费 15s 并增加风控概率。
+	if sessionCookie != "" {
+		cartMode := strings.ToLower(strings.TrimSpace(os.Getenv("JD_CART_MODE")))
+		if cartMode == "" {
+			cartMode = "fallback"
+		}
+		cartTried := false
+		// JD_CART_MODE=only：购物车优先，适合商品页被频控、但购物车可访问的场景。
+		if cartMode == "only" {
+			cartTried = true
+			if cartResult, cartErr := c.fetchJDCartPrice(ctx, skuID); cartErr == nil && cartResult != nil && cartResult.CurrentPrice > 0 {
+				return cartResult, nil
+			} else if cartErr != nil && cartErr != errJDCartMiss {
+				fmt.Fprintf(os.Stderr, "[jd] 购物车优先读取失败: %v\n", cartErr)
+			}
+		}
+
+		result, err := c.fetchPriceBrowser(ctx, skuID)
+		if err == nil && result != nil && result.CurrentPrice > 0 {
+			if result.ProductURL == "" {
+				result.ProductURL = fmt.Sprintf(jdProductURL, skuID)
+			}
+			return result, nil
+		}
+		if err != nil {
+			// 商品页被频控/失败时，按需回退到购物车读取。
+			if cartMode == "fallback" || (cartMode == "only" && !cartTried) {
+				if cartResult, cartErr := c.fetchJDCartPrice(ctx, skuID); cartErr == nil && cartResult != nil && cartResult.CurrentPrice > 0 {
+					return cartResult, nil
+				} else if cartErr != nil && cartErr != errJDCartMiss {
+					fmt.Fprintf(os.Stderr, "[jd] 购物车回退读取失败: %v\n", cartErr)
+				}
+			}
+			// 浏览器被频控/失败时，尝试可选的京东联盟价格接口（需配置 JD_UNION_APP_KEY/SECRET）。
+			if unionResult, unionErr := fetchJDUnionPrice(ctx, skuID); unionErr == nil {
+				unionResult.ProductURL = fmt.Sprintf(jdProductURL, skuID)
+				return unionResult, nil
+			}
+			return nil, fmt.Errorf("jd: %v (sku=%s)", err, skuID)
+		}
+		return nil, fmt.Errorf("jd: 页面未解析到有效价格 (sku=%s)", skuID)
+	}
+
+	price, origPrice, subsidyText := c.fetchPriceHTTP(httpCtx, skuID, sessionCookie)
 	title := c.fetchTitleHTTP(httpCtx, skuID, sessionCookie)
-	fmt.Fprintf(os.Stderr, "[jd] HTTP 阶段完成 sku=%s price=%v orig=%v title=%q\n", skuID, price, origPrice, title)
+	fmt.Fprintf(os.Stderr, "[jd] HTTP 阶段完成 sku=%s price=%v orig=%v title=%q subsidy=%q\n", skuID, price, origPrice, title, subsidyText)
 	stock := "unknown"
 	canonicalURL := fmt.Sprintf(jdProductURL, skuID)
 
-	if price > 0 && title != "" {
+	// 页面出现国补/补贴提示时，HTTP 拿到的往往只是基础价，必须走浏览器按页面实际文案计算到手价。
+	// 已登录时同样优先走浏览器：国补/PLUS 价格通常由登录态接口返回，HTTP 页面不可见。
+	hasSubsidy := HasSubsidyHint(subsidyText)
+	preferBrowser := hasSubsidy || sessionCookie != ""
+	if price > 0 && title != "" && !preferBrowser {
 		return &PriceResult{
 			CurrentPrice:  price,
 			OriginalPrice: origPrice,
+			BasePrice:     price,
+			PriceSource:   "price_api",
 			Title:         title,
 			StockStatus:   stock,
 			ProductURL:    canonicalURL,
@@ -112,15 +173,28 @@ func (c *JDCollector) FetchPrice(ctx context.Context, rawURL string) (*PriceResu
 
 	result, err := c.fetchPriceBrowser(ctx, skuID)
 	if err != nil {
-		if price > 0 {
-			return &PriceResult{
+		browserLoginErr := strings.Contains(err.Error(), "需要登录") || strings.Contains(err.Error(), "登录/风险")
+		// 已登录会话被判定失效时不能回退到匿名价格，否则会掩盖登录过期并错误续期会话。
+		if price > 0 && !(sessionCookie != "" && browserLoginErr) {
+			fallback := &PriceResult{
 				CurrentPrice:  price,
 				OriginalPrice: origPrice,
+				BasePrice:     price,
+				PriceSource:   "price_api",
 				Title:         title,
 				StockStatus:   stock,
 				ProductURL:    canonicalURL,
 				FetchedAt:     time.Now(),
-			}, nil
+			}
+			// 浏览器失败时至少用 HTTP 页面文案里的补贴信息做一次兜底计算。
+			if hasSubsidy {
+				FillSubsidy(fallback, price, ParseSubsidyHint(subsidyText), "http_subsidy")
+			}
+			return fallback, nil
+		}
+		if unionResult, unionErr := fetchJDUnionPrice(ctx, skuID); unionErr == nil {
+			unionResult.ProductURL = canonicalURL
+			return unionResult, nil
 		}
 		return nil, fmt.Errorf("jd: %v (sku=%s)", err, skuID)
 	}
@@ -266,7 +340,7 @@ func stripTrackingParams(rawURL string) string {
 
 // ---------- HTTP 价格获取 ----------
 
-func (c *JDCollector) fetchPriceHTTP(ctx context.Context, skuID, sessionCookie string) (float64, float64) {
+func (c *JDCollector) fetchPriceHTTP(ctx context.Context, skuID, sessionCookie string) (float64, float64, string) {
 	endpoints := []string{
 		fmt.Sprintf("https://p.3.cn/prices/mgets?skuIds=J_%s&type=1", skuID),
 		fmt.Sprintf("http://p.3.cn/prices/mgets?skuIds=J_%s&type=1", skuID),
@@ -276,26 +350,30 @@ func (c *JDCollector) fetchPriceHTTP(ctx context.Context, skuID, sessionCookie s
 		fmt.Sprintf("https://item.m.jd.com/product/%s.html", skuID),
 	}
 	// 前 4 个是 JSON API，后 2 个是 HTML 页面需解析
+	var subsidyText string
 	for i, apiURL := range endpoints {
 		if i < 4 {
 			p, op, err := c.callPriceAPI(ctx, apiURL, sessionCookie)
 			fmt.Fprintf(os.Stderr, "[jd] priceAPI[%d] %s -> price=%v err=%v\n", i, apiURL, p, err)
 			if err == nil && p > 0 {
-				return p, op
+				return p, op, subsidyText
 			}
 		} else {
-			p, op := c.parsePriceFromPage(ctx, apiURL, sessionCookie)
-			fmt.Fprintf(os.Stderr, "[jd] pricePage[%d] %s -> price=%v\n", i, apiURL, p)
+			p, op, text := c.parsePriceFromPage(ctx, apiURL, sessionCookie)
+			fmt.Fprintf(os.Stderr, "[jd] pricePage[%d] %s -> price=%v subsidy=%v\n", i, apiURL, p, HasSubsidyHint(text))
+			if text != "" {
+				subsidyText = text
+			}
 			if p > 0 {
-				return p, op
+				return p, op, subsidyText
 			}
 		}
 	}
-	return 0, 0
+	return 0, 0, subsidyText
 }
 
-// parsePriceFromPage 从 HTML 页面中解析价格
-func (c *JDCollector) parsePriceFromPage(ctx context.Context, pageURL, sessionCookie string) (float64, float64) {
+// parsePriceFromPage 从 HTML 页面中解析价格，并返回页面中的国补文案片段
+func (c *JDCollector) parsePriceFromPage(ctx context.Context, pageURL, sessionCookie string) (float64, float64, string) {
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, pageURL, nil)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 	req.Header.Set("Accept", "text/html,*/*")
@@ -304,11 +382,12 @@ func (c *JDCollector) parsePriceFromPage(ctx context.Context, pageURL, sessionCo
 	}
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return 0, 0
+		return 0, 0, ""
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	html := string(body)
+	subsidyText := ExtractSubsidyContext(html)
 	re := regexp.MustCompile(`"jdPrice"\s*:\s*\{[^}]*"p"\s*:\s*"([\d.]+)"`)
 	if m := re.FindStringSubmatch(html); len(m) >= 2 {
 		var price float64
@@ -319,16 +398,16 @@ func (c *JDCollector) parsePriceFromPage(ctx context.Context, pageURL, sessionCo
 			if m2 := re2.FindStringSubmatch(html); len(m2) >= 2 {
 				fmt.Sscanf(m2[1], "%f", &orig)
 			}
-			return price, orig
+			return price, orig, subsidyText
 		}
 	}
 	re2 := regexp.MustCompile(`<span[^>]*class="p-price"[^>]*>\s*¥?([\d.]+)`)
 	if m := re2.FindStringSubmatch(html); len(m) >= 2 {
 		var price float64
 		fmt.Sscanf(m[1], "%f", &price)
-		return price, 0
+		return price, 0, subsidyText
 	}
-	return 0, 0
+	return 0, 0, subsidyText
 }
 
 func (c *JDCollector) callPriceAPI(ctx context.Context, apiURL, sessionCookie string) (float64, float64, error) {
@@ -433,14 +512,57 @@ func (c *JDCollector) fetchTitleHTTP(ctx context.Context, skuID, sessionCookie s
 
 // ---------- 浏览器采集（通过 Login3rd 获取 session） ----------
 
+type jdBrowserProfile struct {
+	PageURL string
+	UA      string
+	Width   int64
+	Height  int64
+}
+
 func (c *JDCollector) fetchPriceBrowser(ctx context.Context, skuID string) (*PriceResult, error) {
-	// 移动版渠道走 item.m.jd.com，否则用桌面版页面（结构规整、含 pageConfig/价格）
-	pageURL := fmt.Sprintf(jdDesktopURL, skuID)
-	if c.mobile {
-		pageURL = fmt.Sprintf(jdProductURL, skuID)
+	// 桌面商品页在登录后会直接渲染“到手价/划线价”，七鲜等京东系商品也适用；
+	// 移动版页面作为兜底（部分活动页只有移动版可解析）。
+	profiles := []jdBrowserProfile{
+		{
+			PageURL: fmt.Sprintf(jdDesktopURL, skuID),
+			UA:      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+			Width:   1440,
+			Height:  900,
+		},
+		{
+			PageURL: fmt.Sprintf(jdProductURL, skuID),
+			UA:      "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+			Width:   390,
+			Height:  844,
+		},
 	}
 
-	// 从 Login3rd 获取京东 session cookie
+	var lastErr error
+	for _, profile := range profiles {
+		result, err := c.fetchPriceBrowserWithProfile(ctx, skuID, profile)
+		if err == nil && result != nil && result.CurrentPrice > 0 {
+			return result, nil
+		}
+		if err != nil {
+			// 桌面页已被频控时立即返回，继续跑移动页只会增加风控概率。
+			// 频控错误必须保留下来，不能被后续 profile 的“未解析到价格”覆盖，
+			// 否则 service 不会触发 6h 退避。
+			if IsRateLimitError(err) {
+				return nil, err
+			}
+			lastErr = err
+		} else if result != nil {
+			lastErr = fmt.Errorf("页面未解析到有效价格（%s）", profile.PageURL)
+		}
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("浏览器采集失败")
+	}
+	return nil, lastErr
+}
+
+func (c *JDCollector) fetchPriceBrowserWithProfile(ctx context.Context, skuID string, profile jdBrowserProfile) (*PriceResult, error) {
+	// 从 Login3rd 获取京东/七鲜共享 session cookie
 	sessionCookies := c.getSessionCookies(ctx)
 
 	// 创建临时浏览器上下文
@@ -450,43 +572,30 @@ func (c *JDCollector) fetchPriceBrowser(ctx context.Context, skuID string) (*Pri
 	}
 	defer cancelTab()
 
-	// 移动版渠道使用移动端浏览器身份，其余用 Windows 桌面 Chrome 身份，避免被识别成机器身份触发验证
-	jdUA := "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-	width, height := 1440, 900
-	if c.mobile {
-		jdUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
-		width, height = 390, 844
-	}
 	if err := chromedp.Run(tabCtx,
-		emulation.SetUserAgentOverride(jdUA),
-		emulation.SetDeviceMetricsOverride(int64(width), int64(height), 1, false),
+		emulation.SetUserAgentOverride(profile.UA),
+		emulation.SetDeviceMetricsOverride(profile.Width, profile.Height, 1, false),
 	); err != nil {
 		return nil, fmt.Errorf("设置浏览器身份失败: %w", err)
 	}
 
-	// 注入 cookie
+	// 注入 cookie（按原始 domain/path 写入，避免丢失 passport.jd.com 的设备 Cookie）
 	if len(sessionCookies) > 0 {
-		for _, sc := range sessionCookies {
-			chromedp.Run(tabCtx,
-				network.SetCookie(sc.Name, sc.Value).
-					WithDomain(".jd.com").
-					WithPath("/"),
-			)
-		}
+		setBrowserCookies(tabCtx, sessionCookies)
 	}
 
-	// 导航到商品页（Navigate 可能因桌面页 load 事件迟迟不触发而超时，但 body 未必不可用，
+	// 导航到商品页（Navigate 可能因页面 load 事件迟迟不触发而超时，但 body 未必不可用，
 	// 因此超时后仍继续轮询 body，预算 45s）
 	navDeadline := time.Now().Add(45 * time.Second)
 	navCtx, navCancel := context.WithTimeout(tabCtx, 45*time.Second)
 	defer navCancel()
-	if err := chromedp.Run(navCtx, chromedp.Navigate(pageURL)); err != nil {
+	if err := chromedp.Run(navCtx, chromedp.Navigate(profile.PageURL)); err != nil {
 		fmt.Fprintf(os.Stderr, "[jd] Navigate 未在预期内完成（%v），继续轮询 body\n", err)
 	}
 	bodyOK := false
 	for !bodyOK {
 		if time.Now().After(navDeadline) {
-			return nil, fmt.Errorf("浏览器加载页面失败: body 未就绪（%s）", pageURL)
+			return nil, fmt.Errorf("浏览器加载页面失败: body 未就绪（%s）", profile.PageURL)
 		}
 		if err := chromedp.Run(tabCtx, chromedp.Evaluate(`!!document.body && document.readyState !== 'loading'`, &bodyOK)); err != nil {
 			bodyOK = false
@@ -500,7 +609,10 @@ func (c *JDCollector) fetchPriceBrowser(ctx context.Context, skuID string) (*Pri
 	// 检查是否被重定向到登录页
 	var currentURL string
 	chromedp.Run(tabCtx, chromedp.Location(&currentURL))
-	fmt.Fprintf(os.Stderr, "[jd] 浏览器导航完成 currentURL=%s\n", currentURL)
+	fmt.Fprintf(os.Stderr, "[jd] 浏览器导航完成 currentURL=%s profile=%s\n", currentURL, profile.PageURL)
+	if strings.Contains(currentURL, "pc-frequent-pro") || strings.Contains(currentURL, "reason=403") {
+		return nil, fmt.Errorf("京东访问频率限制（PC频控页），稍后重试")
+	}
 	if strings.Contains(currentURL, "plogin") || strings.Contains(currentURL, "passport") || strings.Contains(currentURL, "risk_handler") {
 		// 登录失效告警由 shopchecker service 统一发送（复用商品绑定的 webhook），此处仅返回错误
 		return nil, fmt.Errorf("需要登录（session 已过期）")
@@ -522,32 +634,14 @@ func (c *JDCollector) getLogin3rdSvc() *login3rd.Service {
 	return m.GetService()
 }
 
-// getSessionCookies 从 Login3rd 获取京东账号的登录 cookie（仅 verified=valid 时返回）
+// getSessionCookies 从 Login3rd 获取京东账号的登录 cookie（仅 verified=valid 时返回）。
+// 七鲜/京东移动版会自动回退到京东账号，实现一次京东登录三端共用。
 func (c *JDCollector) getSessionCookies(ctx context.Context) []*provider.Cookie {
 	svc := c.getLogin3rdSvc()
 	if svc == nil {
 		return nil
 	}
-	accounts, _, _, err := svc.ListAccounts(ctx, &login3rd.ListAccountsReq{
-		PlatformID: c.platformID,
-		Page:       1,
-		PageSize:   1,
-	})
-	if err != nil || len(accounts) == 0 {
-		return nil
-	}
-	acct := accounts[0]
-	if acct.SessionData == nil || acct.VerifiedStatus != "valid" {
-		return nil
-	}
-	var cookies []*provider.Cookie
-	for _, sc := range acct.SessionData.Cookies {
-		cookies = append(cookies, &provider.Cookie{
-			Name: sc.Name, Value: sc.Value, Domain: sc.Domain,
-			Path: sc.Path, Secure: sc.Secure, HTTPOnly: sc.HTTPOnly,
-		})
-	}
-	return cookies
+	return svc.GetSessionCookies(ctx, c.platformID)
 }
 
 // sessionCookieHeader 将 session cookie 拼成 HTTP Cookie 头
@@ -561,7 +655,7 @@ func sessionCookieHeader(cookies []*provider.Cookie) string {
 	return strings.Join(parts, "; ")
 }
 
-// createTempBrowser 创建临时浏览器上下文（无持久化状态）
+// createTempBrowser 创建浏览器上下文（复用平台固定 Profile，保持设备指纹稳定）
 func (c *JDCollector) createTempBrowser(ctx context.Context) (context.Context, context.CancelFunc, error) {
 	if c.remoteURL != "" {
 		allocCtx, aCancel := chromedp.NewRemoteAllocator(ctx, c.remoteURL)
@@ -575,27 +669,13 @@ func (c *JDCollector) createTempBrowser(ctx context.Context) (context.Context, c
 		return tabCtx, cancel, nil
 	}
 	if c.browserPath != "" {
-		profileDir, err := os.MkdirTemp("", "jd-scrape-*")
-		if err != nil {
-			return nil, nil, err
-		}
-		opts := append(chromedp.DefaultExecAllocatorOptions[:],
-			chromedp.ExecPath(c.browserPath),
-			chromedp.NoSandbox,
-			chromedp.UserDataDir(profileDir),
+		return newBrowserWithProfile(ctx, c.browserPath, c.platformID,
 			chromedp.Flag("disable-blink-features", "AutomationControlled"),
 			chromedp.Flag("disable-dev-shm-usage", true),
 			chromedp.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"),
+			// 京东 PC 商品页对旧版 headless 特征比较敏感，改用 new headless 降低频控概率。
+			chromedp.Flag("headless", "new"),
 		)
-		allocCtx, aCancel := chromedp.NewExecAllocator(ctx, opts...)
-		tabCtx, cancel := chromedp.NewContext(allocCtx)
-		_ = aCancel
-		select {
-		case <-tabCtx.Done():
-			return nil, nil, fmt.Errorf("本地浏览器启动失败（%s）: %w", c.browserPath, tabCtx.Err())
-		default:
-		}
-		return tabCtx, cancel, nil
 	}
 	return nil, nil, fmt.Errorf("未找到浏览器（Chrome 或远程连接）")
 }
@@ -619,8 +699,9 @@ func (c *JDCollector) scrapeProduct(browserCtx context.Context) (*PriceResult, e
 		chromedp.Evaluate(`(function() {
 			// 提取按文案标签标注的价格 + pageConfig 价格相关字段（供定位国补/到手价）
 			var body = document.body ? document.body.innerText : '';
-			var re = /[¥￥]\s*(\d+(?:\.\d{1,2})?)/;
-			var reNum = /(\d+(?:\.\d{1,2})?)/;
+			// 京东未登录时价格会以 “2??7” 形式做字体混淆，这里必须拒绝被 ?/？ 截断的数字。
+			var re = /[¥￥]\s*(\d+(?:,\d{3})*(?:\.\d{1,2})?)(?![\d?？])/;
+			var reNum = /(?:^|[^\d.])(\d+(?:,\d{3})*(?:\.\d{1,2})?)(?![\d?？])/;
 			function pick(label) {
 				var i = body.indexOf(label);
 				if (i === -1) return '';
@@ -630,13 +711,23 @@ func (c *JDCollector) scrapeProduct(browserCtx context.Context) (*PriceResult, e
 				var m = seg.match(re) || seg.match(reNum);
 				return m ? m[1] : '';
 			}
-			var labels = ['国补领后价','国补后到手价','国补到手价','补贴后到手价','国补后',
+			var labels = ['国补领后价','国补后到手价','国补到手价','国家补贴价','政府补贴价','补贴后到手价',
+				'国补价','补贴价','国补后','国家补贴后','政府补贴后','以旧换新价',
 				'到手价','实付','券后','领券价','PLUS到手价','日常价','京东价','划线价','原价'];
 			var found = {};
 			for (var i = 0; i < labels.length; i++) found[labels[i]] = pick(labels[i]);
 			var main = '';
 			var m3 = body.match(re);
 			if (m3) main = m3[1];
+			// 桌面商品页常见结构：¥到手价 到手价 ¥划线价，划线价没有独立文案标签。
+			var linePrice = '';
+			var mLine = body.match(/到手价[^\d¥￥]{0,40}[¥￥]\s*(\d+(?:,\d{3})*(?:\.\d{1,2})?)(?![\d?？])/);
+			if (mLine) linePrice = mLine[1].replace(/,/g, '');
+			if (linePrice && !found['划线价']) found['划线价'] = linePrice;
+			if (linePrice && !found['原价']) found['原价'] = linePrice;
+			var subsidyContext = '';
+			var mi = body.search(/国补|国家补贴|政府补贴|补贴/);
+			if (mi > -1) subsidyContext = body.slice(Math.max(0, mi - 100), mi + 220);
 			var skuName = '';
 			var el = document.querySelector('.sku-name');
 			if (el) skuName = el.innerText.trim();
@@ -652,17 +743,49 @@ func (c *JDCollector) scrapeProduct(browserCtx context.Context) (*PriceResult, e
 					if (typeof obj[k] === 'object' && obj[k] !== null) walk(obj[k], prefix + k + '.');
 				}
 			})(window.pageConfig || null, '');
-			return JSON.stringify({found: found, main: main, skuName: skuName, priceKeys: priceKeys});
+			return JSON.stringify({found: found, main: main, skuName: skuName, subsidyContext: subsidyContext, priceKeys: priceKeys});
 		})()`, &priceJSON),
 		chromedp.Evaluate(`(function() {
 			// 移动版页面：window.itemPrice / window._itemInfo 持有解密后的明文价格（DOM 价格为蝌蚪字体加密）
 			var out = {};
 			try {
 				if (window.itemPrice && window.itemPrice.jdPrice) out.jdPrice = window.itemPrice.jdPrice;
+				if (window.itemPrice && window.itemPrice.price) out.itemPrice = window.itemPrice.price;
 			} catch (e) {}
 			try {
-				if (window._itemInfo && window._itemInfo.priceFloor && window._itemInfo.priceFloor.ext
-					&& window._itemInfo.priceFloor.ext.jdPrice) out.extJdPrice = window._itemInfo.priceFloor.ext.jdPrice;
+				var pf = window._itemInfo && window._itemInfo.priceFloor;
+				if (pf) {
+					if (pf.price) out.priceFloorPrice = pf.price;
+					var ext = pf.ext || {};
+					if (ext.jdPrice) out.extJdPrice = ext.jdPrice;
+					if (ext.price) out.extPrice = ext.price;
+					if (ext.subsidyPrice) out.subsidyPrice = ext.subsidyPrice;
+					if (ext.govSubsidyPrice) out.govSubsidyPrice = ext.govSubsidyPrice;
+					if (ext.realPriceExt) {
+						var rp = ext.realPriceExt;
+						if (rp.JD) {
+							if (rp.JD.plusDiscountAmount) out.plusDiscountAmount = rp.JD.plusDiscountAmount;
+							if (rp.JD.price) out.realJdPrice = rp.JD.price;
+							if (rp.JD.finalPrice) out.realFinalPrice = rp.JD.finalPrice;
+							if (rp.JD.subsidyPrice) out.realSubsidyPrice = rp.JD.subsidyPrice;
+							if (rp.JD.govSubsidyPrice) out.realGovSubsidyPrice = rp.JD.govSubsidyPrice;
+						}
+						// 保留 realPriceExt 中的小额标量，便于后续扩展国补/PLUS 字段
+						var flat = {};
+						(function walk(obj, prefix, depth) {
+							if (!obj || typeof obj !== 'object' || depth > 3) return;
+							for (var k in obj) {
+								var v = obj[k];
+								if (v === null || v === undefined) continue;
+								if (typeof v === 'object') { walk(v, prefix + k + '.', depth + 1); continue; }
+								if (/subsidy|gov|plus|price|discount|final/i.test(k) && String(v).length < 40)
+									flat[prefix + k] = String(v);
+							}
+						})(rp, '', 0);
+						out.realPriceExt = flat;
+					}
+					if (pf.purchaseSubType) out.purchaseSubType = pf.purchaseSubType;
+				}
 			} catch (e) {}
 			try {
 				if (window._itemInfo && window._itemInfo.product && window._itemInfo.product.skuName)
@@ -671,22 +794,20 @@ func (c *JDCollector) scrapeProduct(browserCtx context.Context) (*PriceResult, e
 			try {
 				if (window.stockState !== undefined) out.stockState = window.stockState;
 			} catch (e) {}
-			// 国补信息：newBanner 腰带含补贴文案（"领国家补贴减￥500"），priceFloor 含补贴类型/PLUS 优惠
+			// 国补信息：newBanner 腰带含补贴文案（"领国家补贴减￥500"），页面正文含"国补15%"等比例文案
 			try {
 				var nb = window._itemInfo && window._itemInfo.newBanner;
 				if (nb && nb.fData) {
 					if (nb.fData.rightDownText) out.subsidyText = nb.fData.rightDownText;
 					if (nb.fData.bannerName) out.bannerName = nb.fData.bannerName;
+					if (nb.fData.slogan) out.bannerSlogan = nb.fData.slogan;
 				}
 			} catch (e) {}
 			try {
-				var pf = window._itemInfo && window._itemInfo.priceFloor;
-				if (pf) {
-					if (pf.purchaseSubType) out.purchaseSubType = pf.purchaseSubType;
-					var ext = pf.ext || {};
-					if (ext.realPriceExt && ext.realPriceExt.JD && ext.realPriceExt.JD.plusDiscountAmount)
-						out.plusDiscountAmount = ext.realPriceExt.JD.plusDiscountAmount;
-				}
+				var body = document.body ? document.body.innerText : '';
+				var re = /(国补|国家补贴|政府补贴|补贴)/;
+				var i = body.search(re);
+				if (i > -1) out.bodySubsidyText = body.slice(Math.max(0, i - 120), i + 220);
 			} catch (e) {}
 			return JSON.stringify(out);
 		})()`, &mobileInfoJSON),
@@ -730,38 +851,89 @@ func (c *JDCollector) scrapeProduct(browserCtx context.Context) (*PriceResult, e
 	}
 
 	// 优先级：国补领后价（由移动版 JS 全局计算）> 国补类到手价 > 到手/实付/券后 > 页面首个 ¥；日常价作为原价
-	subsidy, final, daily, main, priceKeys := parseLabeledPrices(priceJSON)
-	govPrice, govOrig := parseMobileEffectivePrice(mobileInfoJSON)
-	price, origPrice := govPrice, govOrig
+	subsidy, final, daily, main, hint, priceKeys := parseLabeledPrices(priceJSON)
+	mobilePricing := parseMobilePricing(mobileInfoJSON)
+
+	price := 0.0
+	basePrice := 0.0
+	subsidyAmount := 0.0
+	subsidyRate := 0.0
+	source := ""
+
+	if mobilePricing.FinalPrice > 0 {
+		price = mobilePricing.FinalPrice
+		basePrice = mobilePricing.BasePrice
+		subsidyAmount = mobilePricing.SubsidyAmount
+		subsidyRate = mobilePricing.SubsidyRate
+		source = mobilePricing.Source
+	}
 	if price == 0 {
-		if subsidy > 0 {
+		switch {
+		case subsidy > 0:
 			price = subsidy
-		} else if final > 0 {
+			source = "gov_label"
+		case final > 0:
 			price = final
-		} else if main > 0 {
+			source = "final_label"
+		case main > 0:
 			price = main
+			source = "page_main"
 		}
 	}
-	// 移动版明文价格（window.itemPrice.jdPrice）优先兜底，DOM 蝌蚪字体无法直接解析
 	if price == 0 {
 		if jp := parseMobileJdPrice(mobileInfoJSON); jp > 0 {
 			price = jp
+			source = "mobile_price"
 		}
 	}
-	if price > 0 && daily > 0 && daily != price && daily > price*0.5 {
-		origPrice = daily
-	}
 	if price == 0 {
-		price, origPrice = extractBrowserPrice(pageHTML)
+		price, _ = extractBrowserPrice(pageHTML)
+		source = "html"
 	}
 	if price == 0 && stateJSON != "" {
-		price, origPrice = parsePriceFromState(stateJSON)
+		price, _ = parsePriceFromState(stateJSON)
+		source = "state"
 	}
-	result.CurrentPrice = price
-	result.OriginalPrice = origPrice
 
-	fmt.Fprintf(os.Stderr, "[jd] 采集结果 title=%q price=%v orig=%v subsidy=%v final=%v daily=%v stock=%s state_len=%d url=%s\n",
-		result.Title, result.CurrentPrice, result.OriginalPrice, subsidy, final, daily, result.StockStatus, len(stateJSON), currentURL)
+	// 划线价/日常价明显低于现价时视为页面噪音（如字体混淆截断出的个位数）。
+	if daily > 0 && price > 0 && daily < price*0.5 {
+		daily = 0
+	}
+	if basePrice <= 0 {
+		basePrice = firstPositive(mobilePricing.BasePrice, daily, price)
+	}
+	if basePrice > 0 && price > 0 && basePrice < price*0.5 {
+		basePrice = firstPositive(daily, price)
+	}
+	if subsidyAmount <= 0 && subsidy > 0 && basePrice > subsidy {
+		subsidyAmount = round2(basePrice - subsidy)
+	}
+	// 页面已经明确给出“到手价/国补价”时，不再用文案里的“减X元”二次覆盖，
+	// 否则“最高返90京豆/企业补贴”等营销文案会把正确的到手价改错。
+	hasExplicitPrice := mobilePricing.FinalPrice > 0 || subsidy > 0 || final > 0
+	if !hasExplicitPrice && price > 0 && subsidyAmount <= 0 && (hint.Amount > 0 || hint.Rate > 0) && basePrice > 0 {
+		if computed, amount := ComputeSubsidizedPrice(basePrice, hint.Amount, hint.Rate, hint.Cap); computed > 0 {
+			price = computed
+			subsidyAmount = amount
+			subsidyRate = hint.Rate
+			source = "gov_subsidy_text"
+		}
+	}
+
+	origPrice := firstPositive(mobilePricing.OrigPrice, daily, basePrice)
+	if origPrice > 0 && origPrice <= price {
+		origPrice = 0
+	}
+	result.CurrentPrice = round2(price)
+	result.OriginalPrice = round2(origPrice)
+	result.BasePrice = round2(basePrice)
+	result.SubsidyAmount = round2(subsidyAmount)
+	result.SubsidyRate = subsidyRate
+	result.PriceSource = source
+
+	fmt.Fprintf(os.Stderr, "[jd] 采集结果 title=%q price=%v orig=%v base=%v subsidy=%.2f rate=%.2f source=%s label_sub=%v final=%v daily=%v hint=%+v stock=%s state_len=%d url=%s\n",
+		result.Title, result.CurrentPrice, result.OriginalPrice, result.BasePrice, result.SubsidyAmount, result.SubsidyRate,
+		result.PriceSource, subsidy, final, daily, hint, result.StockStatus, len(stateJSON), currentURL)
 	for k, v := range priceKeys {
 		fmt.Fprintf(os.Stderr, "[jd] pageConfig %s = %s\n", k, v)
 	}
@@ -769,64 +941,134 @@ func (c *JDCollector) scrapeProduct(browserCtx context.Context) (*PriceResult, e
 	return result, nil
 }
 
-// parseMobileEffectivePrice 从移动版页面 JS 全局计算到手价（PLUS 会员价）
-// 规则：
-//  1. 国补场景：当前价 = 日常价 - 国补补贴 - PLUS 优惠，原价 = 日常价
-//  2. 无国补但存在 PLUS 优惠：当前价 = 日常价 - PLUS 优惠，原价 = 日常价
-//  3. 均无：返回 0（走其他兜底路径）
-//
-// 数据来源：newBanner.fData.rightDownText（如 "领国家补贴减￥500"）、priceFloor.ext.jdPrice、
-//
-//	priceFloor.ext.realPriceExt.JD.plusDiscountAmount
+type jdMobileInfo struct {
+	JdPrice          flexFloat         `json:"jdPrice"`
+	ItemPrice        flexFloat         `json:"itemPrice"`
+	ExtJdPrice       flexFloat         `json:"extJdPrice"`
+	ExtPrice         flexFloat         `json:"extPrice"`
+	PriceFloorPrice  flexFloat         `json:"priceFloorPrice"`
+	SubsidyPrice     flexFloat         `json:"subsidyPrice"`
+	GovSubsidyPrice  flexFloat         `json:"govSubsidyPrice"`
+	RealJdPrice      flexFloat         `json:"realJdPrice"`
+	RealFinalPrice   flexFloat         `json:"realFinalPrice"`
+	RealSubsidyPrice flexFloat         `json:"realSubsidyPrice"`
+	RealGovSubsidy   flexFloat         `json:"realGovSubsidyPrice"`
+	PlusDiscountAmt  flexFloat         `json:"plusDiscountAmount"`
+	SkuName          string            `json:"skuName"`
+	SubsidyText      string            `json:"subsidyText"`
+	BannerName       string            `json:"bannerName"`
+	BannerSlogan     string            `json:"bannerSlogan"`
+	BodySubsidyText  string            `json:"bodySubsidyText"`
+	PurchaseSubType  string            `json:"purchaseSubType"`
+	RealPriceExt     map[string]string `json:"realPriceExt"`
+	StockState       int               `json:"stockState"`
+}
+
+type jdPricing struct {
+	BasePrice     float64
+	SubsidyAmount float64
+	SubsidyRate   float64
+	PlusDiscount  float64
+	FinalPrice    float64
+	OrigPrice     float64
+	Source        string
+}
+
+func decodeJDMobileInfo(mobileInfoJSON string) jdMobileInfo {
+	var p jdMobileInfo
+	_ = json.Unmarshal([]byte(mobileInfoJSON), &p)
+	return p
+}
+
+// parseMobilePricing 从移动版页面 JS 全局计算到手价（国补 + PLUS 会员价）。
+// 国补金额/比例来自腰带、正文文案及页面价格扩展字段。
+func parseMobilePricing(mobileInfoJSON string) jdPricing {
+	p := decodeJDMobileInfo(mobileInfoJSON)
+
+	basePrice := firstPositive(
+		p.ExtJdPrice.Float64(),
+		p.JdPrice.Float64(),
+		p.PriceFloorPrice.Float64(),
+		p.ItemPrice.Float64(),
+		p.RealJdPrice.Float64(),
+	)
+	if basePrice <= 0 {
+		return jdPricing{}
+	}
+
+	pricing := jdPricing{BasePrice: round2(basePrice), OrigPrice: round2(basePrice)}
+	plusAmt := p.PlusDiscountAmt.Float64()
+
+	// 1) 页面直接给出国补后价格字段（优先级最高）
+	directSubsidy := firstPositive(
+		p.RealGovSubsidy.Float64(),
+		p.GovSubsidyPrice.Float64(),
+		p.RealSubsidyPrice.Float64(),
+		p.SubsidyPrice.Float64(),
+	)
+	if directSubsidy > 0 && directSubsidy < basePrice {
+		pricing.FinalPrice = round2(directSubsidy)
+		pricing.SubsidyAmount = round2(basePrice - directSubsidy)
+		pricing.Source = "gov_subsidy_field"
+		return pricing
+	}
+
+	// 2) 从页面文案解析国补金额/比例
+	texts := []string{
+		p.SubsidyText, p.BannerName, p.BannerSlogan, p.BodySubsidyText, p.PurchaseSubType,
+	}
+	for k, v := range p.RealPriceExt {
+		if strings.Contains(strings.ToLower(k), "subsidy") || strings.Contains(strings.ToLower(k), "gov") {
+			texts = append(texts, k+" "+v)
+		}
+	}
+	hint := ParseSubsidyHint(strings.Join(texts, " "))
+	if hint.Amount > 0 || hint.Rate > 0 {
+		finalPrice, amount := ComputeSubsidizedPrice(basePrice, hint.Amount, hint.Rate, hint.Cap)
+		if finalPrice > 0 {
+			if plusAmt > 0 && plusAmt < finalPrice {
+				finalPrice = round2(finalPrice - plusAmt)
+			}
+			pricing.FinalPrice = finalPrice
+			pricing.SubsidyAmount = amount
+			pricing.SubsidyRate = hint.Rate
+			pricing.PlusDiscount = plusAmt
+			pricing.Source = "gov_subsidy_text"
+			return pricing
+		}
+	}
+
+	// 3) 页面给出“实付/最终价”字段
+	if p.RealFinalPrice.Float64() > 0 && p.RealFinalPrice.Float64() < basePrice {
+		pricing.FinalPrice = round2(p.RealFinalPrice.Float64())
+		pricing.Source = "real_final_price"
+		return pricing
+	}
+
+	// 4) 无国补但 PLUS 会员有优惠
+	if plusAmt > 0 && plusAmt < basePrice {
+		pricing.FinalPrice = round2(basePrice - plusAmt)
+		pricing.PlusDiscount = plusAmt
+		pricing.Source = "plus_discount"
+		return pricing
+	}
+
+	return jdPricing{}
+}
+
+func firstPositive(values ...float64) float64 {
+	for _, v := range values {
+		if v > 0 {
+			return v
+		}
+	}
+	return 0
+}
+
+// parseMobileEffectivePrice 保留原有二元返回签名（供单测/兼容调用）。
 func parseMobileEffectivePrice(mobileInfoJSON string) (float64, float64) {
-	var p struct {
-		JdPrice         string `json:"jdPrice"`
-		ExtJdPrice      string `json:"extJdPrice"`
-		SubsidyText     string `json:"subsidyText"`
-		BannerName      string `json:"bannerName"`
-		PurchaseSubType string `json:"purchaseSubType"`
-		PlusDiscountAmt string `json:"plusDiscountAmount"`
-	}
-	if json.Unmarshal([]byte(mobileInfoJSON), &p) != nil {
-		return 0, 0
-	}
-
-	basePrice := parseFloatStr(p.ExtJdPrice)
-	if basePrice <= 0 {
-		basePrice = parseFloatStr(p.JdPrice)
-	}
-	if basePrice <= 0 {
-		return 0, 0
-	}
-
-	subsidyAmt := parseSubsidyText(p.SubsidyText)
-	plusAmt := parseFloatStr(p.PlusDiscountAmt)
-
-	// 国补领后价 = 日常价 - 补贴金额，PLUS 会员再叠加优惠
-	if subsidyAmt > 0 {
-		govPrice := basePrice - subsidyAmt
-		if govPrice <= 0 {
-			return 0, 0
-		}
-		if plusAmt > 0 {
-			govPrice -= plusAmt
-		}
-		if govPrice <= 0 {
-			return 0, 0
-		}
-		return govPrice, basePrice
-	}
-
-	// 无国补但 PLUS 会员有优惠
-	if plusAmt > 0 {
-		plusPrice := basePrice - plusAmt
-		if plusPrice <= 0 {
-			return 0, 0
-		}
-		return plusPrice, basePrice
-	}
-
-	return 0, 0
+	p := parseMobilePricing(mobileInfoJSON)
+	return p.FinalPrice, p.OrigPrice
 }
 
 // parseSubsidyText 从国补腰带文案解析补贴金额，如 "领国家补贴减￥500" -> 500
@@ -853,33 +1095,19 @@ func parseFloatStr(s string) float64 {
 
 // parseMobileJdPrice 从移动版页面 JS 全局（window.itemPrice / _itemInfo.priceFloor.ext）解析明文京东价
 func parseMobileJdPrice(mobileInfoJSON string) float64 {
-	var p struct {
-		JdPrice    string `json:"jdPrice"`
-		ExtJdPrice string `json:"extJdPrice"`
-	}
-	if json.Unmarshal([]byte(mobileInfoJSON), &p) != nil {
-		return 0
-	}
-	for _, s := range []string{p.JdPrice, p.ExtJdPrice} {
-		var f float64
-		if s != "" && strings.Trim(s, "¥￥ ") != "" {
-			fmt.Sscanf(strings.Trim(s, "¥￥ "), "%f", &f)
-			if f > 0 {
-				return f
-			}
-		}
-	}
-	return 0
+	p := decodeJDMobileInfo(mobileInfoJSON)
+	return firstPositive(
+		p.ExtJdPrice.Float64(),
+		p.JdPrice.Float64(),
+		p.PriceFloorPrice.Float64(),
+		p.ItemPrice.Float64(),
+		p.RealJdPrice.Float64(),
+	)
 }
 
 // parseMobileSkuName 从移动版页面 JS 全局 _itemInfo.product.skuName 解析商品名
 func parseMobileSkuName(mobileInfoJSON string) string {
-	var p struct {
-		SkuName string `json:"skuName"`
-	}
-	if json.Unmarshal([]byte(mobileInfoJSON), &p) != nil {
-		return ""
-	}
+	p := decodeJDMobileInfo(mobileInfoJSON)
 	return cleanJdTitle(strings.TrimSpace(p.SkuName))
 }
 
@@ -903,15 +1131,16 @@ func parseMobileStock(mobileInfoJSON string) string {
 }
 
 // parseLabeledPrices 解析页面上按文案标签提取的价格
-func parseLabeledPrices(priceJSON string) (subsidy, final, daily, main float64, priceKeys map[string]string) {
+func parseLabeledPrices(priceJSON string) (subsidy, final, daily, main float64, hint SubsidyHint, priceKeys map[string]string) {
 	var p struct {
-		Found     map[string]string `json:"found"`
-		Main      string            `json:"main"`
-		SkuName   string            `json:"skuName"`
-		PriceKeys map[string]string `json:"priceKeys"`
+		Found          map[string]string `json:"found"`
+		Main           string            `json:"main"`
+		SkuName        string            `json:"skuName"`
+		SubsidyContext string            `json:"subsidyContext"`
+		PriceKeys      map[string]string `json:"priceKeys"`
 	}
 	if json.Unmarshal([]byte(priceJSON), &p) != nil {
-		return 0, 0, 0, 0, nil
+		return 0, 0, 0, 0, SubsidyHint{}, nil
 	}
 	toF := func(s string) float64 {
 		var f float64
@@ -929,11 +1158,13 @@ func parseLabeledPrices(priceJSON string) (subsidy, final, daily, main float64, 
 		}
 		return 0
 	}
-	subsidy = firstOf("国补领后价", "国补后到手价", "国补到手价", "补贴后到手价", "国补后")
+	subsidy = firstOf("国补领后价", "国补后到手价", "国补到手价", "国家补贴价", "政府补贴价",
+		"补贴后到手价", "国补价", "补贴价", "国补后", "国家补贴后", "政府补贴后", "以旧换新价")
 	final = firstOf("到手价", "实付", "券后", "领券价", "PLUS到手价")
 	daily = firstOf("日常价", "京东价", "划线价", "原价")
 	main = toF(p.Main)
-	return subsidy, final, daily, main, p.PriceKeys
+	hint = ParseSubsidyHint(p.SubsidyContext)
+	return subsidy, final, daily, main, hint, p.PriceKeys
 }
 
 // parseLabeledSkuName 从采集结果中取 .sku-name 文本
@@ -1125,6 +1356,21 @@ func cleanJdTitle(t string) string {
 		t = strings.TrimSuffix(t, s)
 	}
 	t = strings.TrimSpace(t)
+	// 去掉“【行情 价格 报价】”“【图片 价格 品牌】”等页面标题尾巴。
+	for {
+		open := strings.LastIndex(t, "【")
+		if open < 0 || !strings.HasSuffix(t, "】") {
+			break
+		}
+		tail := t[open:]
+		if strings.Contains(tail, "行情") || strings.Contains(tail, "价格") ||
+			strings.Contains(tail, "报价") || strings.Contains(tail, "图片") ||
+			strings.Contains(tail, "品牌") {
+			t = strings.TrimSpace(t[:open])
+			continue
+		}
+		break
+	}
 	if t == "" || strings.Contains(t, "验证") || strings.Contains(t, "404") || strings.Contains(t, "京东JD.COM") {
 		return ""
 	}

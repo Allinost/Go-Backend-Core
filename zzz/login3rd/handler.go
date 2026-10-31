@@ -206,7 +206,7 @@ func (h *Handler) AutoLogin(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        id   path  int  true  "账号 ID"
-// @Success      200  {object}  response.Response{data=object{token=string,url=string}}
+// @Success      200  {object}  response.Response{data=object{token=string,url=string,ws_url=string,is_local=bool}}
 // @Router       /login3rd/accounts/{id}/remote-login [post]
 func (h *Handler) CreateRemoteSession(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -219,12 +219,29 @@ func (h *Handler) CreateRemoteSession(c *gin.Context) {
 		h.handleError(c, err)
 		return
 	}
-	scheme := "http"
-	if c.Request.TLS != nil {
-		scheme = "https"
+	// 优先使用浏览器 Origin，确保通过 Vite/Nginx 代理访问时返回的登录页和 WS 地址
+	// 仍然是前端同源地址，而不是后端内网 Host（否则 iMac 等客户端会连到自己的 localhost）。
+	baseURL := strings.TrimRight(c.GetHeader("Origin"), "/")
+	if baseURL == "" {
+		scheme := "http"
+		if c.Request.TLS != nil {
+			scheme = "https"
+		}
+		baseURL = scheme + "://" + c.Request.Host
 	}
-	remoteURL := scheme + "://" + c.Request.Host + "/api/v1/login3rd/remote/session/" + token
-	response.Success(c, gin.H{"token": token, "url": remoteURL})
+	remoteURL := baseURL + "/api/v1/login3rd/remote/session/" + token
+
+	isLocal := false
+	if session, err := h.svc.GetRemoteManager().GetSession(token); err == nil && session != nil {
+		isLocal = session.IsLocal
+	}
+	resp := gin.H{
+		"token":    token,
+		"url":      remoteURL,
+		"ws_url":   remoteURL + "/ws",
+		"is_local": isLocal,
+	}
+	response.Success(c, resp)
 }
 
 // GetAccountStatus 获取账号登录状态

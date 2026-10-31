@@ -131,9 +131,27 @@ login3rd Module
 
 ## 4. 测试覆盖
 
-⚠️ **整个 `zzz/login3rd/`（含 `provider/`、`browser/`）目前没有任何 `_test.go`**，是本模块的主要工程短板。建议优先补：
+`zzz/login3rd/` 已补充基础单测：
+
+1. 平台族会话共享与回退（`platform_alias_test.go`）
+2. 登录成功判定（`browser/login_flow_test.go`）
+3. Provider Cookie / 登录 URL 判定（`provider/provider_test.go`）
+
+后续建议继续补充：
 
 1. `crypto.go` 加解密往返（含错误密钥、篡改密文）
 2. `session_check.go` 降级链各分支（mock Provider）
-3. `provider/jd.go` 的 `Verify` 重定向判定逻辑
-4. `service.go` 账号 CRUD 与加解密边界
+3. `service.go` 账号 CRUD 与加解密边界
+
+---
+
+## 5. 多平台登录态共享与登录判定（2026-10）
+
+- 登录态按平台族共享：
+  - `jd` / `qixian` / `jdm` 共用 `pt_key` / `pt_pin`；
+  - `taobao` / `tmall` 共用 `unb` / `_tb_token_` 等 Cookie；
+  - `pdd` 使用 `mobile.yangkeduo.com` 的登录 Cookie，不与 `mms.pinduoduo.com` 混用。
+- `GetSessionCookies` 会按平台族回退查找，七鲜/天猫没有独立账号时自动复用主平台会话。
+- `IsPlatformLoginExpired` / `TouchSession` 同样按平台族判断，避免把共享登录态误判为失效。
+- 手动/远程登录成功后，`LoginFlow` 必须等到成功 Cookie，或成功 URL 前缀 + 已知登录 Cookie 同时满足；默认最多等待 120 秒。
+- 自动登录/验证统一走 `Provider.Verify`，各 Provider 只负责本平台的登录判定。

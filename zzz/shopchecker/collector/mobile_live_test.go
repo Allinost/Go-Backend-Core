@@ -35,7 +35,9 @@ func TestParseMobileEffectivePrice(t *testing.T) {
 		// 国补无 PLUS
 		{`{"jdPrice":"4499.00","extJdPrice":"4499.00","subsidyText":"领国家补贴减￥500"}`, 3999, 4499},
 		{`{"jdPrice":"4499.00","extJdPrice":"4499.00","subsidyText":"领国家补贴减 ¥500"}`, 3999, 4499},
-		{`{"jdPrice":"4499.00","extJdPrice":"4499.00","subsidyText":"国补减500"}`, 0, 0},
+		{`{"jdPrice":"4499.00","extJdPrice":"4499.00","subsidyText":"国补减500"}`, 3999, 4499},
+		{`{"jdPrice":"4499.00","extJdPrice":"4499.00","subsidyText":"国家补贴15%"}`, 3824.15, 4499},
+		{`{"jdPrice":"1000.00","extJdPrice":"1000.00","subsidyText":"国家补贴20%，最高减100"}`, 900, 1000},
 		{`{"jdPrice":"4499.00","extJdPrice":"4499.00","subsidyText":"领国家补贴减￥500.50","plusDiscountAmount":"22.49"}`, 3976.01, 4499},
 		// 无国补但 PLUS 优惠
 		{`{"jdPrice":"15.90","extJdPrice":"15.90","plusDiscountAmount":"0.80"}`, 15.10, 15.90},

@@ -35,11 +35,21 @@ type TaobaoCollector struct {
 	client      *http.Client
 	browserPath string
 	remoteURL   string
+	platform    string
 	mu          sync.Mutex
 }
 
 // NewTaobaoCollector 创建淘宝价格采集器
 func NewTaobaoCollector() *TaobaoCollector {
+	return newTaobaoCollector("taobao")
+}
+
+// NewTmallCollector 创建天猫采集器（与淘宝共用采集逻辑与登录态）
+func NewTmallCollector() *TaobaoCollector {
+	return newTaobaoCollector("tmall")
+}
+
+func newTaobaoCollector(platform string) *TaobaoCollector {
 	return &TaobaoCollector{
 		client: &http.Client{
 			Timeout: 15 * time.Second,
@@ -52,12 +62,13 @@ func NewTaobaoCollector() *TaobaoCollector {
 		},
 		browserPath: findBrowser(),
 		remoteURL:   os.Getenv("CHROME_REMOTE_URL"),
+		platform:    platform,
 	}
 }
 
 // Platform 返回平台标识
 func (c *TaobaoCollector) Platform() string {
-	return "taobao"
+	return c.platform
 }
 
 // FetchPrice 抓取淘宝商品价格
@@ -75,27 +86,31 @@ func (c *TaobaoCollector) FetchPrice(ctx context.Context, rawURL string) (*Price
 	if itemID == "" {
 		return nil, fmt.Errorf("taobao: 无法从 URL 解析商品 ID")
 	}
+	skuID := extractTaobaoSKU(rawURL)
 	canonicalURL := fmt.Sprintf(tbCanonicalURL, itemID)
+	if skuID != "" {
+		canonicalURL += "&skuId=" + url.QueryEscape(skuID)
+	}
 
 	sessionCookie := sessionCookieHeader(c.getSessionCookies(ctx))
 
 	// HTTP 阶段：独立 15s 预算，不消耗浏览器阶段的预算
 	httpCtx, httpCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer httpCancel()
-	httpResult := c.fetchPageHTTP(httpCtx, itemID, sessionCookie)
+	httpResult := c.fetchPageHTTP(httpCtx, itemID, skuID, sessionCookie)
 	if httpResult != nil {
 		fmt.Fprintf(os.Stderr, "[taobao] HTTP 阶段完成 id=%s price=%v title=%q\n", itemID, httpResult.CurrentPrice, httpResult.Title)
-		if httpResult.CurrentPrice > 0 && httpResult.Title != "" {
-			httpResult.ProductURL = canonicalURL
-			return httpResult, nil
-		}
 	}
+	// 淘宝 HTTP 页面经常返回“宝贝描述”等占位页或错误价格（如把分当元），
+	// 因此不再直接用 HTTP 结果，浏览器渲染结果优先；HTTP 仅作为浏览器失败后的兜底。
 
 	// 浏览器阶段：H5 详情页优先，桌面页兜底
-	result, err := c.fetchPriceBrowser(ctx, itemID)
+	result, err := c.fetchPriceBrowser(ctx, itemID, skuID)
 	if err != nil {
-		// 浏览器失败但 HTTP 阶段已拿到价格时降级返回
-		if httpResult != nil && httpResult.CurrentPrice > 0 {
+		browserLoginErr := strings.Contains(err.Error(), "需要登录") || strings.Contains(err.Error(), "登录/风险")
+		// 已登录会话被判定失效时不能回退到匿名价格，否则会掩盖登录过期并错误续期会话。
+		if httpResult != nil && httpResult.CurrentPrice > 0 && !(sessionCookie != "" && browserLoginErr) &&
+			isUsableTaobaoHTTPResult(httpResult) {
 			httpResult.ProductURL = canonicalURL
 			return httpResult, nil
 		}
@@ -105,6 +120,23 @@ func (c *TaobaoCollector) FetchPrice(ctx context.Context, rawURL string) (*Price
 		result.ProductURL = canonicalURL
 	}
 	return result, nil
+}
+
+// tbItemURL 生成淘宝/天猫商品页地址，带 skuId 时直接定位规格。
+func tbItemURL(itemID, skuID string, mobile bool) string {
+	base := tbCanonicalURL
+	if mobile {
+		base = tbH5DetailURL
+	}
+	pageURL := fmt.Sprintf(base, itemID)
+	if skuID != "" {
+		sep := "?"
+		if strings.Contains(pageURL, "?") {
+			sep = "&"
+		}
+		pageURL += sep + "skuId=" + url.QueryEscape(skuID)
+	}
+	return pageURL
 }
 
 // ---------- 商品 ID 解析 ----------
@@ -178,6 +210,29 @@ func extractTaobaoItemID(pageURL string) string {
 	return ""
 }
 
+// extractTaobaoSKU 从商品 URL 中提取 skuId（分享链接带 skuId 时可直接定位用户选中的规格）
+func extractTaobaoSKU(rawInput string) string {
+	rawURL := extractTaobaoURL(rawInput)
+	if rawURL == "" {
+		rawURL = strings.TrimSpace(rawInput)
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	q := u.Query()
+	for _, key := range []string{"skuId", "sku_id", "sku"} {
+		if v := strings.TrimSpace(q.Get(key)); v != "" {
+			return v
+		}
+	}
+	re := regexp.MustCompile(`(?i)[?&]sku(?:Id|_id)?=(\d+)`)
+	if m := re.FindStringSubmatch(rawURL); len(m) >= 2 {
+		return m[1]
+	}
+	return ""
+}
+
 // isTaobaoShortLink 判断是否为淘宝短链域名（e.tb.cn / m.tb.cn / tb.cn / t.cn 系）
 func isTaobaoShortLink(rawURL string) bool {
 	u, err := url.Parse(rawURL)
@@ -227,13 +282,13 @@ func (c *TaobaoCollector) resolveShortLink(ctx context.Context, shortURL string)
 
 // ---------- HTTP 快速路径 ----------
 
-func (c *TaobaoCollector) fetchPageHTTP(ctx context.Context, itemID, sessionCookie string) *PriceResult {
+func (c *TaobaoCollector) fetchPageHTTP(ctx context.Context, itemID, skuID, sessionCookie string) *PriceResult {
 	endpoints := []struct {
 		url     string
 		desktop bool
 	}{
-		{fmt.Sprintf(tbCanonicalURL, itemID), true},
-		{fmt.Sprintf(tbH5DetailURL, itemID), false},
+		{tbItemURL(itemID, skuID, false), true},
+		{tbItemURL(itemID, skuID, true), false},
 	}
 	for _, ep := range endpoints {
 		html := c.fetchHTMLOnly(ctx, ep.url, sessionCookie, ep.desktop)
@@ -248,13 +303,25 @@ func (c *TaobaoCollector) fetchPageHTTP(ctx context.Context, itemID, sessionCook
 		if title == "" {
 			title = extractTaobaoTitleFromHTMLString(html)
 		}
-		return &PriceResult{
+		result := &PriceResult{
 			CurrentPrice:  price,
 			OriginalPrice: origPrice,
+			BasePrice:     firstPositive(origPrice, price),
+			PriceSource:   "http",
 			Title:         title,
 			StockStatus:   extractTaobaoStock(html),
 			FetchedAt:     time.Now(),
 		}
+		if hint := ParseSubsidyHint(ExtractSubsidyContext(html)); hint.Amount > 0 || hint.Rate > 0 {
+			base := firstPositive(origPrice, price)
+			if final, amount := ComputeSubsidizedPrice(base, hint.Amount, hint.Rate, hint.Cap); final > 0 {
+				result.CurrentPrice = final
+				result.SubsidyAmount = amount
+				result.SubsidyRate = hint.Rate
+				result.PriceSource = "http_subsidy"
+			}
+		}
+		return result
 	}
 	return nil
 }
@@ -281,6 +348,27 @@ func (c *TaobaoCollector) fetchHTMLOnly(ctx context.Context, pageURL, sessionCoo
 		return ""
 	}
 	return string(body)
+}
+
+// isUsableTaobaoHTTPResult 过滤淘宝占位页/登录页解析出的明显错误价格。
+func isUsableTaobaoHTTPResult(r *PriceResult) bool {
+	if r == nil || r.CurrentPrice <= 0 {
+		return false
+	}
+	title := strings.TrimSpace(r.Title)
+	if title == "" {
+		return false
+	}
+	for _, bad := range []string{"宝贝描述", "商品详情", "登录", "验证", "淘宝网"} {
+		if strings.Contains(title, bad) {
+			return false
+		}
+	}
+	// 淘宝价格通常不会超过百万；出现整数万分位多半是把“分”当成了“元”。
+	if r.CurrentPrice >= 1000000 {
+		return false
+	}
+	return true
 }
 
 func extractTaobaoTitle(html string) string {
@@ -375,7 +463,7 @@ func extractTaobaoStock(html string) string {
 
 // ---------- 浏览器降级路径 ----------
 
-func (c *TaobaoCollector) fetchPriceBrowser(ctx context.Context, itemID string) (*PriceResult, error) {
+func (c *TaobaoCollector) fetchPriceBrowser(ctx context.Context, itemID, skuID string) (*PriceResult, error) {
 	sessionCookies := c.getSessionCookies(ctx)
 
 	tabCtx, cancelTab, err := c.createTempBrowser(ctx)
@@ -409,7 +497,7 @@ func (c *TaobaoCollector) fetchPriceBrowser(ctx context.Context, itemID string) 
 	navDeadline := time.Now().Add(50 * time.Second)
 	navCtx, navCancel := context.WithTimeout(tabCtx, 50*time.Second)
 
-	pageURL := fmt.Sprintf(tbH5DetailURL, itemID)
+	pageURL := tbItemURL(itemID, skuID, true)
 	if err := chromedp.Run(navCtx, chromedp.Navigate(pageURL)); err != nil {
 		fmt.Fprintf(os.Stderr, "[taobao] Navigate 未在预期内完成（%v），继续轮询 body\n", err)
 	}
@@ -443,13 +531,13 @@ func (c *TaobaoCollector) fetchPriceBrowser(ctx context.Context, itemID string) 
 	if scrapeErr != nil {
 		// H5 失败时用桌面版详情页兜底一次
 		fmt.Fprintf(os.Stderr, "[taobao] H5 采集失败（%v），尝试桌面版页面\n", scrapeErr)
-		return c.fetchDesktopBrowser(tabCtx, itemID)
+		return c.fetchDesktopBrowser(tabCtx, itemID, skuID)
 	}
 	return result, nil
 }
 
 // fetchDesktopBrowser 桌面版商品页浏览器兜底采集
-func (c *TaobaoCollector) fetchDesktopBrowser(tabCtx context.Context, itemID string) (*PriceResult, error) {
+func (c *TaobaoCollector) fetchDesktopBrowser(tabCtx context.Context, itemID, skuID string) (*PriceResult, error) {
 	if err := chromedp.Run(tabCtx,
 		emulation.SetUserAgentOverride(tbDeskUA),
 		emulation.SetDeviceMetricsOverride(1440, 900, 1, false),
@@ -457,7 +545,7 @@ func (c *TaobaoCollector) fetchDesktopBrowser(tabCtx context.Context, itemID str
 		return nil, fmt.Errorf("切换桌面身份失败: %w", err)
 	}
 
-	pageURL := fmt.Sprintf(tbCanonicalURL, itemID)
+	pageURL := tbItemURL(itemID, skuID, false)
 	navDeadline := time.Now().Add(40 * time.Second)
 	navCtx, navCancel := context.WithTimeout(tabCtx, 40*time.Second)
 	if err := chromedp.Run(navCtx, chromedp.Navigate(pageURL)); err != nil {
@@ -517,8 +605,8 @@ func (c *TaobaoCollector) scrapeProduct(browserCtx context.Context, currentURL s
 	err := chromedp.Run(scrapeCtx,
 		chromedp.Evaluate(`(function() {
 			var body = document.body ? document.body.innerText : '';
-			var re = /[¥￥]\s*(\d+(?:,\d{3})*(?:\.\d{1,2})?)/;
-			var reNum = /(\d+(?:,\d{3})*(?:\.\d{1,2})?)/;
+			var re = /[¥￥]\s*(\d+(?:,\d{3})*(?:\.\d{1,2})?)(?![\d?？])/;
+			var reNum = /(?:^|[^\d.])(\d+(?:,\d{3})*(?:\.\d{1,2})?)(?![\d?？])/;
 			function pick(label) {
 				var i = body.indexOf(label);
 				if (i === -1) return '';
@@ -526,13 +614,17 @@ func (c *TaobaoCollector) scrapeProduct(browserCtx context.Context, currentURL s
 				var m = seg.match(re) || seg.match(reNum);
 				return m ? m[1].replace(/,/g, '') : '';
 			}
-			var labels = ['国补领后价','国补后到手价','国补到手价','补贴后到手价','补贴后','百亿补贴价',
+			var labels = ['国补领后价','国补后到手价','国补到手价','国家补贴价','政府补贴价','补贴后到手价',
+				'补贴后','国补价','补贴价','国家补贴后','政府补贴后','百亿补贴价',
 				'到手价','券后','折后','实付','预售价','日常价','原价','划线价'];
 			var found = {};
 			for (var i = 0; i < labels.length; i++) found[labels[i]] = pick(labels[i]);
 			var main = '';
 			var m3 = body.match(re);
 			if (m3) main = m3[1].replace(/,/g, '');
+			var subsidyContext = '';
+			var mi = body.search(/国补|国家补贴|政府补贴|补贴/);
+			if (mi > -1) subsidyContext = body.slice(Math.max(0, mi - 100), mi + 240);
 			var skuName = '';
 			var sels = ['.tb-main-title', '[class*="mainTitle"]', '[class*="itemTitle"]', '.ItemHeader--mainTitle', 'h1'];
 			for (var i = 0; i < sels.length; i++) {
@@ -540,7 +632,7 @@ func (c *TaobaoCollector) scrapeProduct(browserCtx context.Context, currentURL s
 				if (el && el.innerText && el.innerText.trim()) { skuName = el.innerText.trim(); break; }
 			}
 			var soldOut = /已售罄|缺货|已下架/.test(body);
-			return JSON.stringify({found: found, main: main, skuName: skuName, soldOut: soldOut});
+			return JSON.stringify({found: found, main: main, skuName: skuName, soldOut: soldOut, subsidyContext: subsidyContext});
 		})()`, &priceJSON),
 		chromedp.OuterHTML("html", &pageHTML),
 	)
@@ -548,7 +640,8 @@ func (c *TaobaoCollector) scrapeProduct(browserCtx context.Context, currentURL s
 		return nil, fmt.Errorf("页面采集失败: %w", err)
 	}
 
-	found, main, skuName, soldOut := parseTaobaoScrapeJSON(priceJSON)
+	scrape := parseTaobaoScrape(priceJSON)
+	found, main, skuName, soldOut := scrape.Found, scrape.Main, scrape.SkuName, scrape.SoldOut
 
 	result := &PriceResult{
 		StockStatus: "unknown",
@@ -566,47 +659,93 @@ func (c *TaobaoCollector) scrapeProduct(browserCtx context.Context, currentURL s
 	}
 
 	subsidy, final, daily := parseTaobaoLabeledPrices(found)
+	hint := ParseSubsidyHint(scrape.SubsidyContext)
 	price := subsidy
+	source := "gov_label"
 	if price == 0 {
 		price = final
+		source = "final_label"
 	}
 	if price == 0 {
 		price = main
+		source = "page_main"
 	}
 	if price == 0 {
 		price, _ = extractTaobaoPrice(pageHTML)
+		source = "html"
 	}
 	origPrice := daily
 	if origPrice == 0 {
 		_, origPrice = extractTaobaoPrice(pageHTML)
 	}
-	if origPrice > 0 && origPrice < price {
+	if origPrice > 0 && price > 0 && origPrice < price*0.5 {
+		origPrice = 0
+	}
+	basePrice := firstPositive(origPrice, price)
+	subsidyAmount := 0.0
+	if subsidy > 0 && basePrice > subsidy {
+		subsidyAmount = round2(basePrice - subsidy)
+	}
+
+	// 页面只展示“国家补贴 15%”或“补贴减￥500”，未直接给出补贴后价格时，用基础价计算到手价。
+	hasExplicitPrice := subsidy > 0 || final > 0
+	if !hasExplicitPrice && price > 0 && subsidyAmount <= 0 && (hint.Amount > 0 || hint.Rate > 0) && basePrice > 0 {
+		if computed, amount := ComputeSubsidizedPrice(basePrice, hint.Amount, hint.Rate, hint.Cap); computed > 0 {
+			price = computed
+			subsidyAmount = amount
+			source = "gov_subsidy_text"
+		}
+	}
+	if origPrice > 0 && origPrice <= price {
 		origPrice = 0
 	}
 
 	if price <= 0 {
 		return nil, fmt.Errorf("未在页面中解析到有效价格")
 	}
-	result.CurrentPrice = price
-	result.OriginalPrice = origPrice
+	result.CurrentPrice = round2(price)
+	result.OriginalPrice = round2(origPrice)
+	result.BasePrice = round2(basePrice)
+	result.SubsidyAmount = round2(subsidyAmount)
+	result.SubsidyRate = hint.Rate
+	result.PriceSource = source
 
-	fmt.Fprintf(os.Stderr, "[taobao] 采集结果 title=%q price=%v orig=%v subsidy=%v final=%v daily=%v stock=%s url=%s\n",
-		result.Title, result.CurrentPrice, result.OriginalPrice, subsidy, final, daily, result.StockStatus, currentURL)
+	fmt.Fprintf(os.Stderr, "[taobao] 采集结果 title=%q price=%v orig=%v base=%v subsidy=%.2f rate=%.2f source=%s label_sub=%v final=%v daily=%v hint=%+v stock=%s url=%s\n",
+		result.Title, result.CurrentPrice, result.OriginalPrice, result.BasePrice, result.SubsidyAmount, result.SubsidyRate,
+		result.PriceSource, subsidy, final, daily, hint, result.StockStatus, currentURL)
 	return result, nil
 }
 
-// parseTaobaoScrapeJSON 解析浏览器采集脚本的返回 JSON
-func parseTaobaoScrapeJSON(raw string) (found map[string]string, main float64, skuName string, soldOut bool) {
+type taobaoScrape struct {
+	Found          map[string]string
+	Main           float64
+	SkuName        string
+	SoldOut        bool
+	SubsidyContext string
+}
+
+func parseTaobaoScrape(raw string) taobaoScrape {
 	var p struct {
-		Found   map[string]string `json:"found"`
-		Main    string            `json:"main"`
-		SkuName string            `json:"skuName"`
-		SoldOut bool              `json:"soldOut"`
+		Found          map[string]string `json:"found"`
+		Main           string            `json:"main"`
+		SkuName        string            `json:"skuName"`
+		SoldOut        bool              `json:"soldOut"`
+		SubsidyContext string            `json:"subsidyContext"`
 	}
 	if json.Unmarshal([]byte(raw), &p) != nil {
-		return nil, 0, "", false
+		return taobaoScrape{}
 	}
-	return p.Found, parseFloatStr(p.Main), strings.TrimSpace(p.SkuName), p.SoldOut
+	return taobaoScrape{
+		Found: p.Found, Main: parseFloatStr(p.Main),
+		SkuName: strings.TrimSpace(p.SkuName), SoldOut: p.SoldOut,
+		SubsidyContext: p.SubsidyContext,
+	}
+}
+
+// parseTaobaoScrapeJSON 保留原有返回签名（供单测/兼容调用）。
+func parseTaobaoScrapeJSON(raw string) (found map[string]string, main float64, skuName string, soldOut bool) {
+	s := parseTaobaoScrape(raw)
+	return s.Found, s.Main, s.SkuName, s.SoldOut
 }
 
 // parseTaobaoLabeledPrices 解析按文案标签提取的价格
@@ -620,7 +759,8 @@ func parseTaobaoLabeledPrices(found map[string]string) (subsidy, final, daily fl
 		}
 		return 0
 	}
-	subsidy = firstOf("国补领后价", "国补后到手价", "国补到手价", "补贴后到手价", "补贴后", "百亿补贴价")
+	subsidy = firstOf("国补领后价", "国补后到手价", "国补到手价", "国家补贴价", "政府补贴价",
+		"补贴后到手价", "补贴后", "国补价", "补贴价", "国家补贴后", "政府补贴后", "百亿补贴价")
 	final = firstOf("到手价", "券后", "折后", "实付", "预售价")
 	daily = firstOf("日常价", "原价", "划线价")
 	return
@@ -641,32 +781,14 @@ func (c *TaobaoCollector) getLogin3rdSvc() *login3rd.Service {
 	return m.GetService()
 }
 
-// getSessionCookies 从 Login3rd 获取淘宝账号的登录 cookie（仅 verified=valid 时返回）
+// getSessionCookies 从 Login3rd 获取淘宝/天猫共享登录 cookie（仅 verified=valid 时返回）。
+// c.platform 为 tmall 时会先找天猫账号，再回退淘宝账号，反之亦然。
 func (c *TaobaoCollector) getSessionCookies(ctx context.Context) []*provider.Cookie {
 	svc := c.getLogin3rdSvc()
 	if svc == nil {
 		return nil
 	}
-	accounts, _, _, err := svc.ListAccounts(ctx, &login3rd.ListAccountsReq{
-		PlatformID: "taobao",
-		Page:       1,
-		PageSize:   1,
-	})
-	if err != nil || len(accounts) == 0 {
-		return nil
-	}
-	acct := accounts[0]
-	if acct.SessionData == nil || acct.VerifiedStatus != "valid" {
-		return nil
-	}
-	var cookies []*provider.Cookie
-	for _, sc := range acct.SessionData.Cookies {
-		cookies = append(cookies, &provider.Cookie{
-			Name: sc.Name, Value: sc.Value, Domain: sc.Domain,
-			Path: sc.Path, Secure: sc.Secure, HTTPOnly: sc.HTTPOnly,
-		})
-	}
-	return cookies
+	return svc.GetSessionCookies(ctx, c.Platform())
 }
 
 // createTempBrowser 创建临时浏览器上下文（无持久化状态）
@@ -683,26 +805,10 @@ func (c *TaobaoCollector) createTempBrowser(ctx context.Context) (context.Contex
 		return tabCtx, cancel, nil
 	}
 	if c.browserPath != "" {
-		profileDir, err := os.MkdirTemp("", "taobao-scrape-*")
-		if err != nil {
-			return nil, nil, err
-		}
-		opts := append(chromedp.DefaultExecAllocatorOptions[:],
-			chromedp.ExecPath(c.browserPath),
-			chromedp.NoSandbox,
-			chromedp.UserDataDir(profileDir),
+		return newBrowserWithProfile(ctx, c.browserPath, c.Platform(),
 			chromedp.Flag("disable-blink-features", "AutomationControlled"),
 			chromedp.Flag("disable-dev-shm-usage", true),
 		)
-		allocCtx, aCancel := chromedp.NewExecAllocator(ctx, opts...)
-		tabCtx, cancel := chromedp.NewContext(allocCtx)
-		_ = aCancel
-		select {
-		case <-tabCtx.Done():
-			return nil, nil, fmt.Errorf("本地浏览器启动失败（%s）: %w", c.browserPath, tabCtx.Err())
-		default:
-		}
-		return tabCtx, cancel, nil
 	}
 	return nil, nil, fmt.Errorf("未找到浏览器（Chrome 或远程连接）")
 }

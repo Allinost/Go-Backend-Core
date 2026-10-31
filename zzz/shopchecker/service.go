@@ -63,11 +63,7 @@ func (s *Service) isPlatformLoginExpired(ctx context.Context, platformID string)
 
 // CreateProduct 创建商品监控（校验平台/URL/间隔，计算下次检查时间）
 func (s *Service) CreateProduct(ctx context.Context, req *CreateProductReq) (*Product, error) {
-	if req.Platform != string(PlatformJD) &&
-		req.Platform != string(PlatformTaobao) &&
-		req.Platform != string(PlatformPDD) &&
-		req.Platform != string(PlatformQixian) &&
-		req.Platform != string(PlatformJDMobile) {
+	if !isSupportedPlatform(req.Platform) {
 		return nil, NewShopCheckerError(ErrInvalidPlatform)
 	}
 	if req.URL == "" {
@@ -127,6 +123,9 @@ func (s *Service) GetProduct(ctx context.Context, id string) (*Product, error) {
 
 // UpdateProduct 更新商品监控配置
 func (s *Service) UpdateProduct(ctx context.Context, id string, req *UpdateProductReq) (*Product, error) {
+	if req.Platform != nil && !isSupportedPlatform(*req.Platform) {
+		return nil, NewShopCheckerError(ErrInvalidPlatform)
+	}
 	if req.CheckInterval != nil {
 		interval, err := normalizeCheckInterval(*req.CheckInterval)
 		if err != nil {
@@ -143,7 +142,18 @@ func (s *Service) UpdateProduct(ctx context.Context, id string, req *UpdateProdu
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, NewShopCheckerError(ErrProductNotFound)
 	}
-	return p, err
+	if err != nil {
+		return nil, err
+	}
+	// 修改检查周期/cron 后立即重算下次检查时间，避免沿用旧周期。
+	if req.CheckInterval != nil || req.CronExpr != nil {
+		next := s.computeNextCheck(time.Now(), p.CheckInterval, p.CronExpr)
+		if err := s.repo.UpdateNextCheck(ctx, p.ID, next); err != nil {
+			return nil, err
+		}
+		p.NextCheckAt = &next
+	}
+	return p, nil
 }
 
 // DeleteProduct 删除商品监控
@@ -173,9 +183,17 @@ func (s *Service) ExecuteCheck(ctx context.Context, p *Product, col collector.Co
 	result, err := col.FetchPrice(ctx, fetchURL)
 	if err != nil {
 		errMsg := err.Error()
-		pr, _ := s.repo.SavePriceRecord(ctx, p.ID, 0, "", "unknown", errMsg)
-		nextCheck := s.computeNextCheck(time.Now(), p.CheckInterval, p.CronExpr)
-		s.repo.UpdateCheckResult(ctx, p.ID, 0, "unknown", time.Now(), nextCheck)
+		pr, _ := s.repo.SavePriceRecord(ctx, p.ID, 0, 0, "", "unknown", errMsg, nil)
+		now := time.Now()
+		nextCheck := s.computeNextCheck(now, p.CheckInterval, p.CronExpr)
+		// 平台频率限制时强制退避至少 6 小时，避免继续触发风控。
+		if collector.IsRateLimitError(err) {
+			if backoff := now.Add(6 * time.Hour); nextCheck.Before(backoff) {
+				nextCheck = backoff
+			}
+		}
+		// 失败时保留上次有效价格/库存，避免历史价格被清零导致下一轮误判降价。
+		s.repo.UpdateCheckFailure(ctx, p.ID, now, nextCheck)
 
 		// 登录失效/反爬拦截 → 通过商品绑定的 webhook 发送告警（与价格通知同一链路）
 		if isLoginFailure(errMsg) {
@@ -208,7 +226,7 @@ func (s *Service) ExecuteCheck(ctx context.Context, p *Product, col collector.Co
 		stockStatus = "unknown"
 	}
 
-	pr, err := s.repo.SavePriceRecord(ctx, p.ID, result.CurrentPrice, result.Title, stockStatus, "")
+	pr, err := s.repo.SavePriceRecord(ctx, p.ID, result.CurrentPrice, result.OriginalPrice, result.Title, stockStatus, "", result)
 	if err != nil {
 		return err
 	}
@@ -250,6 +268,13 @@ func (s *Service) ExecuteCheck(ctx context.Context, p *Product, col collector.Co
 				"| 字段 | 值 |\n|---|---|\n| 商品名称 | %s |\n| 平台 | %s |\n| 当前价格 | %.2f |\n| 库存状态 | 有货 |\n| 查看链接 | [点击前往](%s) |",
 				p.Name, p.Platform, newPrice, p.URL,
 			)
+		}
+
+		if result.SubsidyAmount > 0 {
+			content += fmt.Sprintf("\n| 国补抵扣 | -%.2f（%.2f%%） |", result.SubsidyAmount, result.SubsidyRate)
+		}
+		if result.BasePrice > 0 && result.BasePrice > newPrice {
+			content += fmt.Sprintf("\n| 补贴前价格 | %.2f |", result.BasePrice)
 		}
 
 		sendReq := &webhook.SendReq{
@@ -459,6 +484,16 @@ func (s *Service) Dashboard(ctx context.Context) (*DashboardResp, error) {
 	return s.repo.GetDashboardStats(ctx)
 }
 
+// isSupportedPlatform 判断平台是否受支持
+func isSupportedPlatform(platform string) bool {
+	switch Platform(platform) {
+	case PlatformJD, PlatformTaobao, PlatformTmall, PlatformPDD, PlatformQixian, PlatformJDMobile:
+		return true
+	default:
+		return false
+	}
+}
+
 // normalizeCheckInterval 校验检查间隔：空值默认 1h，必须为正时长
 func normalizeCheckInterval(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
@@ -477,9 +512,11 @@ func (s *Service) shouldNotify(oldPrice, newPrice, targetPrice, dropRatio float6
 	if newPrice <= 0 {
 		return false
 	}
-	// 到达目标价即通知（不要求存在历史价格，首次达标也能触发）
+	// 目标价只在“从未达标/刚跌破目标价”时触发一次；已低于目标价后不再每轮重复通知。
 	if targetPrice > 0 && newPrice <= targetPrice {
-		return true
+		if oldPrice <= 0 || oldPrice > targetPrice {
+			return true
+		}
 	}
 	// 降价通知：需有历史价格且价格确实下降
 	if oldPrice <= 0 || newPrice >= oldPrice {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Allinost/go-backend-core/zzz/login3rd/provider"
@@ -81,19 +82,9 @@ func (f *LoginFlow) Execute(ctx context.Context, browserCtx context.Context, use
 		}
 	}
 
-	if f.FormCfg != nil {
-		cookies, err := f.waitLogin(browserCtx)
-		if err != nil {
-			return nil, err
-		}
-		provCookies := make([]provider.Cookie, len(cookies))
-		for i, c := range cookies {
-			provCookies[i] = *c
-		}
-		return &provider.SessionData{Cookies: provCookies}, nil
-	}
-
-	cookies, err := f.extractCookies(browserCtx)
+	// 无论是否配置了自动填表，都必须等待用户真正完成登录（远程登录场景尤其重要），
+	// 不能在页面刚打开时就把现有 Cookie 当作登录成功。
+	cookies, err := f.waitLogin(browserCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -138,13 +129,28 @@ func (f *LoginFlow) ExecuteRemote(ctx context.Context, remoteURL string, usernam
 	return f.Execute(ctx, browserCtx, username, password)
 }
 
-// waitLogin 轮询检测登录是否成功
+var knownAuthCookies = []string{
+	"pt_key", "pt_pin", // 京东系
+	"unb",                                                      // 淘宝/天猫用户数字 ID（匿名态不会出现）
+	"pdd_user_id", "pdd_user_uin", "PDDAccessToken", "pdd_vds", // 拼多多
+}
+
+// waitLogin 轮询检测登录是否成功。
+// 判定顺序：配置的成功 Cookie → 成功 URL 前缀 → 离开登录页且出现已知登录 Cookie。
 func (f *LoginFlow) waitLogin(browserCtx context.Context) ([]*provider.Cookie, error) {
+	successCookies := []string(nil)
+	successURLPrefix := ""
+	if f.FormCfg != nil {
+		successCookies = f.FormCfg.SuccessCookies
+		successURLPrefix = f.FormCfg.SuccessURLPrefix
+	}
 	fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 开始, SuccessCookies=%v SuccessURLPrefix=%q\n",
-		f.FormCfg.SuccessCookies, f.FormCfg.SuccessURLPrefix)
+		successCookies, successURLPrefix)
+
 	timeout := time.After(120 * time.Second)
 	tick := time.NewTicker(2 * time.Second)
 	defer tick.Stop()
+	startedAt := time.Now()
 
 	for {
 		select {
@@ -164,31 +170,36 @@ func (f *LoginFlow) waitLogin(browserCtx context.Context) ([]*provider.Cookie, e
 				continue
 			}
 			fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 获取 %d 个 cookie\n", len(cookies))
-			for _, c := range cookies {
-				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin:   cookie %s=%s...\n", c.Name, safePrefix(c.Value, 20))
+
+			var currentURL string
+			if err := chromedp.Run(opCtx, chromedp.Location(&currentURL)); err == nil {
+				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 当前 URL=%q\n", currentURL)
+			} else {
+				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: Location 失败: %v\n", err)
 			}
 
 			matched := false
-			if len(f.FormCfg.SuccessCookies) > 0 {
-				if hasAllCookies(cookies, f.FormCfg.SuccessCookies) {
-					fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: cookies 匹配成功\n")
-					matched = true
-				} else {
-					fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: cookies 不匹配（需要 %v）\n", f.FormCfg.SuccessCookies)
-				}
+			// 只凭 Cookie 判定时必须已经离开登录页，否则浏览器里残留的旧 pt_key/pt_pin
+			// 会在用户还没重新登录时误判成功（京东过期会话场景）。
+			if len(successCookies) > 0 && hasAllCookies(cookies, successCookies) &&
+				currentURL != "" && !isLoginPageURL(currentURL) {
+				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: cookies 匹配成功且已离开登录页\n")
+				matched = true
 			}
-			if !matched && f.FormCfg.SuccessURLPrefix != "" {
-				var currentURL string
-				if err := chromedp.Run(opCtx, chromedp.Location(&currentURL)); err == nil {
-					fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 当前 URL=%q\n", currentURL)
-					ok := len(currentURL) >= len(f.FormCfg.SuccessURLPrefix) &&
-						currentURL[:len(f.FormCfg.SuccessURLPrefix)] == f.FormCfg.SuccessURLPrefix
-					fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: URL 前缀匹配 %s = %v\n", f.FormCfg.SuccessURLPrefix, ok)
-					if ok {
-						matched = true
-					}
-				} else {
-					fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: Location 失败: %v\n", err)
+			if !matched && successURLPrefix != "" && currentURL != "" &&
+				strings.HasPrefix(currentURL, successURLPrefix) {
+				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: URL 前缀匹配成功\n")
+				matched = true
+			}
+			// 兜底：登录页已经跳走，并且出现了任一平台已知登录 Cookie。
+			// 给页面至少 8 秒完成跳转，避免把登录前的临时 Cookie 误判为成功。
+			if !matched && time.Since(startedAt) >= 8*time.Second {
+				if currentURL == "" {
+					_ = chromedp.Run(opCtx, chromedp.Location(&currentURL))
+				}
+				if currentURL != "" && !isLoginPageURL(currentURL) && hasAnyNamedCookie(cookies, knownAuthCookies) {
+					fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 已离开登录页且检测到登录 Cookie，判定成功\n")
+					matched = true
 				}
 			}
 			opCancel()
@@ -198,6 +209,27 @@ func (f *LoginFlow) waitLogin(browserCtx context.Context) ([]*provider.Cookie, e
 			}
 		}
 	}
+}
+
+func isLoginPageURL(raw string) bool {
+	lower := strings.ToLower(raw)
+	for _, kw := range []string{"login", "passport", "signin", "havanaone", "punish", "captcha", "verify"} {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAnyNamedCookie(cookies []*provider.Cookie, names []string) bool {
+	for _, c := range cookies {
+		for _, n := range names {
+			if c.Name == n && c.Value != "" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // extractCookies 提取浏览器中的全部 cookie

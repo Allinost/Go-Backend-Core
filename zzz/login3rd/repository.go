@@ -89,17 +89,18 @@ var seedPlatforms = []struct {
 	},
 	{
 		ID: "qixian", Name: "七鲜", Category: "shopping", LoginType: "browser", HasAuto: false,
-		LoginURL: "https://plogin.m.jd.com/login/login?appid=2193",
-		HomeURL:  "https://7fresh.m.jd.com",
+		// 七鲜与京东共用 pt_key/pt_pin，登录统一走京东通行证，一次登录即可复用。
+		LoginURL: "https://passport.jd.com/new/login.aspx?ReturnUrl=https%3A%2F%2Fwww.jd.com",
+		HomeURL:  "https://www.jd.com",
 		FormCfg: &FormConfig{
 			SuccessCookies:   []string{"pt_key", "pt_pin"},
-			SuccessURLPrefix: "https://m.jd.com",
+			SuccessURLPrefix: "https://www.jd.com",
 			MaxAutoRetry:     3,
 		},
 	},
 	{
 		ID: "jdm", Name: "京东移动版", Category: "shopping", LoginType: "browser", HasAuto: false,
-		LoginURL: "https://plogin.m.jd.com/login/login?appid=2193",
+		LoginURL: "https://passport.jd.com/new/login.aspx?ReturnUrl=https%3A%2F%2Fwww.jd.com",
 		HomeURL:  "https://m.jd.com",
 		FormCfg: &FormConfig{
 			SuccessCookies:   []string{"pt_key", "pt_pin"},
@@ -109,13 +110,33 @@ var seedPlatforms = []struct {
 	},
 	{
 		ID: "taobao", Name: "淘宝", Category: "shopping", LoginType: "browser", HasAuto: false,
-		LoginURL: "https://login.taobao.com",
+		LoginURL: "https://login.taobao.com/member/login.jhtml",
 		HomeURL:  "https://www.taobao.com",
+		FormCfg: &FormConfig{
+			// unb 为用户数字 ID，登录成功后才会出现；同时允许页面离开登录域后按已知登录 Cookie 判定。
+			SuccessCookies: []string{"unb"},
+			MaxAutoRetry:   1,
+		},
+	},
+	{
+		ID: "tmall", Name: "天猫", Category: "shopping", LoginType: "browser", HasAuto: false,
+		// 天猫与淘宝共用登录态（unb/_tb_token_ 等），这里保留独立平台入口便于商品分类。
+		LoginURL: "https://login.taobao.com/member/login.jhtml",
+		HomeURL:  "https://www.tmall.com",
+		FormCfg: &FormConfig{
+			SuccessCookies: []string{"unb"},
+			MaxAutoRetry:   1,
+		},
 	},
 	{
 		ID: "pdd", Name: "拼多多", Category: "shopping", LoginType: "browser", HasAuto: false,
-		LoginURL: "https://mms.pinduoduo.com/login",
-		HomeURL:  "https://mms.pinduoduo.com",
+		// 价格采集走消费者端 mobile.yangkeduo.com，不能使用商家后台 mms.pinduoduo.com 登录。
+		LoginURL: "https://mobile.yangkeduo.com/login.html",
+		HomeURL:  "https://mobile.yangkeduo.com",
+		FormCfg: &FormConfig{
+			SuccessCookies: []string{"pdd_user_id"},
+			MaxAutoRetry:   1,
+		},
 	},
 	{
 		ID: "_1688", Name: "1688", Category: "shopping", LoginType: "browser", HasAuto: true,

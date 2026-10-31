@@ -17,7 +17,7 @@
 |------|------|------|------|
 | id | VARCHAR(36) | PK | UUID |
 | name | VARCHAR(255) | NOT NULL | 商品名称（自定义） |
-| platform | VARCHAR(20) | NOT NULL | 平台：`jd` / `taobao` / `pdd` |
+| platform | VARCHAR(20) | NOT NULL | 平台：`jd` / `jdm` / `qixian` / `taobao` / `tmall` / `pdd` |
 | url | VARCHAR(2048) | NOT NULL | 商品页 URL |
 | image_url | VARCHAR(1024) | DEFAULT '' | 商品图片 URL |
 | target_price | DECIMAL(12,2) | DEFAULT 0 | 目标价（低于此价通知），0 表示任何降价都通知 |
@@ -46,7 +46,7 @@
 | product_id | VARCHAR(36) | NOT NULL, INDEX | 关联商品 ID |
 | price | DECIMAL(12,2) | NOT NULL | 本次抓取价格 |
 | original_price | DECIMAL(12,2) | DEFAULT 0 | 划线价/原价 |
-| title | VARCHAR(500) | DEFAULT '' | 抓取时的商品标题 |
+| title | VARCHAR(255) | DEFAULT '' | 抓取时的商品标题 |
 | is_notified | TINYINT(1) | DEFAULT 0 | 是否已发送降价通知 |
 | raw_data | JSON | NULL | 原始抓取数据（备用） |
 | error_msg | VARCHAR(500) | DEFAULT '' | 抓取错误信息（失败时记录） |
@@ -80,6 +80,7 @@ type Platform string
 const (
     PlatformJD     Platform = "jd"
     PlatformTaobao Platform = "taobao"
+    PlatformTmall  Platform = "tmall"
     PlatformPDD    Platform = "pdd"
 )
 
