@@ -18,6 +18,7 @@ type WebhookConfig struct {
 	URL     string
 	Secret  string
 	Headers map[string]string
+	Topics  []string
 	Timeout time.Duration
 }
 
@@ -27,6 +28,7 @@ type Webhook struct {
 	url     string
 	secret  string
 	headers map[string]string
+	topics  []string
 	client  *http.Client
 	now     func() time.Time
 }
@@ -51,6 +53,7 @@ func NewWebhook(cfg WebhookConfig) (*Webhook, error) {
 		url:     cfg.URL,
 		secret:  cfg.Secret,
 		headers: cfg.Headers,
+		topics:  append([]string(nil), cfg.Topics...),
 		client:  &http.Client{Timeout: timeout},
 		now:     time.Now,
 	}, nil
@@ -61,6 +64,9 @@ func (w *Webhook) ID() string { return w.id }
 
 // Type 连接器类型
 func (w *Webhook) Type() string { return "webhook" }
+
+// Topics 订阅的 topic 规则，空表示全部
+func (w *Webhook) Topics() []string { return append([]string(nil), w.topics...) }
 
 // Send 发送签名 JSON POST
 func (w *Webhook) Send(ctx context.Context, msg Message) error {

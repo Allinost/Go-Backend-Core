@@ -17,16 +17,28 @@ import (
 
 // Handler 集成模块 HTTP 处理器
 type Handler struct {
-	gateway    *action.Gateway
-	outbox     *outbox.Service
-	connectors *connector.Registry
-	logger     ActionLogger
-	now        func() time.Time
+	gateway      *action.Gateway
+	outbox       *outbox.Service
+	connectors   *connector.Registry
+	connectorMgr *ConnectorManager
+	dispatcher   *outbox.Dispatcher
+	logger       ActionLogger
+	now          func() time.Time
 }
 
 // NewHandler 创建处理器
 func NewHandler(gateway *action.Gateway, outboxSvc *outbox.Service, connectors *connector.Registry, logger ActionLogger) *Handler {
 	return &Handler{gateway: gateway, outbox: outboxSvc, connectors: connectors, logger: logger, now: time.Now}
+}
+
+// SetConnectorManager 注入连接器配置管理器
+func (h *Handler) SetConnectorManager(manager *ConnectorManager) {
+	h.connectorMgr = manager
+}
+
+// SetDispatcher 注入外盒分发器，用于手动触发
+func (h *Handler) SetDispatcher(dispatcher *outbox.Dispatcher) {
+	h.dispatcher = dispatcher
 }
 
 // ListActions 返回已注册动作
@@ -130,7 +142,116 @@ func (h *Handler) EmitEvent(c *gin.Context) {
 // @Success     200  {object}  response.Response
 // @Router      /integration/connectors [get]
 func (h *Handler) ListConnectors(c *gin.Context) {
+	if h.connectorMgr != nil {
+		items, err := h.connectorMgr.List(c.Request.Context())
+		if err != nil {
+			response.Fail(c, appErrors.New(appErrors.CodeSystemErr, err.Error()))
+			return
+		}
+		response.Success(c, gin.H{"items": items})
+		return
+	}
 	response.Success(c, gin.H{"items": h.connectors.List()})
+}
+
+// CreateConnector 创建连接器
+// @Summary     创建集成连接器
+// @Tags        integration
+// @Accept      json
+// @Produce     json
+// @Param       body  body  ConnectorReq  true  "连接器配置"
+// @Success     200  {object}  response.Response{data=ConnectorDTO}
+// @Router      /integration/connectors [post]
+func (h *Handler) CreateConnector(c *gin.Context) {
+	var req ConnectorReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "连接器参数格式错误")
+		return
+	}
+	if h.connectorMgr == nil {
+		response.Fail(c, appErrors.New(appErrors.CodeSystemErr, "连接器管理器未初始化"))
+		return
+	}
+	item, err := h.connectorMgr.Create(c.Request.Context(), &req)
+	if err != nil {
+		failConnector(c, err)
+		return
+	}
+	response.Success(c, item)
+}
+
+// UpdateConnector 更新连接器
+// @Summary     更新集成连接器
+// @Tags        integration
+// @Accept      json
+// @Produce     json
+// @Param       id    path  string        true  "连接器 ID"
+// @Param       body  body  ConnectorReq  true  "连接器配置"
+// @Success     200  {object}  response.Response{data=ConnectorDTO}
+// @Router      /integration/connectors/{id} [put]
+func (h *Handler) UpdateConnector(c *gin.Context) {
+	var req ConnectorReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "连接器参数格式错误")
+		return
+	}
+	if h.connectorMgr == nil {
+		response.Fail(c, appErrors.New(appErrors.CodeSystemErr, "连接器管理器未初始化"))
+		return
+	}
+	item, err := h.connectorMgr.Update(c.Request.Context(), c.Param("id"), &req)
+	if err != nil {
+		failConnector(c, err)
+		return
+	}
+	response.Success(c, item)
+}
+
+// DeleteConnector 删除连接器
+// @Summary     删除集成连接器
+// @Tags        integration
+// @Param       id  path  string  true  "连接器 ID"
+// @Success     200  {object}  response.Response
+// @Router      /integration/connectors/{id} [delete]
+func (h *Handler) DeleteConnector(c *gin.Context) {
+	if h.connectorMgr == nil {
+		response.Fail(c, appErrors.New(appErrors.CodeSystemErr, "连接器管理器未初始化"))
+		return
+	}
+	if err := h.connectorMgr.Delete(c.Request.Context(), c.Param("id")); err != nil {
+		failConnector(c, err)
+		return
+	}
+	response.Success(c, gin.H{"deleted": true})
+}
+
+// DispatchEvents 手动触发一轮外盒事件投递
+// @Summary     手动分发外盒事件
+// @Tags        integration
+// @Success     200  {object}  response.Response
+// @Router      /integration/events/dispatch [post]
+func (h *Handler) DispatchEvents(c *gin.Context) {
+	if h.dispatcher == nil {
+		response.Fail(c, appErrors.New(appErrors.CodeSystemErr, "分发器未初始化"))
+		return
+	}
+	delivered, failed, err := h.dispatcher.RunOnce(c.Request.Context())
+	if err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeSystemErr, err.Error()))
+		return
+	}
+	response.Success(c, gin.H{"delivered": delivered, "failed": failed})
+}
+
+func failConnector(c *gin.Context, err error) {
+	switch {
+	case stdErrors.Is(err, connector.ErrNotFound):
+		response.Fail(c, appErrors.New(appErrors.CodeNotFound, err.Error()))
+	case stdErrors.Is(err, connector.ErrInvalidConfig):
+		response.ParamErr(c, err.Error())
+	default:
+		response.Fail(c, appErrors.New(appErrors.CodeSystemErr, err.Error()))
+	}
 }
 
 // Ping 集成连通性测试

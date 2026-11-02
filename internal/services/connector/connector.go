@@ -43,6 +43,44 @@ type Connector interface {
 	Send(ctx context.Context, msg Message) error
 }
 
+// TopicFilter 可选接口：连接器只接收匹配的 topic，未实现表示接收全部。
+type TopicFilter interface {
+	Topics() []string
+}
+
+// MatchesTopic 判断 topic 是否匹配连接器的订阅规则。
+// 支持精确匹配、`*`、前缀通配 `goodser.*` 与 `goodser*`。
+func MatchesTopic(c Connector, topic string) bool {
+	filter, ok := c.(TopicFilter)
+	if !ok {
+		return true
+	}
+	patterns := filter.Topics()
+	if len(patterns) == 0 {
+		return true
+	}
+	topic = strings.TrimSpace(topic)
+	for _, pattern := range patterns {
+		pattern = strings.TrimSpace(pattern)
+		if pattern == "" {
+			continue
+		}
+		if pattern == "*" || pattern == topic {
+			return true
+		}
+		if strings.HasSuffix(pattern, ".*") {
+			if strings.HasPrefix(topic, strings.TrimSuffix(pattern, "*")) {
+				return true
+			}
+			continue
+		}
+		if strings.HasSuffix(pattern, "*") && strings.HasPrefix(topic, strings.TrimSuffix(pattern, "*")) {
+			return true
+		}
+	}
+	return false
+}
+
 // Descriptor 连接器可公开的描述信息
 type Descriptor struct {
 	ID   string `json:"id"`

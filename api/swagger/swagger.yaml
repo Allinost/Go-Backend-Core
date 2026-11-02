@@ -209,6 +209,58 @@ definitions:
         type: string
       type: array
     type: object
+  internal_modules_integration.ConnectorDTO:
+    properties:
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      id:
+        type: string
+      name:
+        type: string
+      secret_set:
+        type: boolean
+      timeout_seconds:
+        type: integer
+      topics:
+        items:
+          type: string
+        type: array
+      type:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  internal_modules_integration.ConnectorReq:
+    properties:
+      enabled:
+        type: boolean
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      secret:
+        type: string
+      timeout_seconds:
+        type: integer
+      topics:
+        items:
+          type: string
+        type: array
+      type:
+        type: string
+      url:
+        type: string
+    type: object
   internal_modules_ops.BatchDeleteResult:
     properties:
       fail_count:
@@ -9088,6 +9140,77 @@ paths:
       summary: 查询集成连接器
       tags:
       - integration
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 连接器配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_integration.ConnectorReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_integration.ConnectorDTO'
+              type: object
+      summary: 创建集成连接器
+      tags:
+      - integration
+  /integration/connectors/{id}:
+    delete:
+      parameters:
+      - description: 连接器 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除集成连接器
+      tags:
+      - integration
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 连接器 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 连接器配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_integration.ConnectorReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_integration.ConnectorDTO'
+              type: object
+      summary: 更新集成连接器
+      tags:
+      - integration
   /integration/events:
     get:
       parameters:
@@ -9129,6 +9252,16 @@ paths:
           schema:
             $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
       summary: 手动写入外盒事件
+      tags:
+      - integration
+  /integration/events/dispatch:
+    post:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 手动分发外盒事件
       tags:
       - integration
   /integration/ping:

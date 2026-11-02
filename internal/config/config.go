@@ -25,16 +25,31 @@ const (
 
 // Config 应用配置根结构
 type Config struct {
-	Server    ServerConfig    `mapstructure:"server"`
-	Log       LogConfig       `mapstructure:"log"`
-	Database  DatabaseConfig  `mapstructure:"database"`
-	Redis     RedisConfig     `mapstructure:"redis"`
-	Cache     CacheConfig     `mapstructure:"cache"`
-	Auth      AuthConfig      `mapstructure:"auth"`
-	Config    ConfigOpts      `mapstructure:"config"`
-	Scheduler SchedulerConfig `mapstructure:"scheduler"`
-	Crypto    CryptoConfig    `mapstructure:"crypto"`
-	Net       NetConfig       `mapstructure:"net"`
+	Server      ServerConfig      `mapstructure:"server"`
+	Log         LogConfig         `mapstructure:"log"`
+	Database    DatabaseConfig    `mapstructure:"database"`
+	Redis       RedisConfig       `mapstructure:"redis"`
+	Cache       CacheConfig       `mapstructure:"cache"`
+	Auth        AuthConfig        `mapstructure:"auth"`
+	Config      ConfigOpts        `mapstructure:"config"`
+	Scheduler   SchedulerConfig   `mapstructure:"scheduler"`
+	Crypto      CryptoConfig      `mapstructure:"crypto"`
+	Net         NetConfig         `mapstructure:"net"`
+	Integration IntegrationConfig `mapstructure:"integration"`
+}
+
+type IntegrationConfig struct {
+	Dispatcher IntegrationDispatcherConfig `mapstructure:"dispatcher"`
+}
+
+type IntegrationDispatcherConfig struct {
+	Enabled            bool `mapstructure:"enabled"`
+	IntervalSeconds    int  `mapstructure:"interval_seconds"`
+	BatchSize          int  `mapstructure:"batch_size"`
+	MaxAttempts        int  `mapstructure:"max_attempts"`
+	BackoffSeconds     int  `mapstructure:"backoff_seconds"`
+	MaxBackoffSeconds  int  `mapstructure:"max_backoff_seconds"`
+	SendTimeoutSeconds int  `mapstructure:"send_timeout_seconds"`
 }
 
 type CryptoConfig struct {

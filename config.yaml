@@ -82,9 +82,24 @@ cache:
   l1_max_size: 10000                    # L1 内存缓存最大条目数
   redis_key: main                       # 使用的 Redis 实例名称
 
+crypto:
+  enabled: true
+  master_key_hex: ""                    # ⚠️ 32 字节十六进制密钥，通过 .env 中 APP_CRYPTO_MASTER_KEY_HEX 注入
+  old_keys: {}
+
 auth:
   jwt_secret: ""                        # ⚠️ JWT 签名密钥通过 .env 中 APP_AUTH_JWT_SECRET 注入
   jwt_expire: 24h                       # JWT 令牌有效期（如 72h/7d/30d）
+
+integration:
+  dispatcher:
+    enabled: true                       # 是否启用外盒事件后台分发
+    interval_seconds: 30                # 轮询间隔（秒）
+    batch_size: 50                      # 每轮最多处理事件数
+    max_attempts: 5                     # 最大投递次数（含首次）
+    backoff_seconds: 30                 # 首次失败后的退避时间（秒）
+    max_backoff_seconds: 1800           # 最大退避时间（秒）
+    send_timeout_seconds: 10            # 单个连接器发送超时（秒）
 
 scheduler:
   enabled: true                # 是否启用调度器

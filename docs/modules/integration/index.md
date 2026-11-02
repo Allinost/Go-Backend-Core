@@ -3,7 +3,7 @@
 > 代码位置：`internal/modules/integration`
 > 路由前缀：`/api/v1/integration`
 > 相关包：`internal/services/{outbox,action,connector}`、`internal/pkg/authz`
-> 当前阶段：P0-4 骨架（动作网关 + 外盒事件 + 连接器注册表）
+> 当前阶段：P2 外盒分发器 + 连接器配置管理
 
 ## 1. 定位
 
@@ -43,7 +43,11 @@ n8n、OpenClaw、LangBot 等外部工具不直接访问业务表，而是通过�
 | POST | `/api/v1/integration/actions/:name` | 动作声明 | 调用动作，body 为 `{"params":{...}}` |
 | GET | `/api/v1/integration/events` | `owner:read` | 查询外盒事件，支持 topic/status/limit/offset |
 | POST | `/api/v1/integration/events` | `integration:manage` | 手动写入事件，用于联调与补偿 |
-| GET | `/api/v1/integration/connectors` | `integration:manage` | 已注册连接器 |
+| POST | `/api/v1/integration/events/dispatch` | `integration:manage` | 立即执行一轮事件投递 |
+| GET | `/api/v1/integration/connectors` | `integration:manage` | 连接器配置列表（secret 仅返回 `secret_set`） |
+| POST | `/api/v1/integration/connectors` | `integration:manage` | 创建 webhook 连接器 |
+| PUT | `/api/v1/integration/connectors/:id` | `integration:manage` | 更新连接器，`secret` 省略表示不变更 |
+| DELETE | `/api/v1/integration/connectors/:id` | `integration:manage` | 删除连接器 |
 
 动作调用会写入 `zzz_integration_action_logs`，记录调用者、认证方式、参数、结果、耗时与错误。
 
@@ -94,7 +98,14 @@ pending --投递成功--> delivered
    +--投递失败--> failed --重试--> delivered / failed
 ```
 
-业务模块通过 `integration.Module.Outbox()` 拿到 `*outbox.Service`，在业务事务内写入事件。分发器在 P2 接入，按 topic 路由到连接器。
+业务模块通过 `integration.Module.Outbox()` 拿到 `*outbox.Service`，在业务事务内写入事件。分发器按 topic 路由到连接器：
+
+- 后台按 `integration.dispatcher.interval_seconds` 轮询 `pending` 与到期的 `failed` 事件。
+- 连接器 `topics` 为空表示订阅全部；支持精确值、`*`、`goodser.*`、`goodser*`。
+- 无匹配连接器时事件直接标记 `delivered`，避免无意义堆积。
+- 投递失败累加 `attempts`，按 `backoff_seconds × 2^(attempts-1)` 退避，上限 `max_backoff_seconds`。
+- `attempts >= max_attempts` 后不再自动重试，保留 `failed` 状态供人工排查。
+- 可通过 `POST /integration/events/dispatch` 手动触发一轮，用于联调或补偿。
 
 Goodser 当前写入的业务事件：
 
@@ -130,6 +141,28 @@ Webhook 请求头：
 
 接收方应校验签名并限制时间戳偏差，避免重放。
 
+### 5.1 连接器配置
+
+连接器配置保存在 `zzz_integration_connectors.config`，创建/更新示例：
+
+```json
+{
+  "name": "n8n 生产通知",
+  "type": "webhook",
+  "url": "https://n8n.example.com/webhook/goodser",
+  "secret": "仅创建或轮换时传入",
+  "topics": ["goodser.order.*", "goodser.return.*"],
+  "timeout_seconds": 10,
+  "enabled": true
+}
+```
+
+- `secret` 使用 `crypto.master_key_hex` 进行 AES-256-GCM 加密，密文以 `v1:` 开头。
+- 读取接口只返回 `secret_set`，不返回 secret 明文或密文。
+- 更新时 `secret` 省略或为 `null` 表示保持不变，传空字符串表示清除。
+- 未配置 `crypto.master_key_hex` 时，带 secret 的创建/更新会被拒绝。
+- 连接器配置变更后立即刷新注册表，无需重启服务。
+
 ## 6. 数据表
 
 迁移：`migrations/mysql/011_integration_foundation.sql`
@@ -137,12 +170,27 @@ Webhook 请求头：
 | 表 | 用途 |
 |---|---|
 | `zzz_integration_outbox` | 外盒事件 |
-| `zzz_integration_connectors` | 连接器配置（P2 启用） |
+| `zzz_integration_connectors` | 连接器配置（P2 已接入 CRUD、加密与动态加载） |
 | `zzz_integration_action_logs` | 动作调用日志 |
 
-## 7. 已知限制
+## 7. 配置
 
-- 连接器配置表尚未接入 CRUD，P2 补充加密存储与动态加载
-- 外盒分发器与重试调度尚未启用，P2 补充
+```yaml
+crypto:
+  master_key_hex: ""          # 通过 APP_CRYPTO_MASTER_KEY_HEX 注入，64 位十六进制
+
+integration:
+  dispatcher:
+    enabled: true
+    interval_seconds: 30
+    batch_size: 50
+    max_attempts: 5
+    backoff_seconds: 30
+    max_backoff_seconds: 1800
+    send_timeout_seconds: 10
+```
+
+## 8. 已知限制
+
 - 客户订单事件目前是提交后写入外盒，尚未与业务事务合并
 - 单租户模型：所有 JWT 用户共享现有库存，不做 owner 行级隔离
