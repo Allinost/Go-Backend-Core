@@ -143,6 +143,17 @@ func (c *JDCollector) FetchPrice(ctx context.Context, rawURL string) (*PriceResu
 				result.CartStatus = cartStatus
 				result.CartNote = cartNote
 			}
+			// 购物车没有该商品：详情页价格拿到后，顺手补进购物车，下一轮就能直接命中。
+			if cartStatus == "not_in_cart" {
+				if addErr := c.addJDCartItem(ctx, skuID); addErr != nil {
+					result.CartNote = cartNote + "；加购失败: " + addErr.Error()
+					fmt.Fprintf(os.Stderr, "[jd cart] sku=%s 加购失败: %v\n", skuID, addErr)
+				} else {
+					result.CartNote = cartNote + "；已加入购物车"
+					fmt.Fprintf(os.Stderr, "[jd cart] sku=%s 已加入购物车\n", skuID)
+					cacheJDCartItem(skuID, result)
+				}
+			}
 			return result, nil
 		}
 		if err != nil {

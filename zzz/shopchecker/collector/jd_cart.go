@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -67,6 +69,74 @@ func (c *JDCollector) getJDCartSnapshot(ctx context.Context, force bool) (map[st
 	items, err := c.fetchJDCartSnapshot(ctx)
 	jdCartCache = jdCartSnapshot{Items: items, FetchedAt: time.Now(), Err: err}
 	return items, err
+}
+
+// addJDCartItem 把不在购物车的商品补进购物车（best-effort）。
+func (c *JDCollector) addJDCartItem(ctx context.Context, skuID string) error {
+	sessionCookies := c.getSessionCookies(ctx)
+	if len(sessionCookies) == 0 {
+		return fmt.Errorf("jd cart: 无登录 session")
+	}
+
+	addCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	return addJDCartItemHTTP(addCtx, c.client, "https://cart.jd.com", skuID, sessionCookieHeader(sessionCookies))
+}
+
+func addJDCartItemHTTP(ctx context.Context, client *http.Client, baseURL, skuID, cookieHeader string) error {
+	addURL := fmt.Sprintf("%s/gate.action?pid=%s&pcount=1&ptype=1", strings.TrimRight(baseURL, "/"), skuID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, addURL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	req.Header.Set("Referer", fmt.Sprintf(jdDesktopURL, skuID))
+	if cookieHeader != "" {
+		req.Header.Set("Cookie", cookieHeader)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 512*1024))
+	text := string(body)
+	finalURL := ""
+	if resp.Request != nil && resp.Request.URL != nil {
+		finalURL = resp.Request.URL.String()
+	}
+	if strings.Contains(text, "商品已成功加入购物车") {
+		return nil
+	}
+	if strings.Contains(finalURL, "frequent") || isJDRateLimitText(text) {
+		return fmt.Errorf("京东访问频率限制（加购）")
+	}
+	if strings.Contains(finalURL, "passport") || strings.Contains(text, "请登录") {
+		return fmt.Errorf("需要登录（session 已过期）")
+	}
+	return fmt.Errorf("加购结果未确认")
+}
+
+// cacheJDCartItem 将刚补进购物车的商品写入当前快照，避免同一周期重复加购。
+func cacheJDCartItem(skuID string, result *PriceResult) {
+	jdCartCacheMu.Lock()
+	defer jdCartCacheMu.Unlock()
+	if jdCartCache.Items == nil {
+		return
+	}
+	if _, exists := jdCartCache.Items[skuID]; exists {
+		return
+	}
+	items := make(map[string]*PriceResult, len(jdCartCache.Items)+1)
+	for k, v := range jdCartCache.Items {
+		items[k] = v
+	}
+	copied := *result
+	copied.CartStatus = "hit"
+	copied.CartNote = "已加入购物车"
+	items[skuID] = &copied
+	jdCartCache.Items = items
 }
 
 // fetchJDCartSnapshot 打开一次购物车页面，提取全部购物车商品。

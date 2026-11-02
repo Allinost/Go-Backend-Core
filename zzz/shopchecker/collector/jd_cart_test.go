@@ -1,6 +1,9 @@
 package collector
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -84,6 +87,60 @@ func TestCartItemTitleFromText(t *testing.T) {
 	text := "七鲜 香草酸奶100g*3 7天价保 获取AI搭配 ¥5.42到手价 ¥7.9 删除"
 	if got := cartItemTitleFromText(text); got != "七鲜 香草酸奶100g*3" {
 		t.Errorf("cartItemTitleFromText=%q", got)
+	}
+}
+
+func TestCacheJDCartItem(t *testing.T) {
+	jdCartCacheMu.Lock()
+	old := jdCartCache
+	jdCartCache = jdCartSnapshot{Items: map[string]*PriceResult{}}
+	jdCartCacheMu.Unlock()
+	t.Cleanup(func() {
+		jdCartCacheMu.Lock()
+		jdCartCache = old
+		jdCartCacheMu.Unlock()
+	})
+
+	cacheJDCartItem("100086179820", &PriceResult{
+		CurrentPrice: 2019.12,
+		CartStatus:   "not_in_cart",
+		CartNote:     "购物车列表无此商品，已回退商品页；已加入购物车",
+	})
+
+	jdCartCacheMu.Lock()
+	item := jdCartCache.Items["100086179820"]
+	jdCartCacheMu.Unlock()
+	if item == nil {
+		t.Fatal("cart cache item not found")
+	}
+	if item.CartStatus != "hit" || item.CartNote != "已加入购物车" {
+		t.Errorf("unexpected cached item: %+v", item)
+	}
+}
+
+func TestAddJDCartItemHTTP(t *testing.T) {
+	cases := []struct {
+		name    string
+		body    string
+		wantErr bool
+	}{
+		{"success", "商品已成功加入购物车", false},
+		{"rate_limit", "刷新太频繁", true},
+		{"login", "请登录", true},
+		{"unknown", "something else", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			err := addJDCartItemHTTP(context.Background(), srv.Client(), srv.URL, "100086179820", "pt_key=x")
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("addJDCartItemHTTP err=%v wantErr=%v", err, tc.wantErr)
+			}
+		})
 	}
 }
 
