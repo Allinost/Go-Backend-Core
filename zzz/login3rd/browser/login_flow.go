@@ -30,6 +30,9 @@ type LoginFlow struct {
 	LoginURL string
 	HomeURL  string
 	FormCfg  *FormConfig
+	// Verify 可选：拿到 Cookie 后做真实登录校验（例如访问订单页/个人中心）。
+	// 用于避免“URL 已跳回首页但仍在等待验证码”被误判为登录成功。
+	Verify func(ctx context.Context, session *provider.SessionData) (bool, error)
 }
 
 // Execute 执行浏览器登录流程
@@ -147,10 +150,15 @@ func (f *LoginFlow) waitLogin(browserCtx context.Context) ([]*provider.Cookie, e
 	fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 开始, SuccessCookies=%v SuccessURLPrefix=%q\n",
 		successCookies, successURLPrefix)
 
-	timeout := time.After(120 * time.Second)
+	// URL 跳回首页并不代表登录完成（可能仍在等待验证码/二次验证）。
+	// 检测到候选登录态后先等待 60 秒，再用 Cookie 调 Provider.Verify 做真实校验。
+	const settleDuration = 60 * time.Second
+	timeout := time.After(180 * time.Second)
 	tick := time.NewTicker(2 * time.Second)
 	defer tick.Stop()
 	startedAt := time.Now()
+	var candidateSince time.Time
+	var lastVerifyAt time.Time
 
 	for {
 		select {
@@ -158,8 +166,8 @@ func (f *LoginFlow) waitLogin(browserCtx context.Context) ([]*provider.Cookie, e
 			fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: browserCtx 已取消: %v\n", browserCtx.Err())
 			return nil, browserCtx.Err()
 		case <-timeout:
-			fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 超时（120s）\n")
-			return nil, fmt.Errorf("等待登录超时（120s）")
+			fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 超时（180s）\n")
+			return nil, fmt.Errorf("等待登录超时（180s）")
 		case ts := <-tick.C:
 			fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: tick at %s\n", ts.Format("15:04:05"))
 			opCtx, opCancel := context.WithTimeout(browserCtx, 10*time.Second)
@@ -177,38 +185,67 @@ func (f *LoginFlow) waitLogin(browserCtx context.Context) ([]*provider.Cookie, e
 			} else {
 				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: Location 失败: %v\n", err)
 			}
-
-			matched := false
-			// 只凭 Cookie 判定时必须已经离开登录页，否则浏览器里残留的旧 pt_key/pt_pin
-			// 会在用户还没重新登录时误判成功（京东过期会话场景）。
-			if len(successCookies) > 0 && hasAllCookies(cookies, successCookies) &&
-				currentURL != "" && !isLoginPageURL(currentURL) {
-				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: cookies 匹配成功且已离开登录页\n")
-				matched = true
-			}
-			if !matched && successURLPrefix != "" && currentURL != "" &&
-				strings.HasPrefix(currentURL, successURLPrefix) {
-				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: URL 前缀匹配成功\n")
-				matched = true
-			}
-			// 兜底：登录页已经跳走，并且出现了任一平台已知登录 Cookie。
-			// 给页面至少 8 秒完成跳转，避免把登录前的临时 Cookie 误判为成功。
-			if !matched && time.Since(startedAt) >= 8*time.Second {
-				if currentURL == "" {
-					_ = chromedp.Run(opCtx, chromedp.Location(&currentURL))
-				}
-				if currentURL != "" && !isLoginPageURL(currentURL) && hasAnyNamedCookie(cookies, knownAuthCookies) {
-					fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 已离开登录页且检测到登录 Cookie，判定成功\n")
-					matched = true
-				}
-			}
 			opCancel()
-			if matched {
-				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 登录成功\n")
+
+			cookieCandidate := currentURL != "" && !isLoginPageURL(currentURL) &&
+				hasAnyNamedCookie(cookies, knownAuthCookies)
+			urlCandidate := successURLPrefix != "" && currentURL != "" &&
+				strings.HasPrefix(currentURL, successURLPrefix)
+			successCookieCandidate := len(successCookies) > 0 &&
+				hasAllCookies(cookies, successCookies) && currentURL != "" && !isLoginPageURL(currentURL)
+			candidate := cookieCandidate || urlCandidate || successCookieCandidate
+
+			// 给页面至少 8 秒完成跳转，避免把登录前的临时 Cookie/跳转误判为候选成功。
+			if candidate && time.Since(startedAt) < 8*time.Second {
+				candidate = false
+			}
+			if !candidate {
+				// 回到登录/验证码页时重新计时，避免在验证码页上积累稳定时间。
+				candidateSince = time.Time{}
+				lastVerifyAt = time.Time{}
+				continue
+			}
+			if candidateSince.IsZero() {
+				candidateSince = time.Now()
+				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 检测到候选登录态，等待 %s 后校验 Cookie\n", settleDuration)
+			}
+			if time.Since(candidateSince) < settleDuration {
+				continue
+			}
+			if f.Verify == nil {
+				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 未配置 Verify，候选登录态稳定，判定成功\n")
 				return cookies, nil
 			}
+			// 校验本身会访问平台页面，最多每 10 秒一次，避免触发频控。
+			if !lastVerifyAt.IsZero() && time.Since(lastVerifyAt) < 10*time.Second {
+				continue
+			}
+			lastVerifyAt = time.Now()
+			verifyCtx, verifyCancel := context.WithTimeout(browserCtx, 20*time.Second)
+			ok, verifyErr := f.Verify(verifyCtx, cookiesToProviderSession(cookies))
+			verifyCancel()
+			if verifyErr != nil {
+				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: Cookie 校验失败: %v\n", verifyErr)
+				continue
+			}
+			if !ok {
+				fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: Cookie 尚未通过真实登录校验，继续等待\n")
+				continue
+			}
+			fmt.Fprintf(os.Stderr, "[login3rd] waitLogin: 登录成功（Cookie 校验通过）\n")
+			return cookies, nil
 		}
 	}
+}
+
+func cookiesToProviderSession(cookies []*provider.Cookie) *provider.SessionData {
+	session := &provider.SessionData{Cookies: make([]provider.Cookie, 0, len(cookies))}
+	for _, c := range cookies {
+		if c != nil {
+			session.Cookies = append(session.Cookies, *c)
+		}
+	}
+	return session
 }
 
 func isLoginPageURL(raw string) bool {

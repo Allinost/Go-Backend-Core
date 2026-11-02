@@ -21,6 +21,16 @@ func TestIsLoginPageURL(t *testing.T) {
 	}
 }
 
+func TestCookiesToProviderSession(t *testing.T) {
+	session := cookiesToProviderSession([]*provider.Cookie{
+		{Name: "thor", Value: "token"},
+		nil,
+	})
+	if len(session.Cookies) != 1 || session.Cookies[0].Name != "thor" {
+		t.Errorf("unexpected session cookies: %+v", session.Cookies)
+	}
+}
+
 func TestHasAnyNamedCookie(t *testing.T) {
 	cookies := []*provider.Cookie{
 		{Name: "foo", Value: "1"},

@@ -290,6 +290,13 @@ func (s *Service) CreateRemoteSession(ctx context.Context, accountID int64) (str
 			LoginURL: p.LoginURL,
 			HomeURL:  p.HomeURL,
 			FormCfg:  formCfg,
+			Verify: func(ctx context.Context, session *provider.SessionData) (bool, error) {
+				prov, ok := s.providers[a.PlatformID]
+				if !ok {
+					return false, fmt.Errorf("平台 %s 未注册 Provider", a.PlatformID)
+				}
+				return prov.Verify(ctx, session)
+			},
 		}
 		go func() {
 			// 仅平台支持自动登录时才传入凭据；否则纯手动登录（用户手动操作，登录成功自动抓 cookie）

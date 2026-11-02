@@ -153,5 +153,5 @@ login3rd Module
   - `pdd` 使用 `mobile.yangkeduo.com` 的登录 Cookie，不与 `mms.pinduoduo.com` 混用。
 - `GetSessionCookies` 会按平台族回退查找，七鲜/天猫没有独立账号时自动复用主平台会话。
 - `IsPlatformLoginExpired` / `TouchSession` 同样按平台族判断，避免把共享登录态误判为失效。
-- 手动/远程登录成功后，`LoginFlow` 必须等到成功 Cookie，或成功 URL 前缀 + 已知登录 Cookie 同时满足；默认最多等待 120 秒。
+- 手动/远程登录成功后，`LoginFlow` 检测到候选登录态（URL 跳转或出现已知登录 Cookie）后先等待 60 秒，再用抓到的 Cookie 调 `Provider.Verify` 做真实登录校验；验证不通过则继续等待，默认最多 180 秒，避免验证码/二次验证被 URL 跳转误判为成功。
 - 自动登录/验证统一走 `Provider.Verify`，各 Provider 只负责本平台的登录判定。
