@@ -54,7 +54,23 @@ func newTestRouter(h *Handler) *gin.Engine {
 	r.GET("/connectors", func(c *gin.Context) {
 		h.ListConnectors(c)
 	})
+	r.POST("/connectors/:id/test", func(c *gin.Context) {
+		h.TestConnector(c)
+	})
 	return r
+}
+
+type captureConnector struct {
+	id  string
+	err error
+	got connector.Message
+}
+
+func (c *captureConnector) ID() string   { return c.id }
+func (c *captureConnector) Type() string { return "fake" }
+func (c *captureConnector) Send(_ context.Context, msg connector.Message) error {
+	c.got = msg
+	return c.err
 }
 
 func TestHandlerListActions(t *testing.T) {
@@ -184,6 +200,32 @@ func TestHandlerRecordsActionLog(t *testing.T) {
 	router.ServeHTTP(w, req)
 	if len(logger.entries) != 2 || logger.entries[1].Status != "error" {
 		t.Fatalf("失败日志 = %+v", logger.entries)
+	}
+}
+
+func TestHandlerTestConnector(t *testing.T) {
+	h := newTestHandler(t)
+	item := &captureConnector{id: "hook-1"}
+	if err := h.connectors.Register(item); err != nil {
+		t.Fatal(err)
+	}
+	router := newTestRouter(h)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/connectors/hook-1/test", nil)
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if item.got.Event != "integration.test" || item.got.EventID == "" {
+		t.Fatalf("测试消息异常: %+v", item.got)
+	}
+
+	rec = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/connectors/missing/test", nil)
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("不存在连接器应返回 404，实际 %d", rec.Code)
 	}
 }
 

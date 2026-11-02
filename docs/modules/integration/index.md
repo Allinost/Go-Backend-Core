@@ -4,6 +4,7 @@
 > 路由前缀：`/api/v1/integration`
 > 相关包：`internal/services/{outbox,action,connector}`、`internal/pkg/authz`
 > 当前阶段：P2 外盒分发器 + 连接器配置管理
+> 接入示例：[examples.md](examples.md)（n8n / OpenClaw / LangBot / Webhook 签名）
 
 ## 1. 定位
 
@@ -48,6 +49,7 @@ n8n、OpenClaw、LangBot 等外部工具不直接访问业务表，而是通过�
 | POST | `/api/v1/integration/connectors` | `integration:manage` | 创建 webhook 连接器 |
 | PUT | `/api/v1/integration/connectors/:id` | `integration:manage` | 更新连接器，`secret` 省略表示不变更 |
 | DELETE | `/api/v1/integration/connectors/:id` | `integration:manage` | 删除连接器 |
+| POST | `/api/v1/integration/connectors/:id/test` | `integration:manage` | 向连接器发送测试事件 |
 
 动作调用会写入 `zzz_integration_action_logs`，记录调用者、认证方式、参数、结果、耗时与错误。
 
@@ -162,6 +164,8 @@ Webhook 请求头：
 - 更新时 `secret` 省略或为 `null` 表示保持不变，传空字符串表示清除。
 - 未配置 `crypto.master_key_hex` 时，带 secret 的创建/更新会被拒绝。
 - 连接器配置变更后立即刷新注册表，无需重启服务。
+- `POST /integration/connectors/:id/test` 发送 `integration.test` 测试事件，便于联调。
+- 已投递事件默认保留 30 天，由后台清理器定期删除；失败事件不会自动清理。
 
 ## 6. 数据表
 
@@ -180,6 +184,7 @@ crypto:
   master_key_hex: ""          # 通过 APP_CRYPTO_MASTER_KEY_HEX 注入，64 位十六进制
 
 integration:
+  retention_days: 30          # 已投递事件保留天数，0 表示不清理
   dispatcher:
     enabled: true
     interval_seconds: 30

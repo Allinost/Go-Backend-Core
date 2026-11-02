@@ -77,6 +77,7 @@ type Store interface {
 	List(ctx context.Context, filter Filter) ([]Event, error)
 	MarkDelivered(ctx context.Context, id string, at time.Time) error
 	MarkFailed(ctx context.Context, id, reason string, at time.Time) error
+	DeleteDeliveredBefore(ctx context.Context, before time.Time) (int64, error)
 }
 
 // Emitter 供业务模块依赖的最小写入接口
@@ -152,6 +153,14 @@ func (s *Service) MarkFailed(ctx context.Context, id, reason string) error {
 		return ErrNotFound
 	}
 	return s.store.MarkFailed(ctx, id, reason, s.now().UTC())
+}
+
+// DeleteDeliveredBefore 清理指定时间之前已投递的事件，返回删除条数。
+func (s *Service) DeleteDeliveredBefore(ctx context.Context, before time.Time) (int64, error) {
+	if before.IsZero() {
+		return 0, nil
+	}
+	return s.store.DeleteDeliveredBefore(ctx, before)
 }
 
 func marshalPayload(payload any) (json.RawMessage, error) {

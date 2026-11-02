@@ -119,6 +119,24 @@ func (m *MemoryStore) MarkFailed(ctx context.Context, id, reason string, at time
 	return nil
 }
 
+// DeleteDeliveredBefore 删除指定时间之前已投递的事件
+func (m *MemoryStore) DeleteDeliveredBefore(ctx context.Context, before time.Time) (int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var deleted int64
+	for id, event := range m.events {
+		if event.Status != StatusDelivered || event.DeliveredAt == nil || !event.DeliveredAt.Before(before) {
+			continue
+		}
+		delete(m.events, id)
+		deleted++
+	}
+	return deleted, nil
+}
+
 func matchEvent(event Event, filter Filter) bool {
 	if filter.Topic != "" && event.Topic != filter.Topic {
 		return false

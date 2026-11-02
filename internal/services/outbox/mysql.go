@@ -156,6 +156,17 @@ func (s *MySQLStore) MarkFailed(ctx context.Context, id, reason string, at time.
 	return ensureAffected(result)
 }
 
+// DeleteDeliveredBefore 删除指定时间之前已投递的事件
+func (s *MySQLStore) DeleteDeliveredBefore(ctx context.Context, before time.Time) (int64, error) {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM `+TableName+`
+		WHERE status = ? AND delivered_at IS NOT NULL AND delivered_at < ?`,
+		string(StatusDelivered), before)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 type rowScanner interface {
 	Scan(dest ...any) error
 }

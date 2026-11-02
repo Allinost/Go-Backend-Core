@@ -5763,6 +5763,31 @@ const docTemplate = `{
                 }
             }
         },
+        "/integration/connectors/{id}/test": {
+            "post": {
+                "tags": [
+                    "integration"
+                ],
+                "summary": "测试集成连接器",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "连接器 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/integration/events": {
             "get": {
                 "tags": [
@@ -5835,7 +5860,6 @@ const docTemplate = `{
                 "tags": [
                     "integration"
                 ],
-                "summary": "手动分发外盒事件",
                 "responses": {
                     "200": {
                         "description": "OK",

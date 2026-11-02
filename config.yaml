@@ -92,6 +92,7 @@ auth:
   jwt_expire: 24h                       # JWT 令牌有效期（如 72h/7d/30d）
 
 integration:
+  retention_days: 30                    # 已投递事件保留天数，0 表示不清理
   dispatcher:
     enabled: true                       # 是否启用外盒事件后台分发
     interval_seconds: 30                # 轮询间隔（秒）

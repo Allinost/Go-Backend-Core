@@ -32,6 +32,7 @@ type Module struct {
 	connectors   *connector.Registry
 	connectorMgr *ConnectorManager
 	dispatcher   *outbox.Dispatcher
+	retention    *outbox.Retention
 	h            *Handler
 	authMW       gin.HandlerFunc
 }
@@ -108,7 +109,10 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.h.SetDispatcher(m.dispatcher)
 	m.dispatcher.Start(context.Background())
 
-	logger.Info().Bool("dispatcher", dc.Enabled).Msg("integration: 模块初始化完成")
+	m.retention = outbox.NewRetention(m.outbox, outbox.RetentionConfig{Days: cfg.Integration.RetentionDays})
+	m.retention.Start(context.Background())
+
+	logger.Info().Bool("dispatcher", dc.Enabled).Int("retention_days", cfg.Integration.RetentionDays).Msg("integration: 模块初始化完成")
 	return nil
 }
 
@@ -123,6 +127,9 @@ func defaultSeconds(value, fallback int) int {
 func (m *Module) Close() error {
 	if m.dispatcher != nil {
 		m.dispatcher.Stop()
+	}
+	if m.retention != nil {
+		m.retention.Stop()
 	}
 	return nil
 }
@@ -143,6 +150,7 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/connectors", manage, m.h.CreateConnector)
 	r.PUT("/connectors/:id", manage, m.h.UpdateConnector)
 	r.DELETE("/connectors/:id", manage, m.h.DeleteConnector)
+	r.POST("/connectors/:id/test", manage, m.h.TestConnector)
 }
 
 // Outbox 暴露外盒服务，供业务模块写入事件

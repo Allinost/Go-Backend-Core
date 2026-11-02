@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"context"
 	"encoding/json"
 	stdErrors "errors"
 	"strconv"
@@ -225,8 +226,36 @@ func (h *Handler) DeleteConnector(c *gin.Context) {
 	response.Success(c, gin.H{"deleted": true})
 }
 
-// DispatchEvents 手动触发一轮外盒事件投递
-// @Summary     手动分发外盒事件
+// TestConnector 向指定连接器发送测试事件
+// @Summary     测试集成连接器
+// @Tags        integration
+// @Param       id  path  string  true  "连接器 ID"
+// @Success     200  {object}  response.Response
+// @Router      /integration/connectors/{id}/test [post]
+func (h *Handler) TestConnector(c *gin.Context) {
+	id := c.Param("id")
+	item, err := h.connectors.Get(id)
+	if err != nil {
+		failConnector(c, err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
+	defer cancel()
+	err = item.Send(ctx, connector.Message{
+		EventID:    "test-" + strconv.FormatInt(h.now().UnixNano(), 10),
+		Event:      "integration.test",
+		OccurredAt: h.now().UTC(),
+		Payload:    json.RawMessage(`{"test":true}`),
+		Metadata:   map[string]string{"connector_id": id},
+	})
+	if err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeBadGateway, "测试事件发送失败: "+err.Error()))
+		return
+	}
+	response.Success(c, gin.H{"sent": true, "connector_id": id})
+}
+
+// DispatchEvents 手动触发一轮外盒事件投递// @Summary     手动分发外盒事件
 // @Tags        integration
 // @Success     200  {object}  response.Response
 // @Router      /integration/events/dispatch [post]

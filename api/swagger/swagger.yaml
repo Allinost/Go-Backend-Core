@@ -9211,6 +9211,22 @@ paths:
       summary: 更新集成连接器
       tags:
       - integration
+  /integration/connectors/{id}/test:
+    post:
+      parameters:
+      - description: 连接器 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 测试集成连接器
+      tags:
+      - integration
   /integration/events:
     get:
       parameters:
@@ -9261,7 +9277,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
-      summary: 手动分发外盒事件
       tags:
       - integration
   /integration/ping:

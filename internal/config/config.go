@@ -39,7 +39,8 @@ type Config struct {
 }
 
 type IntegrationConfig struct {
-	Dispatcher IntegrationDispatcherConfig `mapstructure:"dispatcher"`
+	Dispatcher    IntegrationDispatcherConfig `mapstructure:"dispatcher"`
+	RetentionDays int                         `mapstructure:"retention_days"`
 }
 
 type IntegrationDispatcherConfig struct {
