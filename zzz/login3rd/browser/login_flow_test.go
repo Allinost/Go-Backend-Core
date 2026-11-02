@@ -29,6 +29,9 @@ func TestHasAnyNamedCookie(t *testing.T) {
 	if !hasAnyNamedCookie(cookies, knownAuthCookies) {
 		t.Error("应识别 pt_key 为登录 Cookie")
 	}
+	if !hasAnyNamedCookie([]*provider.Cookie{{Name: "thor", Value: "token"}}, knownAuthCookies) {
+		t.Error("应识别 thor 为京东新版登录 Cookie")
+	}
 	if hasAnyNamedCookie([]*provider.Cookie{{Name: "foo", Value: "1"}}, knownAuthCookies) {
 		t.Error("普通 Cookie 不应判定为登录成功")
 	}

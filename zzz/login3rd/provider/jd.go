@@ -44,8 +44,9 @@ func (c *JDCollector) Verify(ctx context.Context, session *SessionData) (bool, e
 	if session == nil || len(session.Cookies) == 0 {
 		return false, nil
 	}
-	// pt_key/pt_pin 是京东系（含七鲜、京东移动版）的登录凭证；缺失说明会话已被清除。
-	if !hasAnyCookie(session.Cookies, "pt_key", "pt_pin") {
+	// pt_key/pt_pin 是京东系（含七鲜、京东移动版）的传统登录凭证；
+	// 新版京东登录可能只写入 thor（主会话 token），因此 thor 也视为有效登录 Cookie。
+	if !hasAnyCookie(session.Cookies, "pt_key", "pt_pin", "thor") {
 		return false, nil
 	}
 

@@ -148,7 +148,7 @@ login3rd Module
 ## 5. 多平台登录态共享与登录判定（2026-10）
 
 - 登录态按平台族共享：
-  - `jd` / `qixian` / `jdm` 共用 `pt_key` / `pt_pin`；
+  - `jd` / `qixian` / `jdm` 共用 `thor` / `pt_key` / `pt_pin`（新版京东登录可能只写入 `thor`，旧版会同时写入 `pt_key` / `pt_pin`）；
   - `taobao` / `tmall` 共用 `unb` / `_tb_token_` 等 Cookie；
   - `pdd` 使用 `mobile.yangkeduo.com` 的登录 Cookie，不与 `mms.pinduoduo.com` 混用。
 - `GetSessionCookies` 会按平台族回退查找，七鲜/天猫没有独立账号时自动复用主平台会话。

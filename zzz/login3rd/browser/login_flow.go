@@ -130,7 +130,7 @@ func (f *LoginFlow) ExecuteRemote(ctx context.Context, remoteURL string, usernam
 }
 
 var knownAuthCookies = []string{
-	"pt_key", "pt_pin", // 京东系
+	"pt_key", "pt_pin", "thor", // 京东系（新版登录可能只有 thor，没有 pt_key/pt_pin）
 	"unb",                                                      // 淘宝/天猫用户数字 ID（匿名态不会出现）
 	"pdd_user_id", "pdd_user_uin", "PDDAccessToken", "pdd_vds", // 拼多多
 }
