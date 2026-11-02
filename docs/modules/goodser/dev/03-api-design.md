@@ -231,7 +231,8 @@ AND 校验。更新捆时 `main_filter` 省略或传 `null` 表示不修改，�
 
 - `stock.available` = `SUM(quantity)`，`stock.reserved` = `SUM(reserved_quantity)`，
   `stock.total` = 两者之和；`stock_value` 优先使用 `expected_price`，为 0 时回退 `market_price`。
-- `orders` 与 `returns` 按单据创建时间落在区间内计数。
+- `orders` 与 `returns` 按单据创建时间落在区间内计数；「已确认出库」包含
+  后续进入 `partially_returned` / `returned` 的单据。
 - `trend` 按天补齐缺失日期，出库量取确认出库流水，退货量取确认且回库流水。
 - `series` 按商品系列聚合，未设置系列归入“未设置”。
 - `top_products` 按确认出库流水倒序，最多 10 条。

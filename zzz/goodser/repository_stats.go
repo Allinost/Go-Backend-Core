@@ -32,7 +32,7 @@ func (r *Repository) StatsOrderCounts(ctx context.Context, inventoryID string, s
 	row := r.db.QueryRowContext(ctx,
 		`SELECT
 		    COALESCE(SUM(CASE WHEN type = 'outbound' AND status = 'pending' THEN 1 ELSE 0 END), 0),
-		    COALESCE(SUM(CASE WHEN type = 'outbound' AND status = 'confirmed' THEN 1 ELSE 0 END), 0),
+		    COALESCE(SUM(CASE WHEN type = 'outbound' AND status IN ('confirmed', 'partially_returned', 'returned') THEN 1 ELSE 0 END), 0),
 		    COALESCE(SUM(CASE WHEN type = 'outbound' AND status = 'cancelled' THEN 1 ELSE 0 END), 0),
 		    COALESCE(SUM(CASE WHEN type = 'reserve' AND status = 'pending' THEN 1 ELSE 0 END), 0)
 		 FROM `+tableOutboundOrders+`
