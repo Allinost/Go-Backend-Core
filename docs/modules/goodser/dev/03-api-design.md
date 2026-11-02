@@ -19,9 +19,17 @@
 ### 统一请求头
 
 ```
-Authorization: Bearer {api_key}
+# Web 控制台
+Authorization: Bearer {jwt}
+# 外部工具
+X-API-Key: {api_key}
+
 X-Request-ID: {uuid}    // 可选的请求追踪 ID
 ```
+
+> 所有 Goodser 路由都要求认证。JWT 用户视为 owner 控制台；API Key 必须携带
+> `owner:read` 或 `owner:write` 作用域，作用域定义见
+> [集成基座文档](../../integration/index.md)。
 
 ---
 
@@ -86,13 +94,12 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/goodser/inventories/:id/products` | 列表 |
+| GET | `/api/v1/goodser/inventories/:id/products` | 列表（支持筛选、排序、分页） |
 | POST | `/api/v1/goodser/inventories/:id/products` | 创建 |
-| GET | `/api/v1/goodser/inventories/:id/products/:pid` | 详情 |
-| PUT | `/api/v1/goodser/inventories/:id/products/:pid` | 更新 |
-| DELETE | `/api/v1/goodser/inventories/:id/products/:pid` | 删除 |
-| POST | `/api/v1/goodser/inventories/:id/products/search` | 搜索 |
-| POST | `/api/v1/goodser/inventories/:id/products/allocate-seq` | 分配序号 |
+| POST | `/api/v1/goodser/inventories/:id/allocate-seq` | 分配序号 |
+| GET | `/api/v1/goodser/products/:pid` | 详情 |
+| PUT | `/api/v1/goodser/products/:pid` | 更新 |
+| DELETE | `/api/v1/goodser/products/:pid` | 删除（可用与锁定库存均为 0） |
 
 ### 3.3 入库 Inbound
 
@@ -101,43 +108,129 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 | POST | `/api/v1/goodser/inventories/:id/inbound/single` | 单品入库 |
 | POST | `/api/v1/goodser/inventories/:id/inbound/batch` | 批量入库 |
 | POST | `/api/v1/goodser/inventories/:id/inbound/search-import` | 搜索导入入库 |
-| GET | `/api/v1/goodser/inventories/:id/inbound/logs` | 入库日志列表 |
-| GET | `/api/v1/goodser/inventories/:id/inbound/logs/:logId` | 入库日志详情 |
-| PUT | `/api/v1/goodser/inventories/:id/inbound/logs/:logId` | 更新入库日志 |
-| DELETE | `/api/v1/goodser/inventories/:id/inbound/logs/:logId` | 删除入库日志 |
+| GET | `/api/v1/goodser/inventories/:id/inbound-logs` | 入库日志列表 |
 
-### 3.4 出库 Outbound
+### 3.4 出库与预留 Outbound / Reserves
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/goodser/inventories/:id/outbound/orders` | 出库单列表 |
-| POST | `/api/v1/goodser/inventories/:id/outbound/orders` | 创建出库单 |
-| GET | `/api/v1/goodser/inventories/:id/outbound/orders/:oid` | 出库单详情 |
-| POST | `/api/v1/goodser/inventories/:id/outbound/orders/:oid/confirm` | 确认出库 |
-| POST | `/api/v1/goodser/inventories/:id/outbound/orders/:oid/cancel` | 取消出库 |
-| POST | `/api/v1/goodser/inventories/:id/outbound/reserves` | 创建预留单 |
-| POST | `/api/v1/goodser/inventories/:id/outbound/reserves/:rid/cancel` | 取消预留 |
-| POST | `/api/v1/goodser/inventories/:id/outbound/reserves/:rid/to-outbound` | 预留转出库 |
+| GET | `/api/v1/goodser/inventories/:id/outbound-orders` | 出库/预留单列表 |
+| POST | `/api/v1/goodser/inventories/:id/outbound-orders` | 创建出库或预留单（创建即锁定库存） |
+| GET | `/api/v1/goodser/inventories/:id/outbound-orders/:oid` | 单据详情 |
+| POST | `/api/v1/goodser/inventories/:id/outbound-orders/:oid/confirm` | 确认出库（释放锁定） |
+| POST | `/api/v1/goodser/inventories/:id/outbound-orders/:oid/cancel` | 取消单据（锁定退回可用） |
+| POST | `/api/v1/goodser/inventories/:id/reserves` | 创建预留单 |
+| POST | `/api/v1/goodser/inventories/:id/reserves/:rid/cancel` | 取消预留 |
+| POST | `/api/v1/goodser/inventories/:id/reserves/:rid/convert` | 预留转出库（库存保持锁定） |
 
-### 3.5 图片 Images
+单据状态：`pending → confirmed / converted / cancelled`，退货后进入
+`partially_returned` 或 `returned`。
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/v1/goodser/images/presign` | 获取预签名上传 URL |
-| POST | `/api/v1/goodser/images/confirm` | 确认上传完成 |
-| GET | `/api/v1/goodser/images/:key/url` | 获取图片访问 URL |
-
-### 3.6 设置 Settings
+### 3.5 退货 Returns
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET/POST | `/api/v1/goodser/settings/whitelist` | 列表/添加白名单 |
-| DELETE | `/api/v1/goodser/settings/whitelist/:id` | 移除白名单 |
-| POST | `/api/v1/goodser/settings/whitelist/check` | 检查白名单 |
-| GET/POST | `/api/v1/goodser/settings/status-codes` | 列表/添加状态码 |
-| PUT/DELETE | `/api/v1/goodser/settings/status-codes/:id` | 更新/删除状态码 |
-| GET/POST | `/api/v1/goodser/settings/tags` | 列表/创建标签 |
-| PUT/DELETE | `/api/v1/goodser/settings/tags/:id` | 更新/删除标签 |
+| POST | `/api/v1/goodser/inventories/:id/outbound-orders/:oid/returns` | 创建退货单（支持多商品、回库开关） |
+| GET | `/api/v1/goodser/inventories/:id/returns` | 退货单列表，可按 `outbound_order_id` 过滤 |
+| GET | `/api/v1/goodser/inventories/:id/returns/:rid` | 退货单详情 |
+| POST | `/api/v1/goodser/inventories/:id/returns/:rid/confirm` | 确认退货（按明细回库） |
+| POST | `/api/v1/goodser/inventories/:id/returns/:rid/cancel` | 取消退货单 |
+
+退货原因：`refund_only`（仅退款，强制不回库）、`return_refund`（退货退款，默认回库）、
+`shipping_damage`（运损，默认不回库）、`other`。商品级 `restock` 可覆盖默认值，
+但 `refund_only` 始终不回库。
+
+### 3.6 图片 Images
+
+当前仅提供 Legacy 上传端点 `POST /api/v1/goodser/legacy/uploadImage`，REST 版预签名接口尚未实现。
+
+### 3.7 设置 Settings
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/goodser/settings/tags` | 标签列表 |
+| GET | `/api/v1/goodser/settings/status-codes` | 状态码列表 |
+| POST | `/api/v1/goodser/legacy/createTag` | 创建标签 |
+| POST | `/api/v1/goodser/legacy/addStatusCode` | 新增状态码 |
+
+### 3.8 受控维度、组合包与捆 Dimensions / Combos / Bundles
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/goodser/settings/dictionaries` | 字典列表，`kind` 支持 series/character/set_type/product_type |
+| POST | `/api/v1/goodser/settings/dictionaries` | 创建字典项 |
+| PUT | `/api/v1/goodser/settings/dictionaries/:did` | 更新字典项 |
+| DELETE | `/api/v1/goodser/settings/dictionaries/:did` | 删除字典项（被引用时拒绝） |
+| GET | `/api/v1/goodser/inventories/:id/series` | 系列聚合视图（商品数、总量、可用量） |
+| GET | `/api/v1/goodser/inventories/:id/combos` | 组合包列表，含可售数量 |
+| POST | `/api/v1/goodser/inventories/:id/combos` | 创建组合包（BOM） |
+| GET | `/api/v1/goodser/combos/:cid` | 组合包详情 |
+| PUT | `/api/v1/goodser/combos/:cid` | 更新组合包 |
+| DELETE | `/api/v1/goodser/combos/:cid` | 删除组合包 |
+| GET | `/api/v1/goodser/inventories/:id/bundles` | 捆模板列表 |
+| POST | `/api/v1/goodser/inventories/:id/bundles` | 创建捆模板 |
+| GET | `/api/v1/goodser/bundles/:bid` | 捆模板详情，含主商品与副区商品 |
+| PUT | `/api/v1/goodser/bundles/:bid` | 更新捆模板 |
+| DELETE | `/api/v1/goodser/bundles/:bid` | 删除捆模板 |
+| GET | `/api/v1/goodser/bundles/:bid/main-products` | 捆允许的主商品，支持 `keyword` |
+| GET | `/api/v1/goodser/bundles/:bid/sub-products` | 捆允许的副区商品，支持 `keyword`、`only_available` |
+| POST | `/api/v1/goodser/bundles/:bid/preview` | 校验捆选择并计算价格，不改变库存 |
+
+商品创建、更新、入库均支持 `series_id`、`set_type_id`、`product_type_id` 与
+`character_ids`。`tags` 仍作为自由标签保留。字典为全局共享，角色可通过
+`parent_id` 归属系列。
+
+更新商品时维度字段省略或传 `null` 表示“不修改”，传空字符串 `""` 表示“清空”。
+`character_ids` 传 `[]` 即清空角色关联。
+
+组合包不持有独立库存，`availability = min(组件可用量 / 组件数量)`。创建出库/
+预留单时传 `combo_id` + `combo_quantity`，服务端会展开为组件商品并按组件扣减库存。
+
+捆由主商品条件与店主选定的副区商品组成。主商品可显式指定，也可通过
+`main_filter` 按系列、角色、套型、类型、状态、关键词动态筛选，两者同时存在时按
+AND 校验。更新捆时 `main_filter` 省略或传 `null` 表示不修改，传 `{}` 表示清空筛选；
+清空后必须仍有显式主商品，否则返回“缺少主商品条件”。下单时传：
+
+```json
+{
+  "inventory_id": "inv-1",
+  "type": "reserve",
+  "bundle": {
+    "bundle_id": "bundle-1",
+    "main_product_id": "product-main",
+    "main_quantity": 1,
+    "quantity": 1,
+    "sub_items": [
+      {"product_id": "product-sub-1", "quantity": 2},
+      {"product_id": "product-sub-2", "quantity": 1}
+    ]
+  }
+}
+```
+
+`main_quantity`、`sub_items[].quantity` 与 `quantity` 均按单捆计，实际出库数量为
+单捆数量乘以 `quantity`。使用捆下单时 `items` 必须留空，服务端会：
+
+1. 校验主商品在允许范围内，且满足主商品最低数量、最低金额。
+2. 校验副区商品都来自捆配置，满足副区最低/最多数量和最低金额。
+3. 按 `price_mode` 计算单捆价与总价。
+4. 展开为主商品与副区商品明细，按 D1 规则锁定库存。
+5. 在出库单写入 `bundle_snapshot`，保存选择内容、价格与规则快照。
+
+`preview` 接口使用同样的校验逻辑，但只返回价格与明细，不创建单据、不改变库存，
+适合 Web 控制台与 LangBot 在下单前确认。
+
+### 3.9 客户服务 Customer
+
+| 方法 | 路径 | 作用域 | 说明 |
+|------|------|--------|------|
+| POST | `/api/v1/goodser/customer/stock-query` | `customer:read` | 按关键词、系列、角色、套型、类型、状态查询库存、组合包与捆 |
+| POST | `/api/v1/goodser/customer/order-requests` | `customer:order_request` | 提交订单请求，支持商品、组合包或捆，创建 pending 预留并锁定库存 |
+
+客户接口严格只读，不接受任何直接改库存的字段。订单请求会写入
+`goodser.customer.order_requested` 外盒事件，并尽力通知已注册连接器。
+客户使用捆下单时，`order-requests` 的 `bundle` 字段与店主下单结构一致，
+`items` 与 `combo_id` 必须留空。响应会返回 `bundle_id` 与 `total_price`。
 
 ---
 

@@ -32,10 +32,13 @@
 | main_zone | CHAR(1) | NOT NULL | 主区编码 |
 | sub_zone | CHAR(1) | NOT NULL | 子区编码 |
 | seq_number | INT | NOT NULL | 序号 |
-| quantity | INT | NOT NULL DEFAULT 0 | 库存数量 |
-| reserved_quantity | INT | NOT NULL DEFAULT 0 | 预留数量 |
+| quantity | INT | NOT NULL DEFAULT 0 | 可用库存（D1） |
+| reserved_quantity | INT | NOT NULL DEFAULT 0 | 锁定库存（D1） |
 | status_code | CHAR(1) | NOT NULL DEFAULT 'A' | 状态编码 |
 | name | VARCHAR(500) | NOT NULL, FULLTEXT | 商品名称 |
+| series_id | VARCHAR(36) | NULL, INDEX | 系列字典 ID |
+| set_type_id | VARCHAR(36) | NULL, INDEX | 套型字典 ID |
+| product_type_id | VARCHAR(36) | NULL, INDEX | 商品类型字典 ID |
 | original_price | DECIMAL(12,2) | DEFAULT 0 | 原价 |
 | market_price | DECIMAL(12,2) | DEFAULT 0 | 市场价 |
 | expected_price | DECIMAL(12,2) | DEFAULT 0 | 期望价 |
@@ -144,6 +147,99 @@ items JSON 格式：
 | color | VARCHAR(7) | NOT NULL DEFAULT '#1890ff' | 颜色 HEX |
 | owner_openid | VARCHAR(255) | NOT NULL | 所属用户 |
 | created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+
+> `tags` 仍是自由标签（JSON 数组），受控维度通过下方字典表实现。
+
+### 2.9 `zzz_goodser_dictionaries` — 受控维度字典
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | VARCHAR(36) | PK | UUID 或种子固定 ID |
+| kind | VARCHAR(30) | NOT NULL | series/character/set_type/product_type |
+| code | VARCHAR(50) | NOT NULL | 类型内唯一编码 |
+| name | VARCHAR(100) | NOT NULL | 显示名称 |
+| parent_id | VARCHAR(36) | NULL | 角色的上级系列 |
+| sort_order | INT | NOT NULL DEFAULT 0 | 排序 |
+| enabled | TINYINT(1) | NOT NULL DEFAULT 1 | 是否启用 |
+| extra | JSON | NULL | 扩展字段 |
+| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP ON UPDATE | 更新时间 |
+
+唯一索引 `uk_kind_code (kind, code)`，索引 `idx_kind_parent`、`idx_kind_enabled`。
+字典为全局共享；删除时若被商品、角色关联或子字典引用则拒绝。
+
+### 2.10 `zzz_goodser_product_characters` — 商品角色关联
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| product_id | VARCHAR(36) | PK 之一 | 商品 ID |
+| character_id | VARCHAR(36) | PK 之一, INDEX | 角色字典 ID |
+
+商品与角色为多对多，一个商品可关联多个角色。
+
+### 2.11 `zzz_goodser_combos` / `zzz_goodser_combo_items` — 组合包 BOM
+
+`zzz_goodser_combos`：`id`、`inventory_id`、`code`、`name`、`description`、
+`image_url`、`price`、`status`（active/inactive）。
+
+`zzz_goodser_combo_items`：`combo_id` + `product_id` 唯一，`quantity` 为组件数量，
+`sort_order` 排序。组合包不持有独立库存，可售量由组件可用量推导：
+
+```text
+availability = min(product.quantity / combo_item.quantity)
+```
+
+出库单新增 `combo_id`、`combo_quantity`，记录本次出库来源的组合包。
+
+### 2.12 `zzz_goodser_bundles` / `zzz_goodser_bundle_main_products` / `zzz_goodser_bundle_sub_products` — 捆
+
+捆是主商品条件约束下搭配副区商品的销售模板，不持有独立库存。
+
+`zzz_goodser_bundles`：
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | VARCHAR(36) | PK | UUID |
+| inventory_id | VARCHAR(36) | NOT NULL, INDEX | 库存目录 |
+| code | VARCHAR(50) | NOT NULL | 捆编码 |
+| name | VARCHAR(100) | NOT NULL | 捆名称 |
+| description | TEXT | NULL | 说明 |
+| status | VARCHAR(20) | NOT NULL | active/inactive |
+| main_filter | JSON | NULL | 主商品筛选条件，空字段忽略 |
+| min_main_quantity | INT | NOT NULL DEFAULT 1 | 单捆主商品最少数量 |
+| min_main_amount | DECIMAL(10,2) | NOT NULL DEFAULT 0 | 单捆主商品最低金额 |
+| min_sub_quantity | INT | NOT NULL DEFAULT 0 | 单捆副区商品最少数量 |
+| max_sub_quantity | INT | NOT NULL DEFAULT 0 | 单捆副区商品最多数量，0 表示不限 |
+| min_sub_amount | DECIMAL(10,2) | NOT NULL DEFAULT 0 | 单捆副区商品最低金额 |
+| price_mode | VARCHAR(20) | NOT NULL | sum/fixed/main_only |
+| fixed_price | DECIMAL(10,2) | NOT NULL DEFAULT 0 | fixed 模式下的单捆固定价 |
+
+`main_filter` 支持 `series_id`、`set_type_id`、`product_type_id`、
+`character_id`、`status_code`、`keyword`，按 AND 匹配。主商品允许来源有两种：
+
+- `zzz_goodser_bundle_main_products`：显式主商品清单，`bundle_id + product_id` 唯一。
+- `main_filter`：按维度条件动态匹配主商品。
+
+两者同时存在时按 AND 校验，即显式清单中的商品还必须满足筛选条件。至少需要配置
+其中一种。捆详情响应中 `main_product_ids` 返回显式清单，`main_products` 返回按
+筛选条件解析后的最终允许主商品，便于控制台编辑与下单选择。
+
+`zzz_goodser_bundle_sub_products`：`bundle_id + product_id` 唯一，
+`default_quantity` 为默认搭配数量。副区商品必须由店主显式选择，下单时只允许从该
+清单中挑选。
+
+价格规则：
+
+```text
+sum       = 主商品单价 * 主商品数量 + 副区商品金额
+fixed     = fixed_price
+main_only = 主商品单价 * 主商品数量
+```
+
+所有金额和数量阈值都按单捆计算，实际下单数量为单捆内容乘以捆数。
+
+出库单新增 `bundle_id`、`bundle_main_product_id`、`bundle_quantity` 与
+`bundle_snapshot`，后者保存下单时的主商品、副区商品、价格、规则快照，便于后续追溯。
 
 ---
 

@@ -21,6 +21,7 @@ import (
 	"github.com/Allinost/go-backend-core/internal/middleware"
 	"github.com/Allinost/go-backend-core/internal/modules"
 	"github.com/Allinost/go-backend-core/internal/modules/auth"
+	"github.com/Allinost/go-backend-core/internal/modules/integration"
 	"github.com/Allinost/go-backend-core/internal/modules/migrate"
 	"github.com/Allinost/go-backend-core/internal/modules/s0"
 	"github.com/Allinost/go-backend-core/internal/modules/s1"
@@ -95,6 +96,7 @@ func main() {
 	modules.Register(&s2.Module{})
 	modules.Register(&scheduler.Module{})
 	modules.Register(&auth.Module{})
+	modules.Register(&integration.Module{})
 	modules.Register(netmodule.NewModule())
 	modules.Register(crypto.NewModule())
 	modules.Register(&migrate.Module{})

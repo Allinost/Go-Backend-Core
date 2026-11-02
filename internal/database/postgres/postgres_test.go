@@ -14,13 +14,13 @@ func TestNewPool_InvalidDSN(t *testing.T) {
 		User:   "postgres",
 		DBName: "test",
 	}
-	pool, err := NewPool(cfg)
+	pool, err := NewPool(cfg, false)
 	assert.Error(t, err)
 	assert.Nil(t, pool)
 }
 
 func TestNewPool_EmptyConfig(t *testing.T) {
-	pool, err := NewPool(config.PGConfig{})
+	pool, err := NewPool(config.PGConfig{}, false)
 	assert.Error(t, err)
 	assert.Nil(t, pool)
 }

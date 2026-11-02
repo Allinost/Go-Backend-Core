@@ -1053,6 +1053,244 @@ func parseInt(s string, defaultVal int) int {
 	return v
 }
 
+// GetProductREST 获取商品详情
+// @Summary      获取商品详情
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        id  path  string  true  "商品 ID"
+// @Success      200  {object}  response.Response{data=Product}
+// @Router       /zzz-goodser/products/{id} [get]
+func (h *Handler) GetProductREST(c *gin.Context) {
+	item, err := h.svc.GetProduct(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, item)
+}
+
+// GetOutboundOrderREST 获取出库单/预留单详情
+// @Summary      获取单据详情
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        id   path  string  true  "库存目录 ID"
+// @Param        oid  path  string  true  "单据 ID"
+// @Success      200  {object}  response.Response{data=OutboundOrder}
+// @Router       /zzz-goodser/inventories/{id}/outbound-orders/{oid} [get]
+func (h *Handler) GetOutboundOrderREST(c *gin.Context) {
+	item, err := h.svc.GetOutboundOrder(c.Request.Context(), c.Param("oid"))
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, item)
+}
+
+// ConfirmOutboundREST 确认出库
+// @Summary      确认出库
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        id   path  string  true  "库存目录 ID"
+// @Param        oid  path  string  true  "出库单 ID"
+// @Success      200  {object}  response.Response{data=OutboundOrder}
+// @Router       /zzz-goodser/inventories/{id}/outbound-orders/{oid}/confirm [post]
+func (h *Handler) ConfirmOutboundREST(c *gin.Context) {
+	order, err := h.svc.ConfirmOutbound(c.Request.Context(), &ConfirmOutboundReq{ID: c.Param("oid")})
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, order)
+}
+
+// CancelOutboundREST 取消出库
+// @Summary      取消出库
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        id   path  string  true  "库存目录 ID"
+// @Param        oid  path  string  true  "出库单 ID"
+// @Success      200  {object}  response.Response{data=OutboundOrder}
+// @Router       /zzz-goodser/inventories/{id}/outbound-orders/{oid}/cancel [post]
+func (h *Handler) CancelOutboundREST(c *gin.Context) {
+	order, err := h.svc.CancelOutbound(c.Request.Context(), &CancelOutboundReq{ID: c.Param("oid")})
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, order)
+}
+
+// CreateReserveREST 创建预留单
+// @Summary      创建预留单
+// @Description  D1：创建即锁定库存，quantity 减少、reserved_quantity 增加
+// @Tags         zzz-goodser
+// @Accept       json
+// @Produce      json
+// @Param        id    path  string            true  "库存目录 ID"
+// @Param        body  body  CreateOutboundReq true  "预留信息"
+// @Success      200  {object}  response.Response{data=OutboundOrder}
+// @Router       /zzz-goodser/inventories/{id}/reserves [post]
+func (h *Handler) CreateReserveREST(c *gin.Context) {
+	var req CreateOutboundReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	req.InventoryID = c.Param("id")
+	req.Type = strPtr(string(OrderTypeReserve))
+	req.SourceReserveID = nil
+	order, err := h.svc.CreateOutboundOrder(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, order)
+}
+
+// ConvertReserveREST 预留转出库
+// @Summary      预留转出库
+// @Description  D1：转单不改变库存，确认出库时才释放锁定
+// @Tags         zzz-goodser
+// @Accept       json
+// @Produce      json
+// @Param        id   path  string                  true  "库存目录 ID"
+// @Param        rid  path  string                  true  "预留单 ID"
+// @Param        body  body  ReserveToOutboundReq  false "转单信息"
+// @Success      200  {object}  response.Response{data=OutboundOrder}
+// @Router       /zzz-goodser/inventories/{id}/reserves/{rid}/convert [post]
+func (h *Handler) ConvertReserveREST(c *gin.Context) {
+	var req ReserveToOutboundReq
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.ParamErr(c, "参数错误")
+			return
+		}
+	}
+	req.ID = c.Param("rid")
+	req.InventoryID = c.Param("id")
+	order, err := h.svc.ReserveToOutbound(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, order)
+}
+
+// CancelReserveREST 取消预留单
+// @Summary      取消预留
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        id   path  string  true  "库存目录 ID"
+// @Param        rid  path  string  true  "预留单 ID"
+// @Success      200  {object}  response.Response{data=OutboundOrder}
+// @Router       /zzz-goodser/inventories/{id}/reserves/{rid}/cancel [post]
+func (h *Handler) CancelReserveREST(c *gin.Context) {
+	order, err := h.svc.CancelReserve(c.Request.Context(), &CancelReserveReq{ID: c.Param("rid")})
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, order)
+}
+
+// CreateReturnREST 创建退货单
+// @Summary      创建退货单
+// @Description  多选同一出库单内的商品，支持部分退货、仅退款、退货退款、运损
+// @Tags         zzz-goodser
+// @Accept       json
+// @Produce      json
+// @Param        id    path  string           true  "库存目录 ID"
+// @Param        oid   path  string           true  "出库单 ID"
+// @Param        body  body  CreateReturnReq  true  "退货信息"
+// @Success      200  {object}  response.Response{data=ReturnOrder}
+// @Router       /zzz-goodser/inventories/{id}/outbound-orders/{oid}/returns [post]
+func (h *Handler) CreateReturnREST(c *gin.Context) {
+	var req CreateReturnReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	req.OutboundOrderID = c.Param("oid")
+	ret, err := h.svc.CreateReturn(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, ret)
+}
+
+// ListReturnsREST 获取退货单列表
+// @Summary      获取退货单
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        id              path  string  true  "库存目录 ID"
+// @Param        outbound_order_id query string false "出库单 ID"
+// @Success      200  {object}  response.Response{data=[]ReturnOrder}
+// @Router       /zzz-goodser/inventories/{id}/returns [get]
+func (h *Handler) ListReturnsREST(c *gin.Context) {
+	items, err := h.svc.ListReturns(c.Request.Context(), c.Param("id"), c.Query("outbound_order_id"))
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	if items == nil {
+		items = []ReturnOrder{}
+	}
+	response.Success(c, items)
+}
+
+// GetReturnREST 获取退货单详情
+// @Summary      退货单详情
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        id   path  string  true  "库存目录 ID"
+// @Param        rid  path  string  true  "退货单 ID"
+// @Success      200  {object}  response.Response{data=ReturnOrder}
+// @Router       /zzz-goodser/inventories/{id}/returns/{rid} [get]
+func (h *Handler) GetReturnREST(c *gin.Context) {
+	ret, err := h.svc.GetReturn(c.Request.Context(), c.Param("rid"))
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, ret)
+}
+
+// ConfirmReturnREST 确认退货
+// @Summary      确认退货
+// @Description  restock=true 的商品回可用库存，restock=false 只记录退货不改变库存
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        id   path  string  true  "库存目录 ID"
+// @Param        rid  path  string  true  "退货单 ID"
+// @Success      200  {object}  response.Response{data=ReturnOrder}
+// @Router       /zzz-goodser/inventories/{id}/returns/{rid}/confirm [post]
+func (h *Handler) ConfirmReturnREST(c *gin.Context) {
+	ret, err := h.svc.ConfirmReturn(c.Request.Context(), &ConfirmReturnReq{ID: c.Param("rid")})
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, ret)
+}
+
+// CancelReturnREST 取消退货
+// @Summary      取消退货
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        id   path  string  true  "库存目录 ID"
+// @Param        rid  path  string  true  "退货单 ID"
+// @Success      200  {object}  response.Response{data=ReturnOrder}
+// @Router       /zzz-goodser/inventories/{id}/returns/{rid}/cancel [post]
+func (h *Handler) CancelReturnREST(c *gin.Context) {
+	ret, err := h.svc.CancelReturn(c.Request.Context(), &CancelReturnReq{ID: c.Param("rid")})
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, ret)
+}
+
 // --- 错误处理 ---
 
 func (h *Handler) handleError(c *gin.Context, err error) {

@@ -20,7 +20,7 @@ func newTestClient(t *testing.T) (*Client, *miniredis.Miniredis) {
 }
 
 func TestNewClient_EmptyConfig(t *testing.T) {
-	client, err := NewClient(config.RedisInstance{})
+	client, err := NewClient(config.RedisInstance{}, false)
 	assert.Error(t, err)
 	assert.Nil(t, client)
 }
@@ -28,7 +28,7 @@ func TestNewClient_EmptyConfig(t *testing.T) {
 func TestNewClient_InvalidAddr(t *testing.T) {
 	client, err := NewClient(config.RedisInstance{
 		Addr: "127.0.0.1:1",
-	})
+	}, false)
 	assert.Error(t, err)
 	assert.Nil(t, client)
 }
@@ -40,7 +40,7 @@ func TestNewClient_WithPoolSize(t *testing.T) {
 	client, err := NewClient(config.RedisInstance{
 		Addr:     s.Addr(),
 		PoolSize: 5,
-	})
+	}, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, client)
 	assert.Equal(t, 5, client.Options().PoolSize)

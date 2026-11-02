@@ -14,13 +14,13 @@ func TestNewPool_InvalidDSN(t *testing.T) {
 		User:   "root",
 		DBName: "test",
 	}
-	pool, err := NewPool(cfg)
+	pool, err := NewPool(cfg, false)
 	assert.Error(t, err)
 	assert.Nil(t, pool)
 }
 
 func TestNewPool_EmptyConfig(t *testing.T) {
-	pool, err := NewPool(config.MySQLConfig{})
+	pool, err := NewPool(config.MySQLConfig{}, false)
 	assert.Error(t, err)
 	assert.Nil(t, pool)
 }

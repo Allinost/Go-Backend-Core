@@ -1465,6 +1465,12 @@ func (m *Module) AuthMiddleware() gin.HandlerFunc {
 	return middleware.AuthRequiredWithBlacklist(m.svc, m.blacklist)
 }
 
+// APIKeyOrJWTMiddleware 同时接受 X-API-Key 与 Bearer JWT。
+// API Key 认证时会把 api_key_scopes 写入上下文，供 RequireScope 校验。
+func (m *Module) APIKeyOrJWTMiddleware() gin.HandlerFunc {
+	return middleware.APIKeyOrJWT(m.apiKeys, m.svc, m.blacklist)
+}
+
 // RBAC 暴露 RBAC 服务，供其他模块挂载权限中间件（middleware.RequirePermission）
 // 与幂等播种权限点（feature-V2 项目开发管理模块引入）
 func (m *Module) RBAC() *auth.RBACService {

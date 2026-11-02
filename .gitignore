@@ -32,6 +32,9 @@ go.work.sum
 server.exe
 tmp/
 
+# Local secrets and scratch files
+.local/
+
 # IDE
 .idea/
 .vscode/
