@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"os"
 	"regexp"
@@ -28,16 +29,23 @@ const (
 
 // tbCartRaw 购物车接口返回的单个商品行（v2 / v1 两种结构统一后的字段）。
 type tbCartRaw struct {
-	ItemID     string `json:"itemId"`
-	SKUID      string `json:"skuId"`
-	Quantity   int    `json:"quantity"`
-	PayTotal   int64  `json:"payTotal"` // 分，商品行合计
-	PayNow     int64  `json:"payNow"`   // 分，当前单价
-	PayOrigin  int64  `json:"payOrigin"`
-	Valid      bool   `json:"valid"`
-	SKUInvalid bool   `json:"skuInvalid"`
-	Title      string `json:"title"`
-	CartID     string `json:"cartId"`
+	ItemID        string  `json:"itemId"`
+	SKUID         string  `json:"skuId"`
+	Quantity      int     `json:"quantity"`
+	PayTotal      int64   `json:"payTotal"` // 分，商品行合计
+	PayNow        int64   `json:"payNow"`   // 分，当前单价
+	PayOrigin     int64   `json:"payOrigin"`
+	Valid         bool    `json:"valid"`
+	SKUInvalid    bool    `json:"skuInvalid"`
+	Title         string  `json:"title"`
+	CartID        string  `json:"cartId"`
+	SubsidyPrice  float64 `json:"subsidyPrice"`  // 元，购物车“领政府补贴后约”价格
+	PlatformPrice float64 `json:"platformPrice"` // 元，购物车“平台加补后”价格
+}
+
+type tbCartDomInfo struct {
+	SubsidyPrice  float64 `json:"subsidyPrice"`
+	PlatformPrice float64 `json:"platformPrice"`
 }
 
 type taobaoCartSnapshot struct {
@@ -156,6 +164,8 @@ func (c *TaobaoCollector) fetchTaobaoCartWithCookies(ctx context.Context, sessio
 	var build string
 	_ = chromedp.Run(tabCtx, chromedp.Evaluate(tbCartBuildJS, &build))
 	chromedp.Run(tabCtx, chromedp.Sleep(3*time.Second))
+	// 购物车 DOM 会展示“平台加补后 / 领政府补贴后约”价格，先采集首屏。
+	_ = chromedp.Run(tabCtx, chromedp.Evaluate(tbCartDomCollectJS, nil))
 
 	// 滚动触发分页，直到连续多次没有新增。
 	lastCount := -1
@@ -164,6 +174,7 @@ func (c *TaobaoCollector) fetchTaobaoCartWithCookies(ctx context.Context, sessio
 		var count int
 		_ = chromedp.Run(tabCtx, chromedp.Evaluate(tbCartScrollJS, &count))
 		time.Sleep(tbCartScrollWait)
+		_ = chromedp.Run(tabCtx, chromedp.Evaluate(tbCartDomCollectJS, nil))
 		var newCount int
 		_ = chromedp.Run(tabCtx, chromedp.Evaluate(tbCartUniqueCountJS, &newCount))
 		if newCount <= lastCount {
@@ -176,6 +187,7 @@ func (c *TaobaoCollector) fetchTaobaoCartWithCookies(ctx context.Context, sessio
 			break
 		}
 	}
+	_ = chromedp.Run(tabCtx, chromedp.Evaluate(tbCartDomCollectJS, nil))
 
 	var rawJSON string
 	if err := chromedp.Run(tabCtx, chromedp.Evaluate(tbCartCollectJS, &rawJSON)); err != nil {
@@ -185,6 +197,22 @@ func (c *TaobaoCollector) fetchTaobaoCartWithCookies(ctx context.Context, sessio
 	if err := json.Unmarshal([]byte(rawJSON), &raw); err != nil {
 		return nil, fmt.Errorf("解析购物车数据失败: %w", err)
 	}
+
+	// 合并 DOM 中的国补/平台加补价格。
+	var domJSON string
+	if err := chromedp.Run(tabCtx, chromedp.Evaluate(`JSON.stringify(window.__tbCartDomMap || {})`, &domJSON)); err == nil && domJSON != "" && domJSON != "{}" {
+		var domMap map[string]tbCartDomInfo
+		if json.Unmarshal([]byte(domJSON), &domMap) == nil {
+			for i := range raw {
+				key := raw[i].ItemID + "|" + raw[i].SKUID
+				if info, ok := domMap[key]; ok {
+					raw[i].SubsidyPrice = info.SubsidyPrice
+					raw[i].PlatformPrice = info.PlatformPrice
+				}
+			}
+		}
+	}
+
 	fmt.Fprintf(os.Stderr, "[taobao cart] 完整拉取完成 items=%d\n", len(raw))
 	return raw, nil
 }
@@ -323,6 +351,46 @@ const tbCartCollectJS = `(function(){
 	return JSON.stringify(out);
 })()`
 
+const tbCartDomCollectJS = `(function(){
+	function numAfter(text, labels){
+		for(var i = 0; i < labels.length; i++){
+			var idx = text.indexOf(labels[i]);
+			if(idx < 0) continue;
+			var seg = text.slice(idx + labels[i].length, idx + labels[i].length + 80);
+			var m = seg.match(/[¥￥]?\s*(\d+(?:\s*\.\s*\d{1,2})?)/);
+			if(!m) continue;
+			var v = parseFloat(m[1].replace(/\s+/g, ''));
+			if(!isNaN(v) && v > 0) return v;
+		}
+		return 0;
+	}
+	var map = window.__tbCartDomMap || {};
+	var boxes = document.querySelectorAll('[class*="trade-cart-item-info"]');
+	for(var i = 0; i < boxes.length; i++){
+		var box = boxes[i];
+		var a = box.querySelector('a[href*="id="]');
+		if(!a) continue;
+		var href = a.getAttribute('href') || a.href || '';
+		var m = href.match(/[?&]id=(\d+)/);
+		if(!m) continue;
+		var sk = href.match(/[?&]skuId=(\d+)/);
+		var skuId = sk ? sk[1] : '';
+		var text = (box.innerText || '').replace(/\s+/g, ' ');
+		var subsidy = numAfter(text, ['领政府补贴后约','政府补贴后约','国补后约','补贴后约','领政府补贴后','政府补贴后','国补后']);
+		var platform = numAfter(text, ['平台加补后','平台补贴后','平台补后']);
+		if(subsidy > 0 || platform > 0){
+			var key = m[1] + '|' + skuId;
+			var prev = map[key] || {};
+			map[key] = {
+				subsidyPrice: subsidy > 0 ? subsidy : (prev.subsidyPrice || 0),
+				platformPrice: platform > 0 ? platform : (prev.platformPrice || 0)
+			};
+		}
+	}
+	window.__tbCartDomMap = map;
+	return Object.keys(map).length;
+})()`
+
 // buildTaobaoCartIndex 把购物车原始行转换为按 SKU / 按商品索引的价格结果。
 func buildTaobaoCartIndex(raw []tbCartRaw) (map[string]*PriceResult, map[string][]*PriceResult) {
 	byKey := make(map[string]*PriceResult, len(raw))
@@ -339,20 +407,52 @@ func buildTaobaoCartIndex(raw []tbCartRaw) (map[string]*PriceResult, map[string]
 		if qty > 1 {
 			unitCents = it.PayTotal / int64(qty)
 		}
-		price := round2(float64(unitCents) / 100)
-		if price <= 0 {
+		current := round2(float64(unitCents) / 100)
+		if current <= 0 {
 			continue
 		}
+
 		orig := 0.0
 		if it.PayOrigin > 0 {
 			origCents := it.PayOrigin
 			if qty > 1 {
 				origCents = it.PayOrigin / int64(qty)
 			}
-			if o := round2(float64(origCents) / 100); o > price {
+			if o := round2(float64(origCents) / 100); o > current {
 				orig = o
 			}
 		}
+
+		price := current
+		basePrice := current
+		subsidyAmount := 0.0
+		subsidyRate := 0.0
+		source := "taobao_cart"
+		note := ""
+
+		// 购物车行展示“平台加补后 / 领政府补贴后约”时，以后者作为到手价。
+		if it.SubsidyPrice > 0 && round2(it.SubsidyPrice) < current {
+			base := it.PlatformPrice
+			if base <= 0 || base >= current {
+				base = current
+			}
+			base = round2(base)
+			price = round2(it.SubsidyPrice)
+			basePrice = base
+			orig = current // 国补前的购物车当前价（如 ￥2300）
+			if base > price {
+				subsidyAmount = round2(base - price)
+				if it.PlatformPrice > 0 {
+					subsidyRate = round2((base - price) / base * 100)
+				}
+				source = "taobao_cart_subsidy"
+				note = "购物车国补价"
+			} else {
+				price = current
+				basePrice = current
+			}
+		}
+
 		productURL := fmt.Sprintf("https://item.taobao.com/item.htm?id=%s", it.ItemID)
 		if it.SKUID != "" {
 			productURL += "&skuId=" + url.QueryEscape(it.SKUID)
@@ -360,12 +460,15 @@ func buildTaobaoCartIndex(raw []tbCartRaw) (map[string]*PriceResult, map[string]
 		result := &PriceResult{
 			CurrentPrice:  price,
 			OriginalPrice: orig,
-			BasePrice:     price,
-			PriceSource:   "taobao_cart",
+			BasePrice:     basePrice,
+			SubsidyAmount: subsidyAmount,
+			SubsidyRate:   subsidyRate,
+			PriceSource:   source,
 			Title:         cleanTaobaoTitle(strings.TrimSpace(it.Title)),
 			StockStatus:   "in_stock",
 			ProductURL:    productURL,
 			CartStatus:    "hit",
+			CartNote:      note,
 			FetchedAt:     time.Now(),
 		}
 		if !it.Valid || it.SKUInvalid {
@@ -379,8 +482,8 @@ func buildTaobaoCartIndex(raw []tbCartRaw) (map[string]*PriceResult, map[string]
 }
 
 // matchTaobaoCartItem 优先按 itemId+skuId 精确匹配；商品 URL 未带 skuId 时按 itemId 匹配。
-// 同一商品在购物车有多个规格时，优先有货、再取最低价规格（并记录备注说明）。
-func matchTaobaoCartItem(byKey map[string]*PriceResult, byItem map[string][]*PriceResult, itemID, skuID string) *PriceResult {
+// 分享链接里的 price 参数（如淘宝 1690、天猫 2300）可用于在同商品多规格中定位正确规格。
+func matchTaobaoCartItem(byKey map[string]*PriceResult, byItem map[string][]*PriceResult, itemID, skuID string, priceHint float64) *PriceResult {
 	if itemID == "" {
 		return nil
 	}
@@ -395,6 +498,29 @@ func matchTaobaoCartItem(byKey map[string]*PriceResult, byItem map[string][]*Pri
 	if len(list) == 0 {
 		return nil
 	}
+
+	if priceHint > 0 {
+		var matched []*PriceResult
+		for _, r := range list {
+			if taobaoCartPriceMatches(r, priceHint) {
+				matched = append(matched, r)
+			}
+		}
+		if len(matched) > 0 {
+			best := matched[0]
+			for _, r := range matched[1:] {
+				if betterTaobaoCartCandidate(r, best) {
+					best = r
+				}
+			}
+			cp := *best
+			if len(list) > 1 {
+				cp.CartNote = appendCartNote(cp.CartNote, "同商品多规格，按分享价匹配规格")
+			}
+			return &cp
+		}
+	}
+
 	best := list[0]
 	for _, r := range list[1:] {
 		if betterTaobaoCartCandidate(r, best) {
@@ -406,9 +532,30 @@ func matchTaobaoCartItem(byKey map[string]*PriceResult, byItem map[string][]*Pri
 	}
 	cp := *best
 	if len(list) > 1 {
-		cp.CartNote = "同商品多规格，购物车按有货且最低价规格命中"
+		cp.CartNote = appendCartNote(cp.CartNote, "同商品多规格，按有货且最低价规格命中")
 	}
 	return &cp
+}
+
+// taobaoCartPriceMatches 用分享链接里的价格定位规格；国补后价格会变化，
+// 因此同时比较到手价、国补前基础价和原价。
+func taobaoCartPriceMatches(r *PriceResult, hint float64) bool {
+	if r == nil || hint <= 0 {
+		return false
+	}
+	for _, v := range []float64{r.CurrentPrice, r.BasePrice, r.OriginalPrice} {
+		if v > 0 && math.Abs(v-hint) < 0.01 {
+			return true
+		}
+	}
+	return false
+}
+
+func appendCartNote(note, add string) string {
+	if note == "" {
+		return add
+	}
+	return note + "；" + add
 }
 
 func betterTaobaoCartCandidate(a, b *PriceResult) bool {
@@ -548,6 +695,32 @@ func (c *TaobaoCollector) addTaobaoCartItem(ctx context.Context, itemID, skuID s
 // ---------- SKU 解析（sku_properties → skuId） ----------
 
 var tbSkuPairRe = regexp.MustCompile(`"propPath":"([^"]+)","skuId":"(\d+)"`)
+
+// extractTaobaoSharePrice 解析分享链接/商品 URL 中的 price 参数（元）。
+// 淘宝同一链接可能对应多个 SKU，分享价是定位正确规格的关键线索。
+func extractTaobaoSharePrice(rawInput string) float64 {
+	rawURL := extractTaobaoURL(rawInput)
+	if rawURL == "" {
+		rawURL = strings.TrimSpace(rawInput)
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return 0
+	}
+	for _, pair := range strings.Split(u.RawQuery, "&") {
+		kv := strings.SplitN(pair, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		key, _ := url.QueryUnescape(kv[0])
+		if key != "price" {
+			continue
+		}
+		v, _ := url.QueryUnescape(kv[1])
+		return parseFloatStr(strings.TrimSpace(v))
+	}
+	return 0
+}
 
 // extractTaobaoSkuProperties 解析 URL 中的 sku_properties（如 20122:118105;1627207:44168284707）。
 func extractTaobaoSkuProperties(rawInput string) map[string]string {

@@ -45,28 +45,95 @@ func TestMatchTaobaoCartItem(t *testing.T) {
 		{ItemID: "3", SKUID: "31", Quantity: 1, PayTotal: 30000, Valid: true},
 	})
 
-	if got := matchTaobaoCartItem(byKey, byItem, "1", "11"); got == nil || got.CurrentPrice != 1690 {
+	if got := matchTaobaoCartItem(byKey, byItem, "1", "11", 0); got == nil || got.CurrentPrice != 1690 {
 		t.Fatalf("exact match = %+v, want 1690", got)
 	}
-	if got := matchTaobaoCartItem(byKey, byItem, "1", "99"); got != nil {
+	if got := matchTaobaoCartItem(byKey, byItem, "1", "99", 0); got != nil {
 		t.Fatalf("unknown sku should miss, got %+v", got)
 	}
-	if got := matchTaobaoCartItem(byKey, byItem, "3", ""); got == nil || got.CurrentPrice != 300 {
+	if got := matchTaobaoCartItem(byKey, byItem, "3", "", 0); got == nil || got.CurrentPrice != 300 {
 		t.Fatalf("single item match = %+v, want 300", got)
 	}
-	got := matchTaobaoCartItem(byKey, byItem, "1", "")
+	got := matchTaobaoCartItem(byKey, byItem, "1", "", 0)
 	if got == nil || got.CurrentPrice != 870 {
 		t.Fatalf("multi sku should pick cheapest, got %+v", got)
 	}
 	if got.CartNote == "" {
 		t.Error("multi sku match should record a note")
 	}
-	if got := matchTaobaoCartItem(byKey, byItem, "2", ""); got == nil {
+	if got := matchTaobaoCartItem(byKey, byItem, "2", "", 0); got == nil {
 		t.Fatal("item 2 should match")
 	}
-	preferred := matchTaobaoCartItem(byKey, byItem, "2", "")
+	preferred := matchTaobaoCartItem(byKey, byItem, "2", "", 0)
 	if preferred == nil || preferred.CurrentPrice != 600 {
 		t.Fatalf("multi sku should prefer in-stock, got %+v", preferred)
+	}
+}
+
+func TestMatchTaobaoCartItemPriceHint(t *testing.T) {
+	byKey, byItem := buildTaobaoCartIndex([]tbCartRaw{
+		{ItemID: "14448135570", SKUID: "6105919976363", Quantity: 1, PayTotal: 87000, Valid: true},
+		{ItemID: "14448135570", SKUID: "5860984206140", Quantity: 1, PayTotal: 169000, PayOrigin: 165000, Valid: true},
+	})
+
+	// 分享价 1690 命中 750G DELL U.2全新
+	got := matchTaobaoCartItem(byKey, byItem, "14448135570", "", 1690)
+	if got == nil || got.CurrentPrice != 1690 {
+		t.Fatalf("hint 1690 = %+v, want 1690", got)
+	}
+	if got.ProductURL != "https://item.taobao.com/item.htm?id=14448135570&skuId=5860984206140" {
+		t.Errorf("product url = %s", got.ProductURL)
+	}
+
+	// 不存在的价格回退到最低价
+	got = matchTaobaoCartItem(byKey, byItem, "14448135570", "", 1234)
+	if got == nil || got.CurrentPrice != 870 {
+		t.Fatalf("unknown hint = %+v, want fallback 870", got)
+	}
+}
+
+func TestBuildTaobaoCartIndexSubsidy(t *testing.T) {
+	byKey, _ := buildTaobaoCartIndex([]tbCartRaw{
+		{
+			ItemID: "1056234176069", SKUID: "6150708661971", Quantity: 1,
+			PayTotal: 230000, PayOrigin: 500000, Valid: true,
+			SubsidyPrice: 1560.35, PlatformPrice: 1733.72,
+		},
+	})
+	got := byKey["1056234176069|6150708661971"]
+	if got == nil {
+		t.Fatal("subsidy item not found")
+	}
+	if got.CurrentPrice != 1560.35 {
+		t.Errorf("current price = %v, want 1560.35", got.CurrentPrice)
+	}
+	if got.OriginalPrice != 2300 {
+		t.Errorf("original price = %v, want 2300", got.OriginalPrice)
+	}
+	if got.BasePrice != 1733.72 {
+		t.Errorf("base price = %v, want 1733.72", got.BasePrice)
+	}
+	if got.SubsidyAmount != 173.37 {
+		t.Errorf("subsidy amount = %v, want 173.37", got.SubsidyAmount)
+	}
+	if got.SubsidyRate != 10 {
+		t.Errorf("subsidy rate = %v, want 10", got.SubsidyRate)
+	}
+	if got.PriceSource != "taobao_cart_subsidy" {
+		t.Errorf("price source = %q", got.PriceSource)
+	}
+}
+
+func TestExtractTaobaoSharePrice(t *testing.T) {
+	cases := map[string]float64{
+		"https://item.taobao.com/item.htm?id=14448135570&price=1690&sourceType=item": 1690,
+		"https://e.tb.cn/h.j5GoW5i9Xn8FESn?tk=wFxw6ZhlVzC":                           0,
+		"https://item.taobao.com/item.htm?id=1&price=2300.5":                         2300.5,
+	}
+	for raw, want := range cases {
+		if got := extractTaobaoSharePrice(raw); got != want {
+			t.Errorf("extractTaobaoSharePrice(%q) = %v, want %v", raw, got, want)
+		}
 	}
 }
 

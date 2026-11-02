@@ -82,11 +82,18 @@ func (c *TaobaoCollector) FetchPrice(ctx context.Context, rawURL string) (*Price
 	ctx, cancel := context.WithTimeout(ctx, 180*time.Second)
 	defer cancel()
 
-	itemID := c.resolveItemID(ctx, rawURL)
+	itemID, targetURL := c.resolveItemTarget(ctx, rawURL)
 	if itemID == "" {
 		return nil, fmt.Errorf("taobao: 无法从 URL 解析商品 ID")
 	}
-	skuID := extractTaobaoSKU(rawURL)
+	skuID := extractTaobaoSKU(targetURL)
+	if skuID == "" {
+		skuID = extractTaobaoSKU(rawURL)
+	}
+	priceHint := extractTaobaoSharePrice(targetURL)
+	if priceHint == 0 {
+		priceHint = extractTaobaoSharePrice(rawURL)
+	}
 	canonicalURL := fmt.Sprintf(tbCanonicalURL, itemID)
 	if skuID != "" {
 		canonicalURL += "&skuId=" + url.QueryEscape(skuID)
@@ -112,13 +119,13 @@ func (c *TaobaoCollector) FetchPrice(ctx context.Context, rawURL string) (*Price
 			cartNote = fmt.Sprintf("购物车拉取失败，已回退商品页: %v", cartErr)
 			fmt.Fprintf(os.Stderr, "[taobao cart] 购物车拉取失败，回退商品页: %v\n", cartErr)
 		default:
-			if item := matchTaobaoCartItem(byKey, byItem, itemID, skuID); item != nil {
+			if item := matchTaobaoCartItem(byKey, byItem, itemID, skuID, priceHint); item != nil {
 				item.FetchedAt = time.Now()
 				return item, nil
 			}
 			cartStatus = "not_in_cart"
 			cartNote = "购物车列表无此商品，已回退商品页"
-			fmt.Fprintf(os.Stderr, "[taobao cart] item=%s sku=%s 不在购物车，回退商品页\n", itemID, skuID)
+			fmt.Fprintf(os.Stderr, "[taobao cart] item=%s sku=%s hint=%.2f 不在购物车，回退商品页\n", itemID, skuID, priceHint)
 		}
 	}
 
@@ -139,7 +146,7 @@ func (c *TaobaoCollector) FetchPrice(ctx context.Context, rawURL string) (*Price
 		if cartMode == "fallback" && !cartTried && sessionCookie != "" {
 			cartTried = true
 			if byKey, byItem, cartErr := c.getTaobaoCartSnapshot(ctx, false); cartErr == nil {
-				if item := matchTaobaoCartItem(byKey, byItem, itemID, skuID); item != nil {
+				if item := matchTaobaoCartItem(byKey, byItem, itemID, skuID, priceHint); item != nil {
 					item.FetchedAt = time.Now()
 					return item, nil
 				}
@@ -216,22 +223,30 @@ var tbShortTargetRe = regexp.MustCompile(`var\s+url\s*=\s*'([^']+)'`)
 
 // resolveItemID 从原始输入（可能是完整 URL、短链或含链接的分享文本）中解析淘宝商品 ID
 func (c *TaobaoCollector) resolveItemID(ctx context.Context, rawInput string) string {
+	itemID, _ := c.resolveItemTarget(ctx, rawInput)
+	return itemID
+}
+
+// resolveItemTarget 解析商品 ID 及最终落地 URL（保留短链目标里的 price / sku_properties 等参数）。
+func (c *TaobaoCollector) resolveItemTarget(ctx context.Context, rawInput string) (string, string) {
 	rawURL := extractTaobaoURL(rawInput)
 	if rawURL == "" {
-		return ""
+		return "", ""
 	}
 
 	if id := extractTaobaoItemID(rawURL); id != "" {
-		return id
+		return id, rawURL
 	}
 
 	// 短链：抓取跳转页，从内嵌 JS 变量提取目标地址
 	if isTaobaoShortLink(rawURL) {
 		if target := c.resolveShortLink(ctx, rawURL); target != "" {
-			return extractTaobaoItemID(target)
+			if id := extractTaobaoItemID(target); id != "" {
+				return id, target
+			}
 		}
 	}
-	return ""
+	return "", ""
 }
 
 // extractTaobaoURL 从混杂的分享文本中提取首个淘宝系 URL
