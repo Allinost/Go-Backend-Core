@@ -109,16 +109,28 @@ func (c *JDCollector) FetchPrice(ctx context.Context, rawURL string) (*PriceResu
 	if sessionCookie != "" {
 		cartMode := strings.ToLower(strings.TrimSpace(os.Getenv("JD_CART_MODE")))
 		if cartMode == "" {
-			cartMode = "fallback"
+			// 默认购物车优先：一次完整拉取购物车，多个商品复用同一份快照。
+			cartMode = "only"
 		}
 		cartTried := false
-		// JD_CART_MODE=only：购物车优先，适合商品页被频控、但购物车可访问的场景。
+		cartStatus, cartNote := "", ""
 		if cartMode == "only" {
 			cartTried = true
-			if cartResult, cartErr := c.fetchJDCartPrice(ctx, skuID); cartErr == nil && cartResult != nil && cartResult.CurrentPrice > 0 {
-				return cartResult, nil
-			} else if cartErr != nil && cartErr != errJDCartMiss {
-				fmt.Fprintf(os.Stderr, "[jd] 购物车优先读取失败: %v\n", cartErr)
+			items, cartErr := c.getJDCartSnapshot(ctx, false)
+			switch {
+			case cartErr != nil:
+				cartStatus = "unavailable"
+				cartNote = fmt.Sprintf("购物车拉取失败，已回退商品页: %v", cartErr)
+				fmt.Fprintf(os.Stderr, "[jd cart] 购物车拉取失败，回退商品页: %v\n", cartErr)
+			default:
+				if item, ok := items[skuID]; ok && item != nil && item.CurrentPrice > 0 {
+					result := *item
+					result.FetchedAt = time.Now()
+					return &result, nil
+				}
+				cartStatus = "not_in_cart"
+				cartNote = "购物车列表无此商品，已回退商品页"
+				fmt.Fprintf(os.Stderr, "[jd cart] sku=%s 不在购物车，回退商品页\n", skuID)
 			}
 		}
 
@@ -127,14 +139,24 @@ func (c *JDCollector) FetchPrice(ctx context.Context, rawURL string) (*PriceResu
 			if result.ProductURL == "" {
 				result.ProductURL = fmt.Sprintf(jdProductURL, skuID)
 			}
+			if cartStatus != "" {
+				result.CartStatus = cartStatus
+				result.CartNote = cartNote
+			}
 			return result, nil
 		}
 		if err != nil {
-			// 商品页被频控/失败时，按需回退到购物车读取。
-			if cartMode == "fallback" || (cartMode == "only" && !cartTried) {
-				if cartResult, cartErr := c.fetchJDCartPrice(ctx, skuID); cartErr == nil && cartResult != nil && cartResult.CurrentPrice > 0 {
-					return cartResult, nil
-				} else if cartErr != nil && cartErr != errJDCartMiss {
+			// fallback 模式：商品页失败后才拉购物车快照。
+			if cartMode == "fallback" && !cartTried {
+				cartTried = true
+				if items, cartErr := c.getJDCartSnapshot(ctx, false); cartErr == nil {
+					if item, ok := items[skuID]; ok && item != nil && item.CurrentPrice > 0 {
+						result := *item
+						result.FetchedAt = time.Now()
+						return &result, nil
+					}
+					fmt.Fprintf(os.Stderr, "[jd cart] sku=%s 不在购物车\n", skuID)
+				} else {
 					fmt.Fprintf(os.Stderr, "[jd] 购物车回退读取失败: %v\n", cartErr)
 				}
 			}

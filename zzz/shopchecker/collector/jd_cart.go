@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Allinost/go-backend-core/zzz/login3rd/provider"
@@ -15,28 +16,61 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-const jdCartURL = "https://cart.jd.com/cart_index"
-
-var (
-	jdCartPriceRe = regexp.MustCompile(`[¥￥]\s*(\d+(?:,\d{3})*(?:\.\d{1,2})?)`)
-	errJDCartMiss = fmt.Errorf("jd cart: 购物车中未找到该 SKU")
+const (
+	jdCartURL      = "https://cart.jd.com/cart_index"
+	jdCartCacheTTL = 2 * time.Minute
+	jdCartErrorTTL = 30 * time.Second
 )
 
-type jdCartExtract struct {
-	URL     string `json:"url"`
-	Title   string `json:"title"`
-	Body    string `json:"body"`
-	Matches []struct {
-		Text  string `json:"text"`
-		Title string `json:"title"`
-	} `json:"matches"`
+var jdCartPriceRe = regexp.MustCompile(`[¥￥]\s*(\d+(?:,\d{3})*(?:\.\d{1,2})?)`)
+
+type jdCartItem struct {
+	SKU   string `json:"sku"`
+	Text  string `json:"text"`
+	Title string `json:"title"`
 }
 
-// fetchJDCartPrice 从京东购物车读取指定 SKU 的价格。
-//
-// 商品详情页被频控时，购物车通常仍能渲染商品行（前提是用户已把商品加入购物车）。
-// 这里按 SKU 找到对应商品行，优先取“到手价”，并把“京东价/划线价”作为原价。
-func (c *JDCollector) fetchJDCartPrice(ctx context.Context, skuID string) (*PriceResult, error) {
+type jdCartExtract struct {
+	URL   string       `json:"url"`
+	Title string       `json:"title"`
+	Body  string       `json:"body"`
+	Items []jdCartItem `json:"items"`
+}
+
+type jdCartSnapshot struct {
+	Items     map[string]*PriceResult
+	FetchedAt time.Time
+	Err       error
+}
+
+var (
+	jdCartCacheMu sync.Mutex
+	jdCartCache   jdCartSnapshot
+)
+
+// getJDCartSnapshot 完整拉取一次购物车并缓存，供同一次检查周期内的多个商品复用。
+// 京东/七鲜/京东移动版共用同一个京东账号，因此共用同一份购物车快照。
+func (c *JDCollector) getJDCartSnapshot(ctx context.Context, force bool) (map[string]*PriceResult, error) {
+	jdCartCacheMu.Lock()
+	defer jdCartCacheMu.Unlock()
+
+	if !force && !jdCartCache.FetchedAt.IsZero() {
+		ttl := jdCartCacheTTL
+		if jdCartCache.Err != nil {
+			ttl = jdCartErrorTTL
+		}
+		if time.Since(jdCartCache.FetchedAt) < ttl {
+			return jdCartCache.Items, jdCartCache.Err
+		}
+	}
+
+	items, err := c.fetchJDCartSnapshot(ctx)
+	jdCartCache = jdCartSnapshot{Items: items, FetchedAt: time.Now(), Err: err}
+	return items, err
+}
+
+// fetchJDCartSnapshot 打开一次购物车页面，提取全部购物车商品。
+func (c *JDCollector) fetchJDCartSnapshot(ctx context.Context) (map[string]*PriceResult, error) {
 	sessionCookies := c.getSessionCookies(ctx)
 	if len(sessionCookies) == 0 {
 		return nil, fmt.Errorf("jd cart: 无登录 session")
@@ -73,34 +107,38 @@ func (c *JDCollector) fetchJDCartPrice(ctx context.Context, skuID string) (*Pric
 			time.Sleep(500 * time.Millisecond)
 		}
 	}
-	chromedp.Run(tabCtx, chromedp.Sleep(2*time.Second))
+	chromedp.Run(tabCtx, chromedp.Sleep(3*time.Second))
 
 	var raw string
-	if err := chromedp.Run(tabCtx, chromedp.Evaluate(fmt.Sprintf(`(function(){
-		var sku=%q;
-		var links=[];
-		var seen={};
-		function add(el){ if(el && !seen[el]){seen[el]=1; links.push(el);} }
-		document.querySelectorAll('a[href*="item.jd.com/'+sku+'.html"]').forEach(add);
-		document.querySelectorAll('[data-sku="'+sku+'"]').forEach(function(el){
-			add(el.querySelector('a')||el);
-		});
-		var matches=[];
-		links.forEach(function(a){
-			var el=a;
-			for(var d=0; d<10 && el; d++){
+	if err := chromedp.Run(tabCtx, chromedp.Evaluate(`(function(){
+		function skuFromHref(h){
+			var m=(h||'').match(/item\.jd\.com\/(\d+)\.html/);
+			return m?m[1]:'';
+		}
+		var out=[], seen={};
+		document.querySelectorAll('a[href*="item.jd.com/"]').forEach(function(a){
+			var sku=skuFromHref(a.getAttribute('href')||a.href);
+			if(!sku || seen[sku]) return;
+			var el=a, box=null, boxText='';
+			// 找到最近的“商品行”容器：包含删除按钮，并且有价格或下架文案。
+			for(var d=0; d<12 && el; d++){
 				var t=(el.innerText||'').replace(/\s+/g,' ').trim();
-				if(t.indexOf('¥')>=0 || t.indexOf('￥')>=0){
-					var img=a.querySelector('img');
-					matches.push({text:t.slice(0,2000),title:(a.getAttribute('title')||(img&&img.alt)||'').trim()});
-					break;
+				if(t.length>=20 && t.length<=2500 && t.indexOf('删除')>=0){
+					var hasPrice=t.indexOf('¥')>=0 || t.indexOf('￥')>=0;
+					var unavailable=t.indexOf('商品已下架')>=0 || t.indexOf('暂不支持购买')>=0 || t.indexOf('无货')>=0;
+					if(hasPrice || unavailable){ box=el; boxText=t; break; }
 				}
 				el=el.parentElement;
 			}
+			if(box){
+				seen[sku]=1;
+				var img=a.querySelector('img');
+				out.push({sku:sku,text:boxText,title:(a.getAttribute('title')||(img&&img.alt)||'').trim()});
+			}
 		});
 		var body=document.body?document.body.innerText:'';
-		return JSON.stringify({url:location.href,title:document.title,body:body.slice(0,4000),matches:matches});
-	})()`, skuID), &raw)); err != nil {
+		return JSON.stringify({url:location.href,title:document.title,body:body.slice(0,4000),items:out});
+	})()`, &raw)); err != nil {
 		return nil, fmt.Errorf("jd cart: 读取页面失败: %w", err)
 	}
 
@@ -117,39 +155,58 @@ func (c *JDCollector) fetchJDCartPrice(ctx context.Context, skuID string) (*Pric
 	if isJDRateLimitText(page.Body) {
 		return nil, fmt.Errorf("京东访问频率限制（购物车页），稍后重试")
 	}
-	if len(page.Matches) == 0 {
-		if strings.Contains(page.Body, "购物车跑丢了") || strings.Contains(page.Body, "购物车(0)") {
-			return nil, errJDCartMiss
+
+	items := make(map[string]*PriceResult, len(page.Items))
+	for _, it := range page.Items {
+		if it.SKU == "" {
+			continue
 		}
-		return nil, errJDCartMiss
+		price, orig, subsidyAmount, subsidyRate := parseJDCartItemPrice(it.Text)
+		if price <= 0 {
+			continue
+		}
+		title := cleanJdTitle(strings.TrimSpace(it.Title))
+		if title == "" {
+			title = cartItemTitleFromText(it.Text)
+		}
+		items[it.SKU] = &PriceResult{
+			CurrentPrice:  round2(price),
+			OriginalPrice: round2(orig),
+			BasePrice:     round2(firstPositive(orig, price)),
+			SubsidyAmount: round2(subsidyAmount),
+			SubsidyRate:   subsidyRate,
+			PriceSource:   "jd_cart",
+			Title:         title,
+			StockStatus:   cartStockStatus(it.Text),
+			ProductURL:    fmt.Sprintf(jdDesktopURL, it.SKU),
+			CartStatus:    "hit",
+			FetchedAt:     time.Now(),
+		}
 	}
 
-	item := page.Matches[0]
-	price, orig, subsidyAmount, subsidyRate := parseJDCartItemPrice(item.Text)
-	if price <= 0 {
-		return nil, fmt.Errorf("jd cart: 商品行未解析到价格")
-	}
-	title := cleanJdTitle(strings.TrimSpace(item.Title))
-	stock := "in_stock"
-	if strings.Contains(item.Text, "无货") || strings.Contains(item.Text, "失效") || strings.Contains(item.Text, "下架") {
-		stock = "out_of_stock"
-	}
+	fmt.Fprintf(os.Stderr, "[jd cart] 完整拉取完成 items=%d\n", len(items))
+	return items, nil
+}
 
-	result := &PriceResult{
-		CurrentPrice:  round2(price),
-		OriginalPrice: round2(orig),
-		BasePrice:     round2(firstPositive(orig, price)),
-		SubsidyAmount: round2(subsidyAmount),
-		SubsidyRate:   subsidyRate,
-		PriceSource:   "jd_cart",
-		Title:         title,
-		StockStatus:   stock,
-		ProductURL:    fmt.Sprintf(jdDesktopURL, skuID),
-		FetchedAt:     time.Now(),
+// cartItemTitleFromText 在缺少链接 title 时，从商品行文本中截取标题。
+func cartItemTitleFromText(text string) string {
+	text = strings.TrimSpace(text)
+	for _, marker := range []string{"7天价保", "获取AI搭配", "商品", "服务", "¥", "￥"} {
+		if i := strings.Index(text, marker); i > 0 {
+			text = text[:i]
+			break
+		}
 	}
-	fmt.Fprintf(os.Stderr, "[jd cart] sku=%s price=%v orig=%v title=%q stock=%s\n",
-		skuID, result.CurrentPrice, result.OriginalPrice, result.Title, result.StockStatus)
-	return result, nil
+	return cleanJdTitle(strings.TrimSpace(text))
+}
+
+func cartStockStatus(text string) string {
+	for _, kw := range []string{"商品已下架", "暂不支持购买", "无货", "失效", "已下架"} {
+		if strings.Contains(text, kw) {
+			return "out_of_stock"
+		}
+	}
+	return "in_stock"
 }
 
 func setBrowserCookies(ctx context.Context, cookies []*provider.Cookie) {
@@ -211,11 +268,28 @@ func parseJDCartItemPrice(text string) (price, orig, subsidyAmount, subsidyRate 
 		return 0, 0, 0, 0
 	}
 
-	price = firstLabeledCartPrice(text, "到手价", "实付", "券后", "PLUS到手价")
+	price = firstLabeledCartPrice(text,
+		"套装到手价", "学生到手价", "新人专享到手价", "PLUS到手价",
+		"政府补贴价", "补贴到手价", "补贴价", "到手价", "实付", "券后")
 	explicitPrice := price > 0
 	orig = firstLabeledCartPrice(text, "京东价", "划线价", "原价")
 	if price <= 0 {
 		price = prices[0].Value
+	}
+	if orig <= 0 {
+		// 购物车常在到手价后面紧跟划线价，但没有“京东价”标签。
+		for i, p := range prices {
+			if p.Value != price {
+				continue
+			}
+			if i+1 < len(prices) {
+				next := prices[i+1].Value
+				if next > price && next <= price*3 {
+					orig = next
+				}
+			}
+			break
+		}
 	}
 	if orig > 0 && orig <= price {
 		orig = 0
@@ -248,7 +322,7 @@ func firstLabeledCartPrice(text string, labels ...string) float64 {
 	return 0
 }
 
-var jdCartLabelPriceRe = regexp.MustCompile(`([¥￥]\s*\d+(?:,\d{3})*(?:\.\d{1,2})?)\s*(到手价|实付|券后|PLUS到手价|京东价|划线价|原价)|(到手价|实付|券后|PLUS到手价|京东价|划线价|原价)\s*([¥￥]\s*\d+(?:,\d{3})*(?:\.\d{1,2})?)`)
+var jdCartLabelPriceRe = regexp.MustCompile(`([¥￥]\s*\d+(?:,\d{3})*(?:\.\d{1,2})?)\s*(套装到手价|学生到手价|新人专享到手价|PLUS到手价|政府补贴价|补贴到手价|补贴价|到手价|实付|券后|京东价|划线价|原价)|(套装到手价|学生到手价|新人专享到手价|PLUS到手价|政府补贴价|补贴到手价|补贴价|到手价|实付|券后|京东价|划线价|原价)\s*([¥￥]\s*\d+(?:,\d{3})*(?:\.\d{1,2})?)`)
 
 // extractLabeledCartPrices 解析“¥5.21 到手价”“到手价 ¥5.21”两种顺序，
 // 避免把相邻的“京东价”误配到“到手价”前面的数字。

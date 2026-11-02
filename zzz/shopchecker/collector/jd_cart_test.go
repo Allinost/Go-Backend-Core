@@ -38,6 +38,18 @@ func TestParseJDCartItemPrice(t *testing.T) {
 			wantOrig:   2127.00,
 			wantAmount: 321.74,
 		},
+		{
+			name:      "bundle price label and unlabeled original",
+			text:      "套装【主板cpu套装】华硕 B550M 重炮手 ¥2019.12套装到手价 ¥2128 已享满200减10等优惠108.88 删除",
+			wantPrice: 2019.12,
+			wantOrig:  2128,
+		},
+		{
+			name:      "subsidy price label",
+			text:      "美商海盗船 32GB ¥795.26补贴价 ¥799 已享0.01元等优惠3.48 删除",
+			wantPrice: 795.26,
+			wantOrig:  799,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -52,6 +64,26 @@ func TestParseJDCartItemPrice(t *testing.T) {
 				t.Errorf("amount = %v, want %v", amount, tc.wantAmount)
 			}
 		})
+	}
+}
+
+func TestCartStockStatus(t *testing.T) {
+	cases := map[string]string{
+		"¥5.42到手价 ¥7.9 删除": "in_stock",
+		"商品已下架 暂不支持购买 删除":  "out_of_stock",
+		"¥10 到手价 无货 删除":    "out_of_stock",
+	}
+	for text, want := range cases {
+		if got := cartStockStatus(text); got != want {
+			t.Errorf("cartStockStatus(%q)=%q want %q", text, got, want)
+		}
+	}
+}
+
+func TestCartItemTitleFromText(t *testing.T) {
+	text := "七鲜 香草酸奶100g*3 7天价保 获取AI搭配 ¥5.42到手价 ¥7.9 删除"
+	if got := cartItemTitleFromText(text); got != "七鲜 香草酸奶100g*3" {
+		t.Errorf("cartItemTitleFromText=%q", got)
 	}
 }
 

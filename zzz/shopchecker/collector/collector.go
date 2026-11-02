@@ -18,6 +18,8 @@ type PriceResult struct {
 	Title         string    // 商品标题
 	StockStatus   string    // 库存状态：in_stock / out_of_stock / unknown
 	ProductURL    string    // 采集到的规范商品页地址（用于回写商品 URL，避免后续跳转）
+	CartStatus    string    // 购物车状态：hit=命中 / not_in_cart=不在购物车 / unavailable=拉取失败
+	CartNote      string    // 购物车备注（例如“购物车列表无此商品，已回退商品页”）
 	RawData       any       // 采集原始数据（用于排查，写入 price_records.raw_data）
 	FetchedAt     time.Time // 抓取时间
 }
