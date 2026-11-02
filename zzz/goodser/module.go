@@ -238,6 +238,7 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 
 	// 受控维度、系列视图与组合包
 	inv.GET("/series", read, m.h.ListSeriesSummaryREST)
+	inv.GET("/stats", read, m.h.GetInventoryStatsREST)
 	inv.GET("/combos", read, m.h.ListCombosREST)
 	inv.POST("/combos", write, m.h.CreateComboREST)
 	r.GET("/combos/:cid", read, m.h.GetComboREST)

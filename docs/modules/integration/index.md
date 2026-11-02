@@ -70,6 +70,7 @@ Goodser 模块初始化时向动作网关注册以下动作：
 | `goodser.bundle.delete` | `owner:write` | 删除捆模板 |
 | `goodser.bundle.preview` | `owner:read` | 校验捆选择并计算价格 |
 | `goodser.dictionary.list` | `owner:read` | 受控维度字典 |
+| `goodser.stats.summary` | `owner:read` | 店主统计总览：库存、订单、退货、系列分布与趋势 |
 | `goodser.customer.stock_query` | `customer:read` | 客户只读库存查询，含组合包与捆 |
 | `goodser.customer.order_request` | `customer:order_request` | 客户提交订单请求，支持商品、组合包或捆 |
 

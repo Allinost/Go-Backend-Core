@@ -79,13 +79,14 @@ func TestRegisterActions(t *testing.T) {
 	}
 
 	defs := registry.List()
-	if len(defs) != 19 {
+	if len(defs) != 20 {
 		t.Fatalf("动作数量 = %d，期望 19", len(defs))
 	}
 
 	required := map[string]string{
 		"goodser.stock.query":            authz.ScopeOwnerRead,
 		"goodser.order.create":           authz.ScopeOwnerWrite,
+		"goodser.stats.summary":          authz.ScopeOwnerRead,
 		"goodser.customer.stock_query":   authz.ScopeCustomerRead,
 		"goodser.customer.order_request": authz.ScopeCustomerOrderReq,
 	}

@@ -88,7 +88,7 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 | POST | `/api/v1/goodser/inventories` | 创建 |
 | PUT | `/api/v1/goodser/inventories/:id` | 更新 |
 | DELETE | `/api/v1/goodser/inventories/:id` | 删除 |
-| GET | `/api/v1/goodser/inventories/:id/stats` | 统计信息 |
+| GET | `/api/v1/goodser/inventories/:id/stats` | 店主统计总览，`days` 1-365（默认 30） |
 
 ### 3.2 商品 Products
 
@@ -220,7 +220,23 @@ AND 校验。更新捆时 `main_filter` 省略或传 `null` 表示不修改，�
 `preview` 接口使用同样的校验逻辑，但只返回价格与明细，不创建单据、不改变库存，
 适合 Web 控制台与 LangBot 在下单前确认。
 
-### 3.9 客户服务 Customer
+### 3.9 统计 Stats
+
+| 方法 | 路径 | 作用域 | 说明 |
+|------|------|--------|------|
+| GET | `/api/v1/goodser/inventories/:id/stats?days=30` | `owner:read` | 库存数量与价值、订单/退货状态数、按天趋势、系列分布、热销商品 |
+| Action | `goodser.stats.summary` | `owner:read` | 集成动作版统计，参数 `inventory_id`、`days` |
+
+统计口径：
+
+- `stock.available` = `SUM(quantity)`，`stock.reserved` = `SUM(reserved_quantity)`，
+  `stock.total` = 两者之和；`stock_value` 优先使用 `expected_price`，为 0 时回退 `market_price`。
+- `orders` 与 `returns` 按单据创建时间落在区间内计数。
+- `trend` 按天补齐缺失日期，出库量取确认出库流水，退货量取确认且回库流水。
+- `series` 按商品系列聚合，未设置系列归入“未设置”。
+- `top_products` 按确认出库流水倒序，最多 10 条。
+
+### 3.10 客户服务 Customer
 
 | 方法 | 路径 | 作用域 | 说明 |
 |------|------|--------|------|

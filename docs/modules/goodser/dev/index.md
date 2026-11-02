@@ -25,6 +25,13 @@
 - [x] Phase 1: 核心基础设施（数据库连接池、缓存、日志、配置等）
 - [ ] Phase 2: 社交登录（可选依赖，Goodser 白名单模式可独立运行）
 
+## P1.5 交付状态（2026-11）
+
+- 退货单：独立单据、多商品多选、商品级回库开关、仅退款/退货退款/运损/其他原因，确认与取消接口已完成；Web 与小程序均已接入。
+- 统计：`GET /api/v1/zzz-goodser/inventories/:id/stats?days=30` 返回库存数量与价值、订单/退货状态数、按天趋势、系列分布、热销商品；集成动作 `goodser.stats.summary` 同步开放。
+- 小程序：新增 `pages/returns/index`、`pages/returns/create`、`pages/stats/index`，出库单详情可直接申请退货并查看退货记录。
+- Web：Goodser 模块新增「统计」Tab。
+
 ## 快速开始
 
 ```bash

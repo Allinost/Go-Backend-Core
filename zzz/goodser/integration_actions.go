@@ -254,6 +254,24 @@ func RegisterActions(registry *action.Registry, svc *Service) error {
 			},
 		},
 		{
+			Name:        "goodser.stats.summary",
+			Description: "店主统计总览：库存、订单、退货、系列分布与趋势",
+			Scopes:      []string{authz.ScopeOwnerRead},
+			Handler: func(ctx context.Context, req action.Request) (any, error) {
+				var params struct {
+					InventoryID string `json:"inventory_id"`
+					Days        int    `json:"days"`
+				}
+				if err := decodeParams(req, &params); err != nil {
+					return nil, err
+				}
+				if strings.TrimSpace(params.InventoryID) == "" {
+					return nil, NewGoodserError(ErrInventoryNotFound)
+				}
+				return svc.GetStatsOverview(ctx, params.InventoryID, params.Days)
+			},
+		},
+		{
 			Name:        "goodser.customer.stock_query",
 			Description: "客户库存查询，只读",
 			Scopes:      []string{authz.ScopeCustomerRead},
