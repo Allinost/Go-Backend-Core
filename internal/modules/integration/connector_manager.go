@@ -268,12 +268,16 @@ func (m *ConnectorManager) build(record connectorRecord) (connector.Connector, e
 
 func (m *ConnectorManager) buildWebhook(id string, cfg ConnectorConfig) (connector.Connector, error) {
 	secret := cfg.Secret
-	if secret != "" && m.cipher != nil {
-		plain, err := m.cipher.Decrypt(secret)
-		if err != nil {
-			return nil, err
+	if secret != "" {
+		if m.cipher != nil {
+			plain, err := m.cipher.Decrypt(secret)
+			if err != nil {
+				return nil, err
+			}
+			secret = plain
+		} else if strings.HasPrefix(secret, "v1:") {
+			return nil, fmt.Errorf("%w: 连接器 secret 已加密但未配置 crypto.master_key_hex", connector.ErrInvalidConfig)
 		}
-		secret = plain
 	}
 	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
 	return connector.NewWebhook(connector.WebhookConfig{

@@ -94,6 +94,14 @@ func TestBuildConfigValidation(t *testing.T) {
 	}
 }
 
+func TestBuildWebhookRejectsEncryptedSecretWithoutKey(t *testing.T) {
+	m := NewConnectorManager(nil, nil, connector.NewRegistry())
+	_, err := m.buildWebhook("c1", ConnectorConfig{URL: "https://example.com/hook", Secret: "v1:abc"})
+	if !errors.Is(err, connector.ErrInvalidConfig) {
+		t.Fatalf("缺少密钥时不应使用密文签名，实际 %v", err)
+	}
+}
+
 func TestToConnectorDTOHidesSecret(t *testing.T) {
 	dto := toConnectorDTO(connectorRecord{ID: "c1", Name: "n8n", Type: "webhook"}, ConnectorConfig{
 		URL: "https://example.com/hook", Secret: "v1:xxx",
