@@ -79,7 +79,7 @@ func (c *TaobaoCollector) FetchPrice(ctx context.Context, rawURL string) (*Price
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 180*time.Second)
 	defer cancel()
 
 	itemID := c.resolveItemID(ctx, rawURL)
@@ -92,7 +92,35 @@ func (c *TaobaoCollector) FetchPrice(ctx context.Context, rawURL string) (*Price
 		canonicalURL += "&skuId=" + url.QueryEscape(skuID)
 	}
 
-	sessionCookie := sessionCookieHeader(c.getSessionCookies(ctx))
+	sessionCookies := c.getSessionCookies(ctx)
+	sessionCookie := sessionCookieHeader(sessionCookies)
+
+	cartMode := strings.ToLower(strings.TrimSpace(os.Getenv("TAOBAO_CART_MODE")))
+	if cartMode == "" {
+		// 默认购物车优先：一次完整拉取购物车，淘宝/天猫商品复用同一份快照。
+		cartMode = "only"
+	}
+	cartStatus, cartNote := "", ""
+	cartTried := false
+
+	if sessionCookie != "" && cartMode == "only" {
+		cartTried = true
+		byKey, byItem, cartErr := c.getTaobaoCartSnapshot(ctx, false)
+		switch {
+		case cartErr != nil:
+			cartStatus = "unavailable"
+			cartNote = fmt.Sprintf("购物车拉取失败，已回退商品页: %v", cartErr)
+			fmt.Fprintf(os.Stderr, "[taobao cart] 购物车拉取失败，回退商品页: %v\n", cartErr)
+		default:
+			if item := matchTaobaoCartItem(byKey, byItem, itemID, skuID); item != nil {
+				item.FetchedAt = time.Now()
+				return item, nil
+			}
+			cartStatus = "not_in_cart"
+			cartNote = "购物车列表无此商品，已回退商品页"
+			fmt.Fprintf(os.Stderr, "[taobao cart] item=%s sku=%s 不在购物车，回退商品页\n", itemID, skuID)
+		}
+	}
 
 	// HTTP 阶段：独立 15s 预算，不消耗浏览器阶段的预算
 	httpCtx, httpCancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -107,6 +135,16 @@ func (c *TaobaoCollector) FetchPrice(ctx context.Context, rawURL string) (*Price
 	// 浏览器阶段：H5 详情页优先，桌面页兜底
 	result, err := c.fetchPriceBrowser(ctx, itemID, skuID)
 	if err != nil {
+		// fallback 模式：商品页失败后才拉购物车快照。
+		if cartMode == "fallback" && !cartTried && sessionCookie != "" {
+			cartTried = true
+			if byKey, byItem, cartErr := c.getTaobaoCartSnapshot(ctx, false); cartErr == nil {
+				if item := matchTaobaoCartItem(byKey, byItem, itemID, skuID); item != nil {
+					item.FetchedAt = time.Now()
+					return item, nil
+				}
+			}
+		}
 		browserLoginErr := strings.Contains(err.Error(), "需要登录") || strings.Contains(err.Error(), "登录/风险")
 		// 已登录会话被判定失效时不能回退到匿名价格，否则会掩盖登录过期并错误续期会话。
 		if httpResult != nil && httpResult.CurrentPrice > 0 && !(sessionCookie != "" && browserLoginErr) &&
@@ -118,6 +156,28 @@ func (c *TaobaoCollector) FetchPrice(ctx context.Context, rawURL string) (*Price
 	}
 	if result.ProductURL == "" {
 		result.ProductURL = canonicalURL
+	}
+	if cartStatus != "" {
+		result.CartStatus = cartStatus
+		result.CartNote = cartNote
+	}
+	// 购物车没有该商品：详情页价格拿到后补进购物车，下一轮即可直接命中。
+	if cartStatus == "not_in_cart" {
+		addSku := c.resolveTaobaoSkuID(ctx, itemID, skuID, rawURL, sessionCookie)
+		switch {
+		case addSku == "":
+			result.CartNote = cartNote + "；未解析到具体 SKU，未自动加购"
+			fmt.Fprintf(os.Stderr, "[taobao cart] item=%s 未解析到具体 SKU，跳过加购\n", itemID)
+		default:
+			if addErr := c.addTaobaoCartItem(ctx, itemID, addSku); addErr != nil {
+				result.CartNote = cartNote + "；加购失败: " + addErr.Error()
+				fmt.Fprintf(os.Stderr, "[taobao cart] item=%s sku=%s 加购失败: %v\n", itemID, addSku, addErr)
+			} else {
+				result.CartNote = cartNote + "；已加入购物车"
+				fmt.Fprintf(os.Stderr, "[taobao cart] item=%s sku=%s 已加入购物车\n", itemID, addSku)
+				cacheTaobaoCartItem(itemID, addSku, result)
+			}
+		}
 	}
 	return result, nil
 }

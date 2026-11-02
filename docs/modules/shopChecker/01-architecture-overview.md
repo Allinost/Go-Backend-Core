@@ -171,7 +171,21 @@ type PriceResult struct {
 
 ---
 
-## 9. 浏览器 Profile 持久化（2026-10）
+## 9. 淘宝/天猫购物车价格路径（2026-11）
+
+- 购物车页 `https://cart.taobao.com/cart.htm` 是 React + mtop 接口，DOM 文本受 GBK/UTF-8 混淆影响，不能依赖 DOM 文案。
+- 采集器通过页面内 `window.lib.mtop.request` 调用 `mtop.trade.query.bag`（v5.0）获取结构化购物车数据：
+  - `fields.itemId`、`fields.sku.skuId`、`fields.quantity`、`fields.pay.total`（单位：分）、`fields.pay.origin`、`fields.valid`、`fields.sku.skuInvalid`。
+- 首屏接口一次最多返回 50 条；其余商品由购物车前端滚动分页加载。采集器在页面内拦截 `query.bag` 响应，并滚动购物车页面收集后续分页，按 `itemId+skuId` 去重后形成完整快照。
+- 快照缓存 2 分钟，淘宝与天猫共用同一份；失败结果缓存 30 秒。
+- 命中时返回 `PriceSource=taobao_cart`、`CartStatus=hit`；商品 URL 带 `skuId` 时精确匹配，未带 `skuId` 时按 `itemId` 匹配，同商品多规格优先有货、再取最低价规格并写入 `CartNote`。
+- 未命中时记录“购物车列表无此商品，已回退商品页”，再走商品详情页；详情页成功后尝试用 `mtop.trade.addBag`（v3.1）补进购物车。
+- 加购需要具体 `skuId`：URL 已带则直接使用；否则通过商品页 `skuBase.skus` 与 `sku_properties` 匹配，只有唯一结果时才加购，避免加错规格。
+- 模式通过 `TAOBAO_CART_MODE` 控制：`only`（默认）、`fallback`、`off`。
+
+---
+
+## 10. 浏览器 Profile 持久化（2026-10）
 
 此前每次采集都用 `os.MkdirTemp` 新建 Chrome Profile，平台会把每次采集当成一台新设备，
 同一账号短时间内在多台“新设备”上访问，容易触发风控。
