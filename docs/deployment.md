@@ -114,6 +114,29 @@ docker compose up -d app
 
 > 说明：`docker-compose.yml` 同时保留 `image` 与 `build`。`pull` 使用镜像，`build` 使用本地源码，二者按命令选择。
 
+### 前端镜像（GHCR）
+
+前端仓库 `Go-Frontend-Core` 同样提供手动 GHCR 流水线：
+
+```
+ghcr.io/allinost/go-frontend-core:<tag>
+ghcr.io/allinost/go-frontend-core:latest
+```
+
+服务器拉取：
+
+```bash
+docker pull ghcr.io/allinost/go-frontend-core:latest
+docker run -d --name go-frontend-core \
+  --network 1panel-network \
+  -p 8080:80 \
+  ghcr.io/allinost/go-frontend-core:latest
+```
+
+- 容器内 nginx 将 `/api/` 反代到 `http://gobackendcore:29090`，需与后端同处 `1panel-network`。
+- 若后端服务名不是 `gobackendcore`，需修改 `deploy/nginx.conf` 后重新构建镜像。
+- 前端 API 地址也可在页面「设置 → 前端设置」中改为公网后端地址。
+
 ### 应用设置持久化
 
 - 设置文件：`data/settings.json`（0600，原子写入，可由 `APP_SETTINGS_FILE` 覆盖）
