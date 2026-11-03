@@ -851,6 +851,11 @@ func (h *Handler) UploadImage(c *gin.Context) {
 		return
 	}
 
+	// 对象存储桶为公开读：返回不带签名的地址，避免 URL 7 天后过期。
+	if idx := strings.IndexByte(signedURL, '?'); idx >= 0 {
+		signedURL = signedURL[:idx]
+	}
+
 	response.Success(c, gin.H{"url": signedURL})
 }
 

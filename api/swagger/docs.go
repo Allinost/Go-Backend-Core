@@ -5870,6 +5870,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/integration/mcp": {
+            "get": {
+                "description": "供 OpenClaw / LangBot 通过 MCP 调用集成动作，支持 initialize / tools/list / tools/call",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "integration"
+                ],
+                "summary": "MCP 工具端点",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "供 OpenClaw / LangBot 通过 MCP 调用集成动作，支持 initialize / tools/list / tools/call",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "integration"
+                ],
+                "summary": "MCP 工具端点",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "供 OpenClaw / LangBot 通过 MCP 调用集成动作，支持 initialize / tools/list / tools/call",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "integration"
+                ],
+                "summary": "MCP 工具端点",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/integration/ping": {
             "get": {
                 "tags": [
@@ -12651,7 +12716,7 @@ const docTemplate = `{
         },
         "/zzz-goodser/inventories/{id}/stats": {
             "get": {
-                "description": "汇总可用/锁定库存、库存价值、订单与退货数量、按系列分布及最近 N 天出库/退货趋势",
+                "description": "汇总可用/锁定库存、库存价值、订单与退货数量、按系列分布及区间内出库/退货趋势；支持 days 或 start_date/end_date",
                 "produces": [
                     "application/json"
                 ],
@@ -12671,6 +12736,18 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "统计天数，默认 30，范围 1-365",
                         "name": "days",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "自定义开始日期 YYYY-MM-DD，需与 end_date 同时提供",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "自定义结束日期 YYYY-MM-DD，含首尾，最长 366 天",
+                        "name": "end_date",
                         "in": "query"
                     }
                 ],
@@ -21342,6 +21419,9 @@ const docTemplate = `{
                 "code": {
                     "type": "string"
                 },
+                "cost_price": {
+                    "type": "number"
+                },
                 "expected_price": {
                     "type": "number"
                 },
@@ -21811,6 +21891,9 @@ const docTemplate = `{
                 "code": {
                     "type": "string"
                 },
+                "cost_price": {
+                    "type": "number"
+                },
                 "expected_price": {
                     "type": "number"
                 },
@@ -21958,6 +22041,9 @@ const docTemplate = `{
                 },
                 "code": {
                     "type": "string"
+                },
+                "cost_price": {
+                    "type": "number"
                 },
                 "expected_price": {
                     "type": "number"
@@ -22144,6 +22230,9 @@ const docTemplate = `{
                 "inventory_id": {
                     "type": "string"
                 },
+                "keyword": {
+                    "type": "string"
+                },
                 "page": {
                     "type": "integer"
                 },
@@ -22217,6 +22306,9 @@ const docTemplate = `{
                 },
                 "code": {
                     "type": "string"
+                },
+                "cost_price": {
+                    "type": "number"
                 },
                 "created_at": {
                     "type": "string"
@@ -22455,6 +22547,9 @@ const docTemplate = `{
                 "days": {
                     "type": "integer"
                 },
+                "end_date": {
+                    "type": "string"
+                },
                 "generated_at": {
                     "type": "string"
                 },
@@ -22467,11 +22562,17 @@ const docTemplate = `{
                 "orders": {
                     "$ref": "#/definitions/zzz_goodser.StatsOrderCounts"
                 },
+                "profit": {
+                    "$ref": "#/definitions/zzz_goodser.StatsProfit"
+                },
                 "series": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/zzz_goodser.StatsSeriesRow"
                     }
+                },
+                "start_date": {
+                    "type": "string"
                 },
                 "stock": {
                     "$ref": "#/definitions/zzz_goodser.StatsStock"
@@ -22487,6 +22588,64 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/zzz_goodser.StatsTrendPoint"
                     }
+                }
+            }
+        },
+        "zzz_goodser.StatsProfit": {
+            "type": "object",
+            "properties": {
+                "cost": {
+                    "type": "number"
+                },
+                "margin_rate": {
+                    "type": "number"
+                },
+                "profit": {
+                    "type": "number"
+                },
+                "revenue": {
+                    "type": "number"
+                },
+                "top_by_margin": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.StatsProfitProduct"
+                    }
+                },
+                "top_by_profit": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.StatsProfitProduct"
+                    }
+                }
+            }
+        },
+        "zzz_goodser.StatsProfitProduct": {
+            "type": "object",
+            "properties": {
+                "cost": {
+                    "type": "number"
+                },
+                "margin_rate": {
+                    "type": "number"
+                },
+                "product_code": {
+                    "type": "string"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "profit": {
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "revenue": {
+                    "type": "number"
                 }
             }
         },
@@ -22819,6 +22978,9 @@ const docTemplate = `{
                 },
                 "code": {
                     "type": "string"
+                },
+                "cost_price": {
+                    "type": "number"
                 },
                 "expected_price": {
                     "type": "number"

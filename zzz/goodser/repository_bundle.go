@@ -147,6 +147,7 @@ func (r *Repository) LoadBundleSubProducts(ctx context.Context, bundleID, keywor
 			return nil, err
 		}
 		item.TotalQuantity = item.Available + item.ReservedQty
+		item.ImageURL = normalizeImageURL(item.ImageURL)
 		items = append(items, item)
 	}
 	return items, rows.Err()
@@ -271,6 +272,7 @@ func scanBundleMainProducts(rows *sql.Rows) ([]BundleMainProduct, error) {
 			return nil, err
 		}
 		item.TotalQuantity = item.Available + item.ReservedQty
+		item.ImageURL = normalizeImageURL(item.ImageURL)
 		items = append(items, item)
 	}
 	return items, rows.Err()

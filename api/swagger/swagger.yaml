@@ -2676,6 +2676,8 @@ definitions:
         type: array
       code:
         type: string
+      cost_price:
+        type: number
       expected_price:
         type: number
       image_url:
@@ -2984,6 +2986,8 @@ definitions:
         type: array
       code:
         type: string
+      cost_price:
+        type: number
       expected_price:
         type: number
       image_url:
@@ -3081,6 +3085,8 @@ definitions:
         type: array
       code:
         type: string
+      cost_price:
+        type: number
       expected_price:
         type: number
       image_url:
@@ -3203,6 +3209,8 @@ definitions:
     properties:
       inventory_id:
         type: string
+      keyword:
+        type: string
       page:
         type: integer
       page_size:
@@ -3251,6 +3259,8 @@ definitions:
         type: array
       code:
         type: string
+      cost_price:
+        type: number
       created_at:
         type: string
       expected_price:
@@ -3407,6 +3417,8 @@ definitions:
     properties:
       days:
         type: integer
+      end_date:
+        type: string
       generated_at:
         type: string
       inventory_id:
@@ -3415,10 +3427,14 @@ definitions:
         type: string
       orders:
         $ref: '#/definitions/zzz_goodser.StatsOrderCounts'
+      profit:
+        $ref: '#/definitions/zzz_goodser.StatsProfit'
       series:
         items:
           $ref: '#/definitions/zzz_goodser.StatsSeriesRow'
         type: array
+      start_date:
+        type: string
       stock:
         $ref: '#/definitions/zzz_goodser.StatsStock'
       top_products:
@@ -3429,6 +3445,44 @@ definitions:
         items:
           $ref: '#/definitions/zzz_goodser.StatsTrendPoint'
         type: array
+    type: object
+  zzz_goodser.StatsProfit:
+    properties:
+      cost:
+        type: number
+      margin_rate:
+        type: number
+      profit:
+        type: number
+      revenue:
+        type: number
+      top_by_margin:
+        items:
+          $ref: '#/definitions/zzz_goodser.StatsProfitProduct'
+        type: array
+      top_by_profit:
+        items:
+          $ref: '#/definitions/zzz_goodser.StatsProfitProduct'
+        type: array
+    type: object
+  zzz_goodser.StatsProfitProduct:
+    properties:
+      cost:
+        type: number
+      margin_rate:
+        type: number
+      product_code:
+        type: string
+      product_id:
+        type: string
+      product_name:
+        type: string
+      profit:
+        type: number
+      quantity:
+        type: integer
+      revenue:
+        type: number
     type: object
   zzz_goodser.StatsSeriesRow:
     properties:
@@ -3646,6 +3700,8 @@ definitions:
         type: array
       code:
         type: string
+      cost_price:
+        type: number
       expected_price:
         type: number
       id:
@@ -9279,6 +9335,52 @@ paths:
             $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
       tags:
       - integration
+  /integration/mcp:
+    delete:
+      consumes:
+      - application/json
+      description: 供 OpenClaw / LangBot 通过 MCP 调用集成动作，支持 initialize / tools/list /
+        tools/call
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      summary: MCP 工具端点
+      tags:
+      - integration
+    get:
+      consumes:
+      - application/json
+      description: 供 OpenClaw / LangBot 通过 MCP 调用集成动作，支持 initialize / tools/list /
+        tools/call
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      summary: MCP 工具端点
+      tags:
+      - integration
+    post:
+      consumes:
+      - application/json
+      description: 供 OpenClaw / LangBot 通过 MCP 调用集成动作，支持 initialize / tools/list /
+        tools/call
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      summary: MCP 工具端点
+      tags:
+      - integration
   /integration/ping:
     get:
       responses:
@@ -13416,7 +13518,7 @@ paths:
       - zzz-goodser
   /zzz-goodser/inventories/{id}/stats:
     get:
-      description: 汇总可用/锁定库存、库存价值、订单与退货数量、按系列分布及最近 N 天出库/退货趋势
+      description: 汇总可用/锁定库存、库存价值、订单与退货数量、按系列分布及区间内出库/退货趋势；支持 days 或 start_date/end_date
       parameters:
       - description: 库存目录 ID
         in: path
@@ -13427,6 +13529,14 @@ paths:
         in: query
         name: days
         type: integer
+      - description: 自定义开始日期 YYYY-MM-DD，需与 end_date 同时提供
+        in: query
+        name: start_date
+        type: string
+      - description: 自定义结束日期 YYYY-MM-DD，含首尾，最长 366 天
+        in: query
+        name: end_date
+        type: string
       produces:
       - application/json
       responses:

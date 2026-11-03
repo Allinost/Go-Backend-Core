@@ -319,6 +319,7 @@ func scanProductRow(scanner interface {
 	if tags.Valid {
 		p.Tags = json.RawMessage(tags.String)
 	}
+	p.ImageURL = normalizeImageURL(p.ImageURL)
 	p.recalcTotal()
 	return nil
 }

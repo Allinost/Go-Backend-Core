@@ -7,6 +7,8 @@ type StatsOverview struct {
 	InventoryID   string            `json:"inventory_id"`
 	InventoryName string            `json:"inventory_name"`
 	Days          int               `json:"days"`
+	StartDate     string            `json:"start_date"`
+	EndDate       string            `json:"end_date"`
 	GeneratedAt   time.Time         `json:"generated_at"`
 	Stock         StatsStock        `json:"stock"`
 	Orders        StatsOrderCounts  `json:"orders"`

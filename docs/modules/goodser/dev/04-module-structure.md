@@ -32,6 +32,11 @@ zzz/goodser/
     └── whitelist.go
 ```
 
+实际实现按职责拆分为 `handler_*.go`、`service_*.go`、`repository_*.go`、`model_*.go`
+（如 `handler_stats.go`、`service_stats.go`、`repository_stats.go`、`model_stats.go`）；
+`image_url.go` 负责把对象存储的历史预签名图片地址归一为公开读地址，
+保证商品缩略图在签名过期后仍可访问。
+
 ---
 
 ## 2. module.go — 模块入口

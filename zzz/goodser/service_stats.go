@@ -8,13 +8,34 @@ import (
 
 // GetStatsOverview 汇总目录库存、订单、趋势与系列分布。
 func (s *Service) GetStatsOverview(ctx context.Context, inventoryID string, days int) (*StatsOverview, error) {
+	days = NormalizeStatsDays(days)
+	now := time.Now()
+	end := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	start := end.AddDate(0, 0, -(days - 1))
+	return s.getStatsOverview(ctx, inventoryID, start, end)
+}
+
+// GetStatsOverviewRange 按自定义起止日期汇总（含首尾两天，最多 366 天）。
+func (s *Service) GetStatsOverviewRange(ctx context.Context, inventoryID string, start, end time.Time) (*StatsOverview, error) {
+	if end.Before(start) {
+		return nil, NewGoodserError(ErrInvalidDimension, "结束日期不能早于开始日期")
+	}
+	if end.Sub(start) > 366*24*time.Hour {
+		return nil, NewGoodserError(ErrInvalidDimension, "统计区间不能超过 366 天")
+	}
+	return s.getStatsOverview(ctx, inventoryID, start, end)
+}
+
+func (s *Service) getStatsOverview(ctx context.Context, inventoryID string, start, end time.Time) (*StatsOverview, error) {
 	inventory, err := s.repo.GetInventory(ctx, inventoryID)
 	if err != nil {
 		return nil, NewGoodserError(ErrInventoryNotFound)
 	}
-	days = NormalizeStatsDays(days)
 	now := time.Now()
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -(days - 1))
+	days := int(end.Sub(start).Hours()/24) + 1
+	if days < 1 {
+		days = 1
+	}
 
 	stock, err := s.repo.StatsStock(ctx, inventoryID)
 	if err != nil {
@@ -55,6 +76,8 @@ func (s *Service) GetStatsOverview(ctx context.Context, inventoryID string, days
 		InventoryID:   inventory.ID,
 		InventoryName: inventory.Name,
 		Days:          days,
+		StartDate:     start.Format("2006-01-02"),
+		EndDate:       end.Format("2006-01-02"),
 		GeneratedAt:   now,
 		Stock:         *stock,
 		Orders:        *orders,

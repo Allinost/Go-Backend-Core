@@ -88,7 +88,7 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 | POST | `/api/v1/zzz-goodser/inventories` | 创建 |
 | PUT | `/api/v1/zzz-goodser/inventories/:id` | 更新 |
 | DELETE | `/api/v1/zzz-goodser/inventories/:id` | 删除 |
-| GET | `/api/v1/zzz-goodser/inventories/:id/stats` | 店主统计总览，`days` 1-365（默认 30） |
+| GET | `/api/v1/zzz-goodser/inventories/:id/stats` | 店主统计总览，支持 `days` 1-365（默认 30）或 `start_date`/`end_date` 自定义区间 |
 
 ### 3.2 商品 Products
 
@@ -142,7 +142,10 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 
 ### 3.6 图片 Images
 
-当前仅提供 Legacy 上传端点 `POST /api/v1/zzz-goodser/legacy/uploadImage`，REST 版预签名接口尚未实现。
+仅提供 Legacy 上传端点 `POST /api/v1/zzz-goodser/legacy/uploadImage`（multipart 字段 `image`），
+返回 `{url}`。返回值使用对象存储公开读地址（不带签名查询串），避免预签名 URL 7 天后失效；
+商品读取时会把历史预签名 URL 归一为公开地址。REST 版上传接口尚未实现。
+前端在商品表单上传/预览/移除，列表展示缩略图，详情展示大图。
 
 ### 3.7 设置 Settings
 
@@ -225,6 +228,7 @@ AND 校验。更新捆时 `main_filter` 省略或传 `null` 表示不修改，�
 | 方法 | 路径 | 作用域 | 说明 |
 |------|------|--------|------|
 | GET | `/api/v1/zzz-goodser/inventories/:id/stats?days=30` | `owner:read` | 库存数量与价值、订单/退货状态数、按天趋势、系列分布、热销商品 |
+| GET | `/api/v1/zzz-goodser/inventories/:id/stats?start_date=2026-07-01&end_date=2026-07-31` | `owner:read` | 自定义区间统计（含首尾，最长 366 天）；响应回填 `start_date`/`end_date` |
 | Action | `goodser.stats.summary` | `owner:read` | 集成动作版统计，参数 `inventory_id`、`days` |
 
 统计口径：
