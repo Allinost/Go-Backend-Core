@@ -309,6 +309,23 @@
 - Web 既有 7 个套件与小程序 4 个套件全部回归通过；`vue-tsc`、`vite build`、NKUI `typecheck`/`build` 通过。
 - 截图基线重新生成（页签指示条生效）。
 
+## 15. Web 全量巡检与体验修复（2026-11-03）
+
+已完成：
+
+- **巡检脚本**：`audit-web.js` 覆盖 Goodser 9 个页签、设置、集成与全部弹窗交互（66 条断言）；`audit-web-crawl.js` 覆盖 17 条顶层路由 × 1440/480，采集 console error、请求失败与横向溢出。
+- **响应式外壳**：≤768px 侧边栏改为抽屉（汉堡、遮罩、导航后收起），内容区全宽；内容内边距在移动端收紧。
+- **深色主题**：补齐 `primary-50/100/600/700` 暗色 token，修复侧边栏选中项与选中底色变白的问题。
+- **确认与防误触**：新增 `ConfirmDialog`，删除商品/组合包/捆、确认出库、取消订单/预留、确认退货均二次确认。
+- **列表与表单效率**：订单「加载更多」+ 真实总数；新建订单自动单号；搜索框一键清空；商品搜索在窄屏与按钮同行。
+- **细节**：favicon、主题按钮 `aria-label`、NKUI Input/Textarea label id 唯一化、送入 NKUI 的 overlay-stack（多层弹窗 Esc 只关最上层）。
+
+验证：
+
+- `audit-web.js` 66/66 通过、0 issue；`audit-web-crawl.js` 无横向溢出，Goodser/集成页无控制台错误。
+- 全站唯一发现：测试账号访问 `developmentmanager` 接口返回 403（后端权限，非前端）。
+- Web 10 个套件（含新增 `verify-shell-web.js`）全部回归通过；`vue-tsc`、`vite build`、NKUI `typecheck`/`build` 通过。
+
 验证说明：
 
 - Web 通过 Puppeteer 实际验证：统计 4 张指标卡、30 根趋势柱、点选切换单日明细、CSV 导出按钮、商品批量栏与本页全选/取消、退货 Tab、768px 无横向溢出、无控制台错误。

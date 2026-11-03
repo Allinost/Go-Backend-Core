@@ -30,6 +30,8 @@
 | I7 | 小程序返回时有未保存修改提示 | 通过（`enableAlertBeforeUnload`，提交成功后解除） |
 | I8 | 弹窗打开后焦点进入内容区、Tab 不逃逸、Esc 可关闭 | 通过（NKUI Dialog/Drawer） |
 | I9 | 下拉选择支持点击外部/Esc 收起与键盘选择 | 通过（NKUI Select） |
+| I10 | 破坏性操作（删除商品/组合包/捆、确认出库、取消订单、确认退货）有二次确认 | 通过 |
+| I11 | 多层弹窗叠加时 Esc 只关闭最上层 | 通过（NKUI overlay-stack） |
 
 ### 1.3 文案
 
@@ -51,6 +53,8 @@
 | R4 | ≤480px 商品/系列/库存卡片单列 | 通过 |
 | R5 | 页签在窄屏可横向滚动，不裁切 | 通过 |
 | R6 | 1024px 弹窗保持居中且不超宽 | 通过 |
+| R7 | 移动端侧边栏为抽屉，内容区全宽，导航后自动收起 | 通过（≤768px） |
+| R8 | 深色主题下侧边栏选中项为深色底 | 通过（补 primary-50/100 暗色值） |
 
 ### 1.5 可访问性
 
@@ -59,9 +63,9 @@
 | A1 | 正文对比度满足 WCAG AA（深色主题重点检查） | 通过（深色主题选中态已改用 neutral token） |
 | A2 | 触控目标 ≥ 44×44px | 小程序主要按钮通过；部分 `btn-xs` 偏小 |
 | A3 | 图片有占位/失败回退 | 通过（商品卡、白名单头像） |
-| A4 | 表单 label 与输入控件关联（`label for` / `aria-label`） | 未通过（视觉 label 仅作排版） |
+| A4 | 表单 label 与输入控件关联（`label for` / `aria-label`） | 部分通过（NKUI Input/Textarea 已修复 label id 重复；业务页仍用法外置视觉 label） |
 | A5 | 弹窗 `aria-modal` / 焦点锁定 / Esc 关闭 | 通过（NKUI Dialog/Drawer 已实现） |
-| A6 | 仅图标按钮有可读名称 | 部分通过（弹窗/抽屉关闭按钮已补 `aria-label`，页面内图标按钮待补） |
+| A6 | 仅图标按钮有可读名称 | 通过（主题、弹窗关闭、输入清空等已补 `aria-label`） |
 
 ## 2. Web 页面清单
 
@@ -118,6 +122,7 @@
 | Web `verify-combo-guard-web.js` | 7 | 全通过（组合包可售为 0 拦截） |
 
 - 合计 341 条自动化断言，最终执行 0 失败；自动化未发现功能阻断问题。
+- 整站 Web 巡检（`audit-web.js` 66 条 + `audit-web-crawl.js` 17 条路由 × 1440/480）：无页面级横向溢出、无 Goodser/集成页控制台错误；仅 `developmentmanager` 相关接口对测试账号返回 403（后端权限配置，非前端缺陷）。
 - 截图基线：`.local/baselines/`（`web-products-1440/480`、`web-returns-1440`、`web-stats-1440`、`web-integration-1440/480`），清单见同目录 `manifest.json`。
 
 ## 6. 复现命令
@@ -134,6 +139,9 @@ node .local/verify-integration-web.js   # 需先启动 .local/webhook-receiver.j
 node .local/verify-baseline-web.js
 node .local/verify-nkui-a11y.js
 node .local/verify-combo-guard-web.js
+node .local/verify-shell-web.js
+node .local/audit-web.js
+node .local/audit-web-crawl.js
 
 # 小程序（微信开发者工具自动化端口 9420）
 cd .local/mp-auto
@@ -170,3 +178,21 @@ node verify-ui4.js
 - 统一中文标点与单位文案（`·` / `、` / `≥`）。
 - 小程序触控目标审计，`btn-xs` 场景提升到 44px。
 - 建立 CI 任务：提交前跑 Web 响应式 + 关键 Tab 冒烟。
+
+## 9. 本轮 Web 巡检与体验修复（2026-11-03）
+
+巡检范围：Goodser 9 个页签 + 设置 + 集成管理 + 全站 17 条顶层路由（1440 / 480）。
+
+已修复：
+
+- **响应式外壳**：≤768px 侧边栏改为抽屉（汉堡按钮、遮罩、导航后自动收起），内容区恢复全宽；表格/卡片不再被 220px 侧栏挤压。
+- **深色主题**：补 `primary-50/100/600/700` 暗色值，修复侧边栏选中项与多处选中底色的浅色块。
+- **二次确认**：删除商品、删除组合包、删除捆、确认出库、取消订单、取消预留、确认退货统一弹确认框；新增可复用 `ConfirmDialog`。
+- **列表与表单**：出库订单支持「加载更多」并显示真实总数；新建订单自动生成 `OUT-` / `RSV-` 单号；商品/退货/入库搜索支持一键清空。
+- **细节**：新增 favicon；主题切换按钮补 `aria-label`；商品搜索在窄屏与「搜索」按钮同行；多层弹窗 Esc 只关闭最上层（NKUI overlay-stack）。
+
+验证：
+
+- `audit-web.js` 66 条交互断言全通过，0 issue（此前 favicon 404、主题按钮不可定位已消除）。
+- `audit-web-crawl.js` 17 条路由 × 2 个宽度：无横向溢出；除测试账号对 `developmentmanager` 的 403 外无控制台错误。
+- 既有 10 个 Web 套件全部回归通过；截图基线已更新。
