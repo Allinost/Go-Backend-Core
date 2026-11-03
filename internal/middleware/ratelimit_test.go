@@ -52,6 +52,29 @@ func TestRateLimit_Exceeded(t *testing.T) {
 	assert.Equal(t, 429, w.Code)
 }
 
+func TestRateLimitByKey(t *testing.T) {
+	rl := NewRateLimit(1, time.Minute)
+	router := gin.New()
+	router.Use(RateLimiterByKey(rl, func(c *gin.Context) string {
+		return c.GetHeader("X-Test-Key")
+	}))
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(200, gin.H{"ok": true})
+	})
+
+	do := func(key string) int {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/test", nil)
+		req.Header.Set("X-Test-Key", key)
+		router.ServeHTTP(w, req)
+		return w.Code
+	}
+
+	assert.Equal(t, 200, do("api:1"))
+	assert.Equal(t, 429, do("api:1"))
+	assert.Equal(t, 200, do("api:2"))
+}
+
 func TestRateLimit_DifferentIP(t *testing.T) {
 	rl := NewRateLimit(1, time.Minute)
 	router := gin.New()

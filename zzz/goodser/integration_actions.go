@@ -298,6 +298,8 @@ func RegisterActions(registry *action.Registry, svc *Service) error {
 		},
 	}
 
+	applyActionParamsSchemas(definitions)
+
 	for _, def := range definitions {
 		if err := registry.Register(def); err != nil {
 			return fmt.Errorf("注册 %s 失败: %w", def.Name, err)

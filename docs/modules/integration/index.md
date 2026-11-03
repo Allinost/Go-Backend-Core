@@ -3,8 +3,10 @@
 > 代码位置：`internal/modules/integration`
 > 路由前缀：`/api/v1/integration`
 > 相关包：`internal/services/{outbox,action,connector}`、`internal/pkg/authz`
-> 当前阶段：P2 外盒分发器 + 连接器配置管理
+> 当前阶段：P2 外盒分发器 + 连接器配置管理 + MCP 工具端点
 > 接入示例：[examples.md](examples.md)（n8n / OpenClaw / LangBot / Webhook 签名）
+> 网络与部署拓扑：[connectivity.md](connectivity.md)（1panel-network / EasyTier / 验收清单）
+> MCP 端点：[mcp.md](mcp.md)（OpenClaw / LangBot 工具调用）
 
 ## 1. 定位
 
@@ -20,6 +22,7 @@ n8n、OpenClaw、LangBot 等外部工具不直接访问业务表，而是通过�
 
 - `Authorization: Bearer <JWT>`：Web 控制台，视为 owner，不受 API Key 作用域限制
 - `X-API-Key: <key>`：外部工具，按 `api_key_scopes` 精确放行
+- `Authorization: Bearer gbk_...`：MCP 客户端兼容形式，等价于 `X-API-Key`
 
 ## 2. 作用域
 
@@ -41,7 +44,9 @@ n8n、OpenClaw、LangBot 等外部工具不直接访问业务表，而是通过�
 |---|---|---|---|
 | GET | `/api/v1/integration/ping` | `owner:read` | 连通性测试 |
 | GET | `/api/v1/integration/actions` | `owner:read` | 已注册动作列表 |
-| POST | `/api/v1/integration/actions/:name` | 动作声明 | 调用动作，body 为 `{"params":{...}}` |
+| POST | `/api/v1/integration/actions/:name` | 动作声明 | 调用动作，body 为 `{"params":{...},"request_id":"可选幂等键"}` |
+| POST | `/api/v1/integration/mcp` | 动作声明 | MCP Streamable HTTP（JSON-RPC），供 OpenClaw / LangBot 使用 |
+| GET / DELETE | `/api/v1/integration/mcp` | 动作声明 | 协议兼容；GET 返回 405，DELETE 返回 204 |
 | GET | `/api/v1/integration/events` | `owner:read` | 查询外盒事件，支持 topic/status/limit/offset |
 | POST | `/api/v1/integration/events` | `integration:manage` | 手动写入事件，用于联调与补偿 |
 | POST | `/api/v1/integration/events/dispatch` | `integration:manage` | 立即执行一轮事件投递 |
@@ -51,7 +56,7 @@ n8n、OpenClaw、LangBot 等外部工具不直接访问业务表，而是通过�
 | DELETE | `/api/v1/integration/connectors/:id` | `integration:manage` | 删除连接器 |
 | POST | `/api/v1/integration/connectors/:id/test` | `integration:manage` | 向连接器发送测试事件 |
 
-动作调用会写入 `zzz_integration_action_logs`，记录调用者、认证方式、参数、结果、耗时与错误。
+动作调用会写入 `zzz_integration_action_logs`，记录调用者、认证方式、参数、`request_id`、是否重放、结果、耗时与错误。
 
 ### 3.1 Goodser 动作
 
@@ -82,6 +87,34 @@ Goodser 模块初始化时向动作网关注册以下动作：
 
 客户订单请求会写入 `goodser.customer.order_requested` 外盒事件，并尽力推送到
 所有已注册连接器；通知失败不影响预留单创建结果。
+
+### 3.2 MCP 端点
+
+`/api/v1/integration/mcp` 把动作注册表动态暴露为 MCP 工具：
+
+- 工具名：动作名的 `.` 替换为 `_`，例如 `goodser.stock.query` → `goodser_stock_query`
+- `tools/list` 按 API Key 作用域过滤，客户 Key 看不到 owner 工具
+- `tools/call` 参数放在 `arguments.params`，与动作网关的 `params` 一致
+- Goodser 主要动作带字段级 `params_schema`，模型可直接看到 `inventory_id`、`items` 等字段
+- 写操作可在 `arguments.request_id` 传幂等键，重复提交返回首次结果
+- 认证支持 `X-API-Key` 与 `Authorization: Bearer gbk_...`
+- 动作 / MCP 调用按 API Key 限流（`integration.rate_limit`）
+- 无状态 Streamable HTTP，不提供 SSE 服务端推送
+- 调用同样写入 `zzz_integration_action_logs`
+
+完整协议示例、OpenClaw / LangBot 配置和错误码见 [mcp.md](mcp.md)。
+
+### 3.3 写操作幂等
+
+- REST：body 顶层带 `request_id`，例如 `{"request_id":"order-001","params":{...}}`
+- MCP：`arguments.request_id`
+- 缓存键：调用方 + 动作 + `request_id`
+- 只缓存成功结果，默认保留 24 小时；命中时 REST 结果 `replayed=true`，MCP 结果 `_meta.replayed=true`
+- 未传 `request_id` 时不启用幂等
+
+### 3.4 限流
+
+`POST /integration/actions/:name` 与 `/integration/mcp` 按 API Key 限流，默认 600 次/分钟；Redis 可用时使用分布式固定窗口，否则降级为进程内存。超过配额返回 `429`。
 
 ## 4. 外盒事件
 
@@ -169,13 +202,13 @@ Webhook 请求头：
 
 ## 6. 数据表
 
-迁移：`migrations/mysql/011_integration_foundation.sql`
+迁移：`migrations/mysql/011_integration_foundation.sql`、`015_integration_action_idempotency.sql`
 
 | 表 | 用途 |
 |---|---|
 | `zzz_integration_outbox` | 外盒事件 |
 | `zzz_integration_connectors` | 连接器配置（P2 已接入 CRUD、加密与动态加载） |
-| `zzz_integration_action_logs` | 动作调用日志 |
+| `zzz_integration_action_logs` | 动作调用日志（含 `request_id`、`replayed`） |
 
 ## 7. 配置
 
@@ -185,6 +218,12 @@ crypto:
 
 integration:
   retention_days: 30          # 已投递事件保留天数，0 表示不清理
+  idempotency:
+    enabled: true             # 写操作幂等缓存（Redis 优先，Redis 不可用时降级为进程内存）
+    ttl_seconds: 86400        # 幂等结果保留时间
+  rate_limit:
+    enabled: true             # 动作 / MCP 调用按 API Key 限流
+    requests_per_minute: 600  # 每个 Key 每分钟请求上限
   dispatcher:
     enabled: true
     interval_seconds: 30
@@ -199,3 +238,14 @@ integration:
 
 - 客户订单事件目前是提交后写入外盒，尚未与业务事务合并
 - 单租户模型：所有 JWT 用户共享现有库存，不做 owner 行级隔离
+- Goodser 主要动作已有字段级 `params_schema`；未配置 schema 的动作仍回退为通用 `params` 对象
+- MCP 无状态实现，不支持服务端主动通知；客户端只接受 SSE 时可用 SSE 返回单次响应
+- 写操作幂等缓存单实例内用 singleflight 合并并发；多实例共享 Redis 存储，但极端并发仍建议使用稳定 `request_id`
+
+## 9. 网络与部署
+
+- **生产**：`gobackendcore` 与 n8n / OpenClaw / LangBot 同处 `1panel-network`，容器之间使用「容器名 + 容器端口」，例如 `http://gobackendcore:29090`。
+- **开发**：三者通过 EasyTier 入口 `et.hailong.site` + 宿主机发布端口访问，例如 `https://et.hailong.site:29090`。
+- **OpenClaw / LangBot**：通过 `/api/v1/integration/mcp` 调用动作，详见 [mcp.md](mcp.md)。
+- 网络互通不替代鉴权：外部工具仍使用 `X-API-Key`，Webhook 仍校验 HMAC。
+- 完整地址表、1Panel 接入步骤、n8n / OpenClaw / LangBot 配置与验收清单见 [connectivity.md](connectivity.md)。

@@ -7,6 +7,7 @@ server:
   port: 29090                  # 业务 API 监听端口（Nginx 对外暴露）
   debug_port: 29092            # 调试/监控/运维端口（仅内网，含 Swagger UI + s0）
   mode: debug                  # Gin 运行模式：debug | release | test
+  public_base_url: "https://et.hailong.site:29090"  # 对外访问地址（第三方登录回调、远程登录链接）
 
   swagger:                     # Swagger UI 配置
     backend_addr: "localhost:29090"   # Swagger Try it out 调用的后端地址，可自行修改
@@ -93,6 +94,12 @@ auth:
 
 integration:
   retention_days: 30                    # 已投递事件保留天数，0 表示不清理
+  idempotency:
+    enabled: true                       # 写操作幂等缓存（Redis 优先，Redis 不可用时降级为进程内存）
+    ttl_seconds: 86400                  # 幂等结果保留时间（秒）
+  rate_limit:
+    enabled: true                       # 动作 / MCP 调用按 API Key 限流
+    requests_per_minute: 600            # 每个 Key 每分钟最多请求数
   dispatcher:
     enabled: true                       # 是否启用外盒事件后台分发
     interval_seconds: 30                # 轮询间隔（秒）

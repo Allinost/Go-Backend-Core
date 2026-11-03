@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -114,11 +115,23 @@ func (rl *RedisRateLimit) Allow(ip string) bool {
 	return count <= int64(rl.maxRequests)
 }
 
-// RateLimiter 返回 Gin 限流中间件处理函数（适配 Limiter 接口）
+// RateLimiter 返回 Gin 限流中间件处理函数（按客户端 IP）
 func RateLimiter(l Limiter) gin.HandlerFunc {
+	return RateLimiterByKey(l, func(c *gin.Context) string {
+		return c.ClientIP()
+	})
+}
+
+// RateLimiterByKey 按自定义 key 限流，用于 API Key / 用户级别的配额。
+func RateLimiterByKey(l Limiter, keyFunc func(*gin.Context) string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ip := c.ClientIP()
-		if !l.Allow(ip) {
+		key := c.ClientIP()
+		if keyFunc != nil {
+			if custom := strings.TrimSpace(keyFunc(c)); custom != "" {
+				key = custom
+			}
+		}
+		if !l.Allow(key) {
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"code":    429,
 				"message": "请求过于频繁，请稍后再试",

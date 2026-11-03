@@ -2,6 +2,20 @@
 
 > 适用版本：P2（外盒分发器 + 连接器配置管理）
 > 认证：外部工具统一使用 `X-API-Key`，不要使用控制台 JWT。
+> 网络：生产容器内用 `http://gobackendcore:29090`，开发 EasyTier 用 `https://et.hailong.site:29090`；完整拓扑见 [connectivity.md](connectivity.md)。
+
+本文命令中的 `$BACKEND_URL` 按环境替换：
+
+```bash
+# 生产容器内（n8n / OpenClaw / LangBot 所在容器）
+export BACKEND_URL=http://gobackendcore:29090
+
+# 开发机（EasyTier）
+export BACKEND_URL=https://et.hailong.site:29090
+
+# 本机直连
+export BACKEND_URL=http://localhost:29090
+```
 
 ## 1. 准备
 
@@ -28,25 +42,25 @@ Content-Type: application/json
 
 ```bash
 # 库存查询（owner）
-curl -X POST http://localhost:29090/api/v1/integration/actions/goodser.stock.query \
+curl -X POST "$BACKEND_URL/api/v1/integration/actions/goodser.stock.query" \
   -H "X-API-Key: $OWNER_KEY" \
   -H "Content-Type: application/json" \
   -d '{"params":{"inventory_id":"<inventory-id>","keyword":"徽章","page":1,"page_size":20}}'
 
 # 统计总览（owner）
-curl -X POST http://localhost:29090/api/v1/integration/actions/goodser.stats.summary \
+curl -X POST "$BACKEND_URL/api/v1/integration/actions/goodser.stats.summary" \
   -H "X-API-Key: $OWNER_KEY" \
   -H "Content-Type: application/json" \
   -d '{"params":{"inventory_id":"<inventory-id>","days":30}}'
 
 # 客户只读查询（LangBot）
-curl -X POST http://localhost:29090/api/v1/integration/actions/goodser.customer.stock_query \
+curl -X POST "$BACKEND_URL/api/v1/integration/actions/goodser.customer.stock_query" \
   -H "X-API-Key: $CUSTOMER_KEY" \
   -H "Content-Type: application/json" \
   -d '{"params":{"inventory_id":"<inventory-id>","keyword":"拍立得"}}'
 
 # 客户提交订单请求（LangBot）
-curl -X POST http://localhost:29090/api/v1/integration/actions/goodser.customer.order_request \
+curl -X POST "$BACKEND_URL/api/v1/integration/actions/goodser.customer.order_request" \
   -H "X-API-Key: $CUSTOMER_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -60,6 +74,26 @@ curl -X POST http://localhost:29090/api/v1/integration/actions/goodser.customer.
 
 客户订单请求会创建 `pending` 预留并立即锁定库存，返回预留单号 `RSV-...`。
 
+### 2.1 写操作幂等
+
+写操作可以带 `request_id`，相同调用方 + 动作 + `request_id` 只执行一次：
+
+```bash
+curl -X POST "$BACKEND_URL/api/v1/integration/actions/goodser.order.create" \
+  -H "X-API-Key: $OWNER_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "request_id":"n8n-order-20261103-001",
+    "params":{
+      "inventory_id":"<inventory-id>",
+      "order_info":"n8n 自动补货",
+      "items":[{"product_id":"<product-id>","quantity":1}]
+    }
+  }'
+```
+
+命中缓存时响应里的 `data.replayed` 为 `true`。`request_id` 建议使用业务单号或 UUID，重试时保持不变。
+
 ## 3. n8n
 
 推荐使用 **HTTP Request** 节点：
@@ -67,7 +101,7 @@ curl -X POST http://localhost:29090/api/v1/integration/actions/goodser.customer.
 | 配置项 | 值 |
 |---|---|
 | Method | `POST` |
-| URL | `http://<backend>:29090/api/v1/integration/actions/goodser.stock.query` |
+| URL | `http://gobackendcore:29090/api/v1/integration/actions/goodser.stock.query`（开发：`$BACKEND_URL`） |
 | Authentication | None |
 | Header `X-API-Key` | owner key |
 | Body Content Type | JSON |
@@ -83,7 +117,7 @@ OpenClaw 按普通 HTTP 工具接入即可，建议把动作名与参数封装�
 {
   "name": "goodser_order_create",
   "method": "POST",
-  "url": "http://localhost:29090/api/v1/integration/actions/goodser.order.create",
+  "url": "http://gobackendcore:29090/api/v1/integration/actions/goodser.order.create",
   "headers": { "X-API-Key": "<owner-key>" },
   "body": {
     "params": {
@@ -124,7 +158,7 @@ LangBot -> customer.order_request -> 返回 RSV-... 预留单号
 ## 6. 配置 Webhook 连接器
 
 ```bash
-curl -X POST http://localhost:29090/api/v1/integration/connectors \
+curl -X POST "$BACKEND_URL/api/v1/integration/connectors" \
   -H "X-API-Key: $ADMIN_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -206,3 +240,30 @@ def verify(raw_body: bytes, timestamp: str, signature: str, secret: str) -> bool
 | 事件 `failed` | 查看 `last_error`，确认接收端 2xx、签名密钥一致 |
 | Webhook 返回非 2xx | 分发器会按指数退避重试，超过 `max_attempts` 后停止 |
 | 连接器启动时被跳过 | 检查 URL、密钥是否可解密、配置是否合法 |
+
+## 10. MCP 端点（OpenClaw / LangBot 推荐）
+
+OpenClaw 和 LangBot 可以直接挂载后端 MCP 端点，不必为每个动作写 HTTP 封装：
+
+```text
+http://gobackendcore:29090/api/v1/integration/mcp
+```
+
+认证：
+
+```http
+X-API-Key: gbk_xxxxxxxxxxxxxxxx
+# 或
+Authorization: Bearer gbk_xxxxxxxxxxxxxxxx
+```
+
+最小冒烟请求：
+
+```bash
+curl -s -X POST "$BACKEND_URL/api/v1/integration/mcp" \
+  -H "X-API-Key: $OWNER_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+工具名规则：`goodser.stock.query` → `goodser_stock_query`，调用参数放在 `arguments.params`。写操作可加 `arguments.request_id` 做幂等。完整协议、OpenClaw / LangBot 配置与错误码见 [mcp.md](mcp.md)。

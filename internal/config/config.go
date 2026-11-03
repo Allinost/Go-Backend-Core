@@ -39,8 +39,20 @@ type Config struct {
 }
 
 type IntegrationConfig struct {
-	Dispatcher    IntegrationDispatcherConfig `mapstructure:"dispatcher"`
-	RetentionDays int                         `mapstructure:"retention_days"`
+	Dispatcher    IntegrationDispatcherConfig  `mapstructure:"dispatcher"`
+	Idempotency   IntegrationIdempotencyConfig `mapstructure:"idempotency"`
+	RateLimit     IntegrationRateLimitConfig   `mapstructure:"rate_limit"`
+	RetentionDays int                          `mapstructure:"retention_days"`
+}
+
+type IntegrationIdempotencyConfig struct {
+	Enabled    bool `mapstructure:"enabled"`
+	TTLSeconds int  `mapstructure:"ttl_seconds"`
+}
+
+type IntegrationRateLimitConfig struct {
+	Enabled           bool `mapstructure:"enabled"`
+	RequestsPerMinute int  `mapstructure:"requests_per_minute"`
 }
 
 type IntegrationDispatcherConfig struct {
@@ -107,11 +119,12 @@ type NetTCPConfig struct {
 }
 
 type ServerConfig struct {
-	Name      string `mapstructure:"name"`       // 服务名称
-	Version   string `mapstructure:"version"`    // 版本号
-	Port      int    `mapstructure:"port"`       // 业务 API 监听端口（Nginx 对外暴露）
-	DebugPort int    `mapstructure:"debug_port"` // 调试/监控/运维端口（仅内网）
-	Mode      string `mapstructure:"mode"`       // Gin 运行模式
+	Name          string `mapstructure:"name"`            // 服务名称
+	Version       string `mapstructure:"version"`         // 版本号
+	Port          int    `mapstructure:"port"`            // 业务 API 监听端口（Nginx 对外暴露）
+	DebugPort     int    `mapstructure:"debug_port"`      // 调试/监控/运维端口（仅内网）
+	Mode          string `mapstructure:"mode"`            // Gin 运行模式
+	PublicBaseURL string `mapstructure:"public_base_url"` // 对外访问地址，用于第三方登录回调等
 
 	Swagger SwaggerConfig `mapstructure:"swagger"` // Swagger UI 配置
 }

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +30,12 @@ type ApiKey struct {
 }
 
 const apiKeyPrefix = "gbk_"
+
+// IsAPIKey 判断 token 是否为 API Key 格式。
+// 用于在 Authorization: Bearer 中区分 API Key 与 JWT。
+func IsAPIKey(raw string) bool {
+	return strings.HasPrefix(raw, apiKeyPrefix)
+}
 
 type ApiKeyStore interface {
 	Create(key *ApiKey) error

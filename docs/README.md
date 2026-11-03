@@ -35,7 +35,8 @@
 | 项目开发管理 | `zzz/developmentManager` | `/api/v1/developmentmanager` | [modules/developmentManager/](modules/developmentManager/) ✅（P1 台账 + P2 部署资产 + P3 数据字典 + P4 需求管理 + P5 生成流程 + P6 前端 Web；含容器项目与容器管理页，规划见 [plans/feature-V2-project-dev-management.md](plans/feature-V2-project-dev-management.md)） |
 | 服务导航 | `internal/modules/servicenav` | `/api/v1/servicenav` | [modules/servicenav/](modules/servicenav/) ✅ |
 | Webhook | `internal/modules/webhook` | `/api/v1/webhook` | [modules/webhook/](modules/webhook/) ✅ |
-| 集成基座 | `internal/modules/integration` | `/api/v1/integration` | [modules/integration/](modules/integration/) ✅（P0-4 动作网关 + 外盒事件 + 连接器） |
+| 集成基座 | `internal/modules/integration` | `/api/v1/integration` | [modules/integration/](modules/integration/) ✅（P0-4 动作网关 + 外盒事件 + 连接器 + [MCP 端点](modules/integration/mcp.md)；[n8n / OpenClaw / LangBot 网络对接](modules/integration/connectivity.md)） |
+| 应用设置 | `internal/modules/settings` | `/api/v1/settings` | [modules/settings/](modules/settings/) ✅（管理员设置 + 前端顶部入口） |
 | 认证 / 运维 / 迁移等 | `internal/modules/{auth,ops,migrate,s0,s1,s2}` | `/api/v1/{name}` | ⬜ 暂无独立文档，见 [API/index.md](API/index.md) |
 
 ---

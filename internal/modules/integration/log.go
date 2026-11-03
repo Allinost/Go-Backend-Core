@@ -15,6 +15,8 @@ type ActionLog struct {
 	APIKeyID   uint
 	Status     string
 	Params     json.RawMessage
+	RequestID  string
+	Replayed   bool
 	Result     json.RawMessage
 	Error      string
 	DurationMS int
@@ -45,10 +47,10 @@ func (l *MySQLActionLogger) Write(ctx context.Context, entry ActionLog) error {
 		result = string(entry.Result)
 	}
 	_, err := l.db.ExecContext(ctx, `INSERT INTO zzz_integration_action_logs
-		(action, actor, auth_method, api_key_id, status, params, result, error, duration_ms, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(action, actor, auth_method, api_key_id, status, params, request_id, replayed, result, error, duration_ms, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		entry.Action, entry.Actor, entry.AuthMethod, entry.APIKeyID, entry.Status,
-		params, result, entry.Error, entry.DurationMS, time.Now().UTC(),
+		params, entry.RequestID, entry.Replayed, result, entry.Error, entry.DurationMS, time.Now().UTC(),
 	)
 	return err
 }

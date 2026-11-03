@@ -35,6 +35,7 @@ func (m *Module) Name() string {
 // Init 初始化模块
 func (m *Module) Init(cfg *config.Config) error {
 	m.cfg = cfg
+	SetPublicBaseURL(cfg.Server.PublicBaseURL)
 
 	pool := database.DB.MySQL["main"]
 	if pool == nil {

@@ -60,7 +60,8 @@ func (h *Handler) ListActions(c *gin.Context) {
 // @Router      /integration/actions/{name} [post]
 func (h *Handler) InvokeAction(c *gin.Context) {
 	var body struct {
-		Params json.RawMessage `json:"params"`
+		Params    json.RawMessage `json:"params"`
+		RequestID string          `json:"request_id"`
 	}
 	if c.Request.ContentLength > 0 {
 		if err := c.ShouldBindJSON(&body); err != nil {
@@ -69,18 +70,14 @@ func (h *Handler) InvokeAction(c *gin.Context) {
 		}
 	}
 
-	scopes := "*"
-	if c.GetString("auth_method") == "apikey" {
-		scopes = c.GetString("api_key_scopes")
-	}
-
 	result, err := h.gateway.Invoke(c.Request.Context(), action.Request{
-		Action: c.Param("name"),
-		Actor:  callerIdentity(c),
-		Scopes: scopes,
-		Params: body.Params,
+		Action:    c.Param("name"),
+		Actor:     callerIdentity(c),
+		Scopes:    callerScopes(c),
+		Params:    body.Params,
+		RequestID: body.RequestID,
 	})
-	h.recordAction(c, body.Params, result, err)
+	h.recordAction(c, c.Param("name"), body.Params, body.RequestID, result, err)
 	if err != nil {
 		failAction(c, err)
 		return
@@ -306,6 +303,14 @@ func callerIdentity(c *gin.Context) string {
 	return ""
 }
 
+// callerScopes 返回当前调用方作用域。控制台 JWT 视为 owner，不受 API Key 作用域限制。
+func callerScopes(c *gin.Context) string {
+	if c.GetString("auth_method") == "apikey" {
+		return c.GetString("api_key_scopes")
+	}
+	return "*"
+}
+
 func toString(v any) string {
 	switch value := v.(type) {
 	case string:
@@ -319,20 +324,25 @@ func toString(v any) string {
 	}
 }
 
-func (h *Handler) recordAction(c *gin.Context, params json.RawMessage, result action.Result, invokeErr error) {
+func (h *Handler) recordAction(c *gin.Context, actionName string, params json.RawMessage, requestID string, result action.Result, invokeErr error) {
 	if h.logger == nil {
 		return
 	}
 	entry := ActionLog{
-		Action:     result.Action,
+		Action:     actionName,
 		Actor:      callerIdentity(c),
 		AuthMethod: c.GetString("auth_method"),
 		Status:     "success",
 		Params:     params,
+		RequestID:  requestID,
+		Replayed:   result.Replayed,
 		DurationMS: int(result.Duration.Milliseconds()),
 	}
 	if entry.Action == "" {
-		entry.Action = c.Param("name")
+		entry.Action = result.Action
+	}
+	if len(entry.RequestID) > 100 {
+		entry.RequestID = entry.RequestID[:100]
 	}
 	if value, exists := c.Get("api_key_id"); exists {
 		switch id := value.(type) {

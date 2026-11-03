@@ -35,6 +35,7 @@ type Module struct {
 	retention    *outbox.Retention
 	h            *Handler
 	authMW       gin.HandlerFunc
+	rateLimitMW  gin.HandlerFunc
 }
 
 // Name 返回模块名称，路由挂载至 /api/v1/integration
@@ -81,7 +82,19 @@ func (m *Module) Init(cfg *config.Config) error {
 			}, nil
 		},
 	})
-	m.gateway = action.NewGateway(registry)
+	gatewayOpts := make([]action.GatewayOption, 0, 1)
+	if cfg.Integration.Idempotency.Enabled {
+		ttl := time.Duration(defaultSeconds(cfg.Integration.Idempotency.TTLSeconds, 86400)) * time.Second
+		var store action.IdempotencyStore
+		if rdb, ok := database.DB.Redis["main"]; ok && rdb != nil {
+			store = action.NewRedisIdempotencyStore(rdb)
+		} else {
+			store = action.NewMemoryIdempotencyStore()
+			logger.Warn().Msg("integration: Redis 不可用，幂等缓存降级为进程内存")
+		}
+		gatewayOpts = append(gatewayOpts, action.WithIdempotency(store, ttl))
+	}
+	m.gateway = action.NewGateway(registry, gatewayOpts...)
 
 	authMod := modules.Get("auth")
 	if authMod == nil {
@@ -92,6 +105,28 @@ func (m *Module) Init(cfg *config.Config) error {
 		return fmt.Errorf("integration: auth 模块类型异常")
 	}
 	m.authMW = am.APIKeyOrJWTMiddleware()
+
+	if cfg.Integration.RateLimit.Enabled {
+		maxPerMinute := cfg.Integration.RateLimit.RequestsPerMinute
+		if maxPerMinute <= 0 {
+			maxPerMinute = 600
+		}
+		var limiter middleware.Limiter
+		if rdb, ok := database.DB.Redis["main"]; ok && rdb != nil {
+			limiter = middleware.NewRedisRateLimit(rdb, maxPerMinute, time.Minute)
+		} else {
+			limiter = middleware.NewRateLimit(maxPerMinute, time.Minute)
+		}
+		m.rateLimitMW = middleware.RateLimiterByKey(limiter, func(c *gin.Context) string {
+			if value, exists := c.Get("api_key_id"); exists {
+				return fmt.Sprintf("api:%v", value)
+			}
+			if value, exists := c.Get("user_id"); exists {
+				return fmt.Sprintf("user:%v", value)
+			}
+			return "ip:" + c.ClientIP()
+		})
+	}
 
 	m.h = NewHandler(m.gateway, m.outbox, m.connectors, NewMySQLActionLogger(pool.DB))
 	m.h.SetConnectorManager(m.connectorMgr)
@@ -142,7 +177,10 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 
 	r.GET("/ping", read, m.h.Ping)
 	r.GET("/actions", read, m.h.ListActions)
-	r.POST("/actions/:name", m.h.InvokeAction)
+	r.POST("/actions/:name", m.withRateLimit(m.h.InvokeAction)...)
+	r.POST("/mcp", m.withRateLimit(m.h.MCP)...)
+	r.GET("/mcp", m.withRateLimit(m.h.MCP)...)
+	r.DELETE("/mcp", m.withRateLimit(m.h.MCP)...)
 	r.GET("/events", read, m.h.ListEvents)
 	r.POST("/events", manage, m.h.EmitEvent)
 	r.POST("/events/dispatch", manage, m.h.DispatchEvents)
@@ -151,6 +189,13 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.PUT("/connectors/:id", manage, m.h.UpdateConnector)
 	r.DELETE("/connectors/:id", manage, m.h.DeleteConnector)
 	r.POST("/connectors/:id/test", manage, m.h.TestConnector)
+}
+
+func (m *Module) withRateLimit(handler gin.HandlerFunc) []gin.HandlerFunc {
+	if m.rateLimitMW == nil {
+		return []gin.HandlerFunc{handler}
+	}
+	return []gin.HandlerFunc{m.rateLimitMW, handler}
 }
 
 // Outbox 暴露外盒服务，供业务模块写入事件
