@@ -221,7 +221,6 @@ func extractPDDPrice(html string) (float64, float64) {
 	}{
 		{`"minOnSaleGroupPrice"\s*:\s*"?(\d+(?:\.\d+)?)"?`, `"linePrice"\s*:\s*"?(\d+(?:\.\d+)?)"?`, true},
 		{`"minGroupPrice"\s*:\s*"?(\d+(?:\.\d+)?)"?`, `"marketPrice"\s*:\s*"?(\d+(?:\.\d+)?)"?`, true},
-		{`"price"\s*:\s*"?(\d+(?:\.\d+)?)"?`, `"marketPrice"\s*:\s*"?(\d+(?:\.\d+)?)"?`, false},
 		{`[¥￥]\s*(\d+(?:\.\d+)?)`, `[¥￥]\s*(\d+(?:\.\d+)?)`, false},
 	}
 	for _, p := range patterns {
@@ -278,7 +277,10 @@ func extractPDDStock(html string) string {
 // ---------- 浏览器降级 ----------
 
 func (c *PDDCollector) fetchPriceBrowser(ctx context.Context, pageURL string) (*PriceResult, error) {
-	sessionCookies := c.getSessionCookies(ctx)
+	return c.fetchPriceBrowserWithCookies(ctx, pageURL, c.getSessionCookies(ctx))
+}
+
+func (c *PDDCollector) fetchPriceBrowserWithCookies(ctx context.Context, pageURL string, sessionCookies []*provider.Cookie) (*PriceResult, error) {
 	tabCtx, cancelTab, err := c.createTempBrowser(ctx)
 	if err != nil {
 		return nil, err
@@ -286,8 +288,7 @@ func (c *PDDCollector) fetchPriceBrowser(ctx context.Context, pageURL string) (*
 	defer cancelTab()
 
 	if err := chromedp.Run(tabCtx,
-		emulation.SetUserAgentOverride(pddMobileUA),
-		emulation.SetDeviceMetricsOverride(390, 844, 1, false),
+		emulation.SetDeviceMetricsOverride(1440, 900, 1, false),
 	); err != nil {
 		return nil, fmt.Errorf("设置浏览器身份失败: %w", err)
 	}
@@ -338,25 +339,71 @@ func (c *PDDCollector) fetchPriceBrowser(ctx context.Context, pageURL string) (*
 	err = chromedp.Run(scrapeCtx,
 		chromedp.Evaluate(`(function() {
 			var body = document.body ? document.body.innerText : '';
-			var re = /[¥￥]\s*(\d+(?:\.\d+)?)/;
+			function cleanNum(s){ return (s || '').replace(/\s+/g, ''); }
+			function firstPrice(text) {
+				var m = (text || '').match(/[¥￥]\s*(\d+(?:\s*\.\s*\d{1,2})?)/);
+				return m ? cleanNum(m[1]) : '';
+			}
+			function lastPrice(text) {
+				var re = /[¥￥]\s*(\d+(?:\s*\.\s*\d{1,2})?)/g;
+				var m, last = '';
+				while ((m = re.exec(text)) !== null) { last = m[1]; }
+				return last ? cleanNum(last) : '';
+			}
 			function pick(label) {
 				var i = body.indexOf(label);
 				if (i === -1) return '';
-				var seg = body.slice(Math.max(0, i - 80), i + 160);
-				var m = seg.match(re);
-				return m ? m[1] : '';
+				var after = body.slice(i, i + 80);
+				var before = body.slice(Math.max(0, i - 80), i);
+				if (label === '单独购买' || label === '发起拼单') {
+					var p0 = lastPrice(before);
+					if (p0) return p0;
+				}
+				var p1 = firstPrice(after);
+				if (p1) return p1;
+				return lastPrice(before);
 			}
-			var labels = ['百亿补贴价','补贴价','券后价','到手价','拼单价','单独购买','原价','划线价'];
+			var labels = ['百亿补贴价','补贴后到手价','补贴后','补贴价','券后价','到手价','大促价','活动价','拼单价','发起拼单','单独购买','原价','划线价'];
 			var found = {};
 			for (var i = 0; i < labels.length; i++) found[labels[i]] = pick(labels[i]);
+
+			// 页面顶部主价格组件（可能展示“大促价 / 百亿补贴价 / 补贴后到手价”）
+			var mainPrice = '', mainLabel = '';
+			var priceEl = document.querySelector('[class*="SkePSPI2"]');
+			if (priceEl) {
+				var pt = priceEl.innerText || '';
+				mainPrice = firstPrice(pt);
+				for (var j = 0; j < labels.length; j++) {
+					if (pt.indexOf(labels[j]) >= 0) { mainLabel = labels[j]; break; }
+				}
+			}
+			// “单独购买”价作为参考原价
+			var singlePrice = '';
+			var sm = body.match(/[¥￥]\s*(\d+(?:\s*\.\s*\d{1,2})?)\s*单独购买/);
+			if (sm) singlePrice = cleanNum(sm[1]);
+
 			var title = '';
-			var sels = ['[class*="goodsName"]','[class*="goods-name"]','[class*="title"]','h1'];
-			for (var i = 0; i < sels.length; i++) {
-				var el = document.querySelector(sels[i]);
-				if (el && el.innerText && el.innerText.trim()) { title = el.innerText.trim(); break; }
+			var titleEls = document.querySelectorAll('[class*="enable-select"]');
+			for (var k = 0; k < titleEls.length; k++) {
+				var tt = (titleEls[k].innerText || '').replace(/\s+/g, ' ').trim();
+				if (tt.length >= 8) { title = tt; break; }
+			}
+			if (!title) {
+				var sels = ['[class*="goodsName"]','[class*="goods-name"]','[class*="title"]','h1'];
+				for (var m = 0; m < sels.length; m++) {
+					var el = document.querySelector(sels[m]);
+					if (el && el.innerText && el.innerText.trim()) { title = el.innerText.trim(); break; }
+				}
 			}
 			var soldOut = /已售罄|已下架|暂不支持购买/.test(body);
-			return JSON.stringify({found: found, title: title, soldOut: soldOut,
+			var masked = false;
+			var mi = body.indexOf('大促价');
+			if (mi >= 0) {
+				var mseg = body.slice(mi, mi + 40);
+				masked = mseg.indexOf('?') >= 0 || mseg.indexOf('？') >= 0;
+			}
+			if (!masked && body.indexOf('前往APP查看价格') >= 0) masked = true;
+			return JSON.stringify({found: found, mainPrice: mainPrice, mainLabel: mainLabel, singlePrice: singlePrice, title: title, soldOut: soldOut, masked: masked,
 				raw: (function(){ try { return JSON.stringify(window.rawData || null).slice(0, 200000); } catch(e) { return ''; } })()});
 		})()`, &scrapeJSON),
 		chromedp.OuterHTML("html", &pageHTML),
@@ -366,26 +413,50 @@ func (c *PDDCollector) fetchPriceBrowser(ctx context.Context, pageURL string) (*
 	}
 
 	var scrape struct {
-		Found   map[string]string `json:"found"`
-		Title   string            `json:"title"`
-		SoldOut bool              `json:"soldOut"`
-		Raw     string            `json:"raw"`
+		Found       map[string]string `json:"found"`
+		MainPrice   string            `json:"mainPrice"`
+		MainLabel   string            `json:"mainLabel"`
+		SinglePrice string            `json:"singlePrice"`
+		Title       string            `json:"title"`
+		SoldOut     bool              `json:"soldOut"`
+		Masked      bool              `json:"masked"`
+		Raw         string            `json:"raw"`
 	}
 	_ = json.Unmarshal([]byte(scrapeJSON), &scrape)
+	fmt.Fprintf(os.Stderr, "[pdd] scrape main=%q label=%q single=%q masked=%v found=%v\n", scrape.MainPrice, scrape.MainLabel, scrape.SinglePrice, scrape.Masked, scrape.Found)
+	if scrape.Masked {
+		return nil, fmt.Errorf("PDD 价格被隐藏（页面提示前往APP查看价格），本次跳过价格更新")
+	}
 
-	price, origPrice := extractPDDPrice(pageHTML)
-	if price <= 0 && scrape.Raw != "" {
-		price, origPrice = extractPDDPrice(scrape.Raw)
+	source := "browser"
+	price := parseFloatStr(scrape.MainPrice)
+	var apiPrice, apiOrig float64
+	if price > 0 {
+		source = "pdd_dom_main"
+	} else {
+		// 先看页面主价格文案（大促价/百亿补贴价/补贴后到手价），避免被 HTML 里无关的 "price" 字段干扰。
+		for _, label := range []string{"百亿补贴价", "补贴后到手价", "补贴后", "补贴价", "券后价", "到手价", "大促价", "活动价", "拼单价", "发起拼单"} {
+			if v := parseFloatStr(scrape.Found[label]); v > 0 {
+				price = v
+				source = "pdd_dom_label"
+				break
+			}
+		}
 	}
 	if price <= 0 {
-		for _, label := range []string{"百亿补贴价", "补贴价", "券后价", "到手价", "拼单价", "单独购买", "原价", "划线价"} {
+		apiPrice, apiOrig = extractPDDPrice(pageHTML)
+		price = apiPrice
+	}
+	if price <= 0 && scrape.Raw != "" {
+		apiPrice, apiOrig = extractPDDPrice(scrape.Raw)
+		price = apiPrice
+	}
+	if price <= 0 {
+		// “单独购买”只在完全没有其他价格时兜底。
+		for _, label := range []string{"单独购买", "原价", "划线价"} {
 			if v := parseFloatStr(scrape.Found[label]); v > 0 {
-				if price <= 0 || strings.Contains(label, "补贴") || strings.Contains(label, "券后") || strings.Contains(label, "到手") {
-					price = v
-				}
-				if strings.Contains(label, "原价") || strings.Contains(label, "划线价") {
-					origPrice = v
-				}
+				price = v
+				break
 			}
 		}
 	}
@@ -393,11 +464,27 @@ func (c *PDDCollector) fetchPriceBrowser(ctx context.Context, pageURL string) (*
 		return nil, fmt.Errorf("未在页面中解析到有效价格")
 	}
 
+	origPrice := parseFloatStr(scrape.SinglePrice)
+	if origPrice <= price {
+		origPrice = apiOrig
+	}
+	if origPrice <= price {
+		origPrice = 0
+	}
+	if origPrice <= 0 {
+		for _, label := range []string{"原价", "划线价"} {
+			if v := parseFloatStr(scrape.Found[label]); v > price {
+				origPrice = v
+				break
+			}
+		}
+	}
+
 	result := &PriceResult{
 		CurrentPrice:  round2(price),
 		OriginalPrice: round2(origPrice),
 		BasePrice:     round2(firstPositive(origPrice, price)),
-		PriceSource:   "browser",
+		PriceSource:   source,
 		Title:         strings.TrimSpace(scrape.Title),
 		StockStatus:   "unknown",
 		ProductURL:    currentURL,
