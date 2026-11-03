@@ -13,6 +13,43 @@ type StatsOverview struct {
 	Trend         []StatsTrendPoint `json:"trend"`
 	Series        []StatsSeriesRow  `json:"series"`
 	TopProducts   []StatsTopProduct `json:"top_products"`
+	Profit        StatsProfit       `json:"profit"`
+}
+
+// StatsProfit 统计区间内的收益汇总与单品排行。
+// 售价取期望价（为 0 时取市场价），成本取成本价（为 0 时取原价）。
+type StatsProfit struct {
+	Revenue     float64              `json:"revenue"`
+	Cost        float64              `json:"cost"`
+	Profit      float64              `json:"profit"`
+	MarginRate  float64              `json:"margin_rate"`
+	TopByProfit []StatsProfitProduct `json:"top_by_profit"`
+	TopByMargin []StatsProfitProduct `json:"top_by_margin"`
+}
+
+// StatsProfitProduct 单品收益明细，MarginRate 为 0-1 的收益率。
+type StatsProfitProduct struct {
+	ProductID   string  `json:"product_id"`
+	ProductName string  `json:"product_name"`
+	ProductCode string  `json:"product_code"`
+	Quantity    int     `json:"quantity"`
+	Revenue     float64 `json:"revenue"`
+	Cost        float64 `json:"cost"`
+	Profit      float64 `json:"profit"`
+	MarginRate  float64 `json:"margin_rate"`
+}
+
+// StatsProfitRow 收益统计的数据库行，价格用于在服务层计算。
+type StatsProfitRow struct {
+	ProductID     string
+	ProductName   string
+	ProductCode   string
+	OutboundQty   int
+	ReturnQty     int
+	ExpectedPrice float64
+	MarketPrice   float64
+	CostPrice     float64
+	OriginalPrice float64
 }
 
 // StatsStock 库存数量与价值汇总。

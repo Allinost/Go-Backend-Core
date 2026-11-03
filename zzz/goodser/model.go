@@ -67,6 +67,7 @@ type Product struct {
 	OriginalPrice    float64         `json:"original_price,omitempty"`
 	MarketPrice      float64         `json:"market_price,omitempty"`
 	ExpectedPrice    float64         `json:"expected_price,omitempty"`
+	CostPrice        float64         `json:"cost_price,omitempty"`
 	Remark           string          `json:"remark,omitempty"`
 	StorageLocation  string          `json:"storage_location,omitempty"`
 	ImageURL         *string         `json:"image_url"`
@@ -367,6 +368,7 @@ type CreateProductReq struct {
 	OriginalPrice   float64   `json:"original_price,omitempty"`
 	MarketPrice     float64   `json:"market_price,omitempty"`
 	ExpectedPrice   float64   `json:"expected_price,omitempty"`
+	CostPrice       float64   `json:"cost_price,omitempty"`
 	Remark          string    `json:"remark,omitempty"`
 	StorageLocation string    `json:"storage_location,omitempty"`
 	ImageURL        *string   `json:"image_url"`
@@ -391,6 +393,7 @@ type UpdateProductReq struct {
 	OriginalPrice   *float64  `json:"original_price"`
 	MarketPrice     *float64  `json:"market_price"`
 	ExpectedPrice   *float64  `json:"expected_price"`
+	CostPrice       *float64  `json:"cost_price"`
 	Remark          *string   `json:"remark"`
 	StorageLocation *string   `json:"storage_location"`
 	ImageURL        *string   `json:"image_url"`
@@ -425,6 +428,7 @@ type InboundSingleReq struct {
 	OriginalPrice   float64   `json:"original_price,omitempty"`
 	MarketPrice     float64   `json:"market_price,omitempty"`
 	ExpectedPrice   float64   `json:"expected_price,omitempty"`
+	CostPrice       float64   `json:"cost_price,omitempty"`
 	Remark          string    `json:"remark,omitempty"`
 	StorageLocation string    `json:"storage_location,omitempty"`
 	ImageURL        *string   `json:"image_url"`
@@ -454,6 +458,7 @@ type InboundBatchReqItem struct {
 	OriginalPrice   float64   `json:"original_price,omitempty"`
 	MarketPrice     float64   `json:"market_price,omitempty"`
 	ExpectedPrice   float64   `json:"expected_price,omitempty"`
+	CostPrice       float64   `json:"cost_price,omitempty"`
 	Remark          string    `json:"remark,omitempty"`
 	StorageLocation string    `json:"storage_location,omitempty"`
 	ImageURL        *string   `json:"image_url"`

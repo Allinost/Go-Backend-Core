@@ -118,7 +118,7 @@ func (r *Repository) ListProducts(ctx context.Context, inventoryID string) ([]Pr
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
 		        quantity, reserved_quantity, status_code, name, series_id, set_type_id, product_type_id,
-		        original_price, market_price, expected_price,
+		        original_price, market_price, expected_price, cost_price,
 		        remark, storage_location, image_url, images, tags,
 		        created_at, updated_at
 		 FROM `+tableProducts+` WHERE inventory_id = ? ORDER BY seq_number`, inventoryID)
@@ -138,7 +138,7 @@ func (r *Repository) ListProductsPaginated(ctx context.Context, inventoryID stri
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
 		        quantity, reserved_quantity, status_code, name, series_id, set_type_id, product_type_id,
-		        original_price, market_price, expected_price,
+		        original_price, market_price, expected_price, cost_price,
 		        remark, storage_location, image_url, images, tags,
 		        created_at, updated_at
 		 FROM `+tableProducts+` WHERE inventory_id = ? ORDER BY seq_number LIMIT ? OFFSET ?`,
@@ -230,7 +230,7 @@ func (r *Repository) SearchProductsPaginated(ctx context.Context, req *QueryProd
 
 	selectCols := `id, inventory_id, code, main_zone, sub_zone, seq_number,
 		       quantity, reserved_quantity, status_code, name, series_id, set_type_id, product_type_id,
-		       original_price, market_price, expected_price,
+		       original_price, market_price, expected_price, cost_price,
 		       remark, storage_location, image_url, images, tags,
 		       created_at, updated_at`
 
@@ -261,7 +261,7 @@ func (r *Repository) GetProduct(ctx context.Context, id string) (*Product, error
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
 		        quantity, reserved_quantity, status_code, name, series_id, set_type_id, product_type_id,
-		        original_price, market_price, expected_price,
+		        original_price, market_price, expected_price, cost_price,
 		        remark, storage_location, image_url, images, tags,
 		        created_at, updated_at
 		 FROM `+tableProducts+` WHERE id = ?`, id)
@@ -272,7 +272,7 @@ func (r *Repository) FindProductByCode(ctx context.Context, inventoryID, code st
 	row := r.db.QueryRowContext(ctx,
 		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
 		        quantity, reserved_quantity, status_code, name, series_id, set_type_id, product_type_id,
-		        original_price, market_price, expected_price,
+		        original_price, market_price, expected_price, cost_price,
 		        remark, storage_location, image_url, images, tags,
 		        created_at, updated_at
 		 FROM `+tableProducts+` WHERE inventory_id = ? AND code = ?`, inventoryID, code)
@@ -307,7 +307,7 @@ func scanProductRow(scanner interface {
 		&p.ID, &p.InventoryID, &p.Code, &p.MainZone, &p.SubZone, &p.SeqNumber,
 		&p.Quantity, &p.ReservedQuantity, &p.StatusCode, &p.Name,
 		&p.SeriesID, &p.SetTypeID, &p.ProductTypeID,
-		&p.OriginalPrice, &p.MarketPrice, &p.ExpectedPrice,
+		&p.OriginalPrice, &p.MarketPrice, &p.ExpectedPrice, &p.CostPrice,
 		&p.Remark, &p.StorageLocation, &p.ImageURL, &images, &tags,
 		&p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
@@ -575,13 +575,13 @@ func (r *Repository) UpdateProductTx(ctx context.Context, tx *sql.Tx, req *Updat
 		 code=?, main_zone=?, sub_zone=?, seq_number=?,
 		 quantity=?, reserved_quantity=?, status_code=?, name=?,
 		 series_id=?, set_type_id=?, product_type_id=?,
-		 original_price=?, market_price=?, expected_price=?,
+		 original_price=?, market_price=?, expected_price=?, cost_price=?,
 		 remark=?, storage_location=?, image_url=?, images=?, tags=?, updated_at=?
 		 WHERE id=?`,
 		product.Code, product.MainZone, product.SubZone, product.SeqNumber,
 		product.Quantity, product.ReservedQuantity, product.StatusCode, product.Name,
 		product.SeriesID, product.SetTypeID, product.ProductTypeID,
-		product.OriginalPrice, product.MarketPrice, product.ExpectedPrice,
+		product.OriginalPrice, product.MarketPrice, product.ExpectedPrice, product.CostPrice,
 		product.Remark, product.StorageLocation, product.ImageURL, product.Images, product.Tags,
 		product.UpdatedAt, product.ID)
 	if err != nil {
@@ -630,6 +630,9 @@ func applyProductUpdate(product *Product, req *UpdateProductReq) {
 	}
 	if req.ExpectedPrice != nil {
 		product.ExpectedPrice = *req.ExpectedPrice
+	}
+	if req.CostPrice != nil {
+		product.CostPrice = *req.CostPrice
 	}
 	if req.Remark != nil {
 		product.Remark = *req.Remark
@@ -881,13 +884,13 @@ func (r *Repository) CreateProductTx(ctx context.Context, tx *sql.Tx, req *Creat
 		`INSERT INTO `+tableProducts+`
 		 (id, inventory_id, code, main_zone, sub_zone, seq_number, quantity, reserved_quantity,
 		  status_code, name, series_id, set_type_id, product_type_id,
-		  original_price, market_price, expected_price,
+		  original_price, market_price, expected_price, cost_price,
 		  remark, storage_location, image_url, images, tags, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.ID, p.InventoryID, p.Code, p.MainZone, p.SubZone, p.SeqNumber,
 		p.Quantity, p.ReservedQuantity, p.StatusCode, p.Name,
 		p.SeriesID, p.SetTypeID, p.ProductTypeID,
-		p.OriginalPrice, p.MarketPrice, p.ExpectedPrice,
+		p.OriginalPrice, p.MarketPrice, p.ExpectedPrice, p.CostPrice,
 		p.Remark, p.StorageLocation, p.ImageURL, p.Images, p.Tags,
 		p.CreatedAt, p.UpdatedAt)
 	if err != nil {
@@ -964,7 +967,7 @@ func (r *Repository) GetProductForUpdateTx(ctx context.Context, tx *sql.Tx, prod
 	row := tx.QueryRowContext(ctx,
 		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
 		        quantity, reserved_quantity, status_code, name, series_id, set_type_id, product_type_id,
-		        original_price, market_price, expected_price,
+		        original_price, market_price, expected_price, cost_price,
 		        remark, storage_location, image_url, images, tags,
 		        created_at, updated_at
 		 FROM `+tableProducts+` WHERE id = ? FOR UPDATE`, productID)

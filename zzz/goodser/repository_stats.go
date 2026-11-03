@@ -122,7 +122,44 @@ func (r *Repository) StatsSeries(ctx context.Context, inventoryID string) ([]Sta
 	return items, rows.Err()
 }
 
-// StatsTopProducts 统计区间内出库确认量最高的商品。
+// StatsProfit 汇总区间内每个商品的净出库量与价格，用于计算收益。
+// 净出库量 = 出库确认量 - 退货回库量；退款不退货的退货不回库，
+// 这里按库存流水口径统计，收益口径需在服务层说明。
+func (r *Repository) StatsProfit(ctx context.Context, inventoryID string, since time.Time) ([]StatsProfitRow, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT m.product_id, COALESCE(p.name, ''), COALESCE(p.code, ''),
+		        COALESCE(SUM(CASE WHEN m.reason = ? THEN -m.reserved_delta ELSE 0 END), 0) AS outbound_qty,
+		        COALESCE(SUM(CASE WHEN m.reason = ? THEN m.quantity_delta ELSE 0 END), 0) AS return_qty,
+		        COALESCE(p.expected_price, 0), COALESCE(p.market_price, 0),
+		        COALESCE(p.cost_price, 0), COALESCE(p.original_price, 0)
+		 FROM `+tableStockMovements+` m
+		 LEFT JOIN `+tableProducts+` p ON p.id = m.product_id
+		 WHERE m.inventory_id = ? AND m.created_at >= ? AND m.reason IN (?, ?)
+		 GROUP BY m.product_id, p.name, p.code, p.expected_price, p.market_price, p.cost_price, p.original_price
+		 HAVING SUM(CASE WHEN m.reason = ? THEN -m.reserved_delta ELSE 0 END) > 0`,
+		StockReasonOutboundConfirm, StockReasonReturnRestock,
+		inventoryID, since, StockReasonOutboundConfirm, StockReasonReturnRestock,
+		StockReasonOutboundConfirm)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StatsProfitRow
+	for rows.Next() {
+		var item StatsProfitRow
+		if err := rows.Scan(
+			&item.ProductID, &item.ProductName, &item.ProductCode,
+			&item.OutboundQty, &item.ReturnQty,
+			&item.ExpectedPrice, &item.MarketPrice,
+			&item.CostPrice, &item.OriginalPrice,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func (r *Repository) StatsTopProducts(ctx context.Context, inventoryID string, since time.Time, limit int) ([]StatsTopProduct, error) {
 	if limit < 1 || limit > 50 {
 		limit = 10
