@@ -34,7 +34,7 @@ func TestNormalizePDDNumber(t *testing.T) {
 	}{
 		{"2790", true, 27.90},
 		{"27.90", true, 27.90},
-		{"99", true, 99},
+		{"99", true, 0.99},
 		{"19.9", false, 19.9},
 	}
 	for _, c := range cases {

@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	pddCanonicalURL = "https://mobile.yangkeduo.com/goods1.html?goods_id=%s"
-	pddMobileUA     = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+	pddCanonicalURL    = "https://mobile.yangkeduo.com/goods1.html?goods_id=%s"
+	pddMobileUA        = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+	pddRequestInterval = 10 * time.Second
 )
 
 // PDDCollector 拼多多价格采集器。
@@ -32,6 +33,7 @@ type PDDCollector struct {
 	browserPath string
 	remoteURL   string
 	mu          sync.Mutex
+	lastRequest time.Time
 }
 
 // NewPDDCollector 创建拼多多价格采集器
@@ -60,6 +62,18 @@ func (c *PDDCollector) Platform() string {
 func (c *PDDCollector) FetchPrice(ctx context.Context, rawURL string) (*PriceResult, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	// 同一拼多多采集器串行执行，并保持至少 10s 间隔，降低风控概率。
+	if !c.lastRequest.IsZero() {
+		if wait := pddRequestInterval - time.Since(c.lastRequest); wait > 0 {
+			select {
+			case <-time.After(wait):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+	}
+	c.lastRequest = time.Now()
 
 	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
@@ -241,7 +255,7 @@ func normalizePDDNumber(raw string, cents bool) float64 {
 	if v <= 0 {
 		return 0
 	}
-	if cents && !strings.Contains(raw, ".") && v >= 100 {
+	if cents && !strings.Contains(raw, ".") {
 		v = v / 100
 	}
 	return round2(v)

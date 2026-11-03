@@ -171,6 +171,13 @@ func (s *Service) ListProducts(ctx context.Context, req *ListProductsReq) ([]Pro
 func (s *Service) ExecuteCheck(ctx context.Context, p *Product, col collector.Collector) error {
 	// 渠道登录已失效：在重新登录前跳过价格检查（由 login3rd 同步账号状态）
 	if s.isPlatformLoginExpired(ctx, p.Platform) {
+		now := time.Now()
+		nextCheck := s.computeNextCheck(now, p.CheckInterval, p.CronExpr)
+		// 登录失效时至少 6 小时后再试，避免调度器每小时对同一商品空转。
+		if backoff := now.Add(6 * time.Hour); nextCheck.Before(backoff) {
+			nextCheck = backoff
+		}
+		s.repo.UpdateCheckFailure(ctx, p.ID, now, nextCheck)
 		return fmt.Errorf("平台 %s 登录已失效，已跳过价格检查，请先登录", p.Platform)
 	}
 
