@@ -75,7 +75,7 @@ func (r *Repository) CreateInventory(ctx context.Context, req *CreateInventoryRe
 	item := &Inventory{
 		ID:        uuid.New().String(),
 		Name:      req.Name,
-		SortOrder: 0,
+		SortOrder: req.SortOrder,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -97,10 +97,13 @@ func (r *Repository) UpdateInventory(ctx context.Context, req *UpdateInventoryRe
 	if req.Name != nil {
 		item.Name = *req.Name
 	}
+	if req.SortOrder != nil {
+		item.SortOrder = *req.SortOrder
+	}
 	item.UpdatedAt = time.Now()
 	_, err = r.db.ExecContext(ctx,
-		`UPDATE `+tableInventories+` SET name = ?, updated_at = ? WHERE id = ?`,
-		item.Name, item.UpdatedAt, item.ID)
+		`UPDATE `+tableInventories+` SET name = ?, sort_order = ?, updated_at = ? WHERE id = ?`,
+		item.Name, item.SortOrder, item.UpdatedAt, item.ID)
 	if err != nil {
 		return nil, err
 	}

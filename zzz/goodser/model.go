@@ -353,12 +353,14 @@ type CustomerStockQueryResp struct {
 // --- Request DTOs ---
 
 type CreateInventoryReq struct {
-	Name string `json:"name"`
+	Name      string `json:"name"`
+	SortOrder int    `json:"sort_order"`
 }
 
 type UpdateInventoryReq struct {
-	ID   string  `json:"id"`
-	Name *string `json:"name"`
+	ID        string  `json:"id"`
+	Name      *string `json:"name"`
+	SortOrder *int    `json:"sort_order"`
 }
 
 type DeleteInventoryReq struct {
@@ -499,13 +501,14 @@ type CreateOutboundReq struct {
 	OrderNo     string `json:"order_no"`
 	// Type 仅用于兼容旧客户端：reserve 表示预留单，其余一律按 outbound 处理。
 	// 单据状态由服务端推导，客户端不能传 status。
-	Type            *string     `json:"type"`
-	OrderInfo       *string     `json:"order_info"`
-	Remark          *string     `json:"remark"`
-	Items           []OrderItem `json:"items"`
-	SourceReserveID *string     `json:"source_reserve_id"`
-	ComboID         *string     `json:"combo_id,omitempty"`
-	ComboQuantity   int         `json:"combo_quantity,omitempty"`
+	Type            *string                `json:"type"`
+	OrderInfo       *string                `json:"order_info"`
+	Remark          *string                `json:"remark"`
+	Items           []OrderItem            `json:"items"`
+	SourceReserveID *string                `json:"source_reserve_id"`
+	ComboID         *string                `json:"combo_id,omitempty"`
+	ComboQuantity   int                    `json:"combo_quantity,omitempty"`
+	ComboBundles    []ComboBundleSelection `json:"combo_bundles,omitempty"`
 	// Bundle 传值时由服务端校验并展开主商品与副区商品，Items 应留空
 	Bundle *BundleOrderSelection `json:"bundle,omitempty"`
 	// 以下字段仅服务端内部使用，用于把捆信息写入出库单
@@ -770,17 +773,26 @@ type CustomerOrderItem struct {
 	Quantity  int    `json:"quantity"`
 }
 
+// ComboBundleSelection 组合包中捆组件的手工选择，数量均按单捆计
+type ComboBundleSelection struct {
+	BundleID      string               `json:"bundle_id"`
+	MainProductID string               `json:"main_product_id"`
+	MainQuantity  int                  `json:"main_quantity"`
+	SubItems      []BundleOrderSubItem `json:"sub_items"`
+}
+
 // CustomerOrderRequestReq 客户提交订单请求，创建 pending 预留并锁定库存
 type CustomerOrderRequestReq struct {
-	InventoryID   string                `json:"inventory_id"`
-	CustomerName  string                `json:"customer_name"`
-	Contact       string                `json:"contact"`
-	Items         []CustomerOrderItem   `json:"items"`
-	ComboID       string                `json:"combo_id"`
-	ComboQuantity int                   `json:"combo_quantity"`
-	Bundle        *BundleOrderSelection `json:"bundle,omitempty"`
-	OrderInfo     *string               `json:"order_info"`
-	Remark        *string               `json:"remark"`
+	InventoryID   string                 `json:"inventory_id"`
+	CustomerName  string                 `json:"customer_name"`
+	Contact       string                 `json:"contact"`
+	Items         []CustomerOrderItem    `json:"items"`
+	ComboID       string                 `json:"combo_id"`
+	ComboQuantity int                    `json:"combo_quantity"`
+	ComboBundles  []ComboBundleSelection `json:"combo_bundles,omitempty"`
+	Bundle        *BundleOrderSelection  `json:"bundle,omitempty"`
+	OrderInfo     *string                `json:"order_info"`
+	Remark        *string                `json:"remark"`
 }
 
 // CustomerOrderRequestResp 客户订单请求结果

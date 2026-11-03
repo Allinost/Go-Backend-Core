@@ -121,20 +121,16 @@ func bundleAvailability(bundle *Bundle) int {
 	if minItems == 0 && minAmount == 0 {
 		return mainAvailable
 	}
-	distinct := 0
-	amount := 0.0
+	totalAvailable := 0
+	maxAmount := 0.0
 	for _, item := range bundle.SubProducts {
 		if item.Available <= 0 {
 			continue
 		}
-		distinct++
-		qty := item.DefaultQuantity
-		if qty <= 0 {
-			qty = 1
-		}
-		amount += item.ExpectedPrice * float64(qty)
+		totalAvailable += item.Available
+		maxAmount += item.ExpectedPrice * float64(item.Available)
 	}
-	if distinct < minItems || roundMoney(amount) < minAmount {
+	if totalAvailable < minItems || roundMoney(maxAmount) < minAmount {
 		return 0
 	}
 	return mainAvailable
@@ -663,9 +659,9 @@ func (s *Service) buildBundleSelection(
 	for _, qty := range aggregated {
 		subQty += qty
 	}
-	if minItems := bundle.EffectiveMinItemCount(); len(aggregated) < minItems {
+	if minItems := bundle.EffectiveMinItemCount(); subQty < minItems {
 		return nil, nil, NewGoodserError(ErrBundleRule,
-			fmt.Sprintf("捆物至少选择 %d 种商品", minItems))
+			fmt.Sprintf("捆物数量不足，至少 %d 件", minItems))
 	}
 	if bundle.MaxSubQuantity > 0 && subQty > bundle.MaxSubQuantity {
 		return nil, nil, NewGoodserError(ErrBundleRule,

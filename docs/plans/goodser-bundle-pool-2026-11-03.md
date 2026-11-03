@@ -31,7 +31,7 @@
 | `name` | VARCHAR(100) | 池名称，例如「盗墓笔记·吧唧池」 |
 | `description` | TEXT | 说明 |
 | `status` | VARCHAR(20) | `active` / `inactive` |
-| `min_item_count` | INT | 最少选择商品**种数** |
+| `min_item_count` | INT | 最少选择商品**数量（件）**，同一商品可重复选择 |
 | `min_amount` | DECIMAL(10,2) | 最低捆物金额 |
 | `created_at` / `updated_at` | DATETIME | 时间戳 |
 
@@ -43,9 +43,10 @@
 - 新增 `pool_id`，一个捆绑定一个捆物池。
 - 主商品仍支持多个（`main_filter` + `main_product_ids`），保留 `min_main_quantity` / `min_main_amount` 校验。
 - 生效规则：
-  - 最少捆物种数 = `max(pool.min_item_count, bundle.min_sub_quantity)`
+  - 最少捆物数量 = `max(pool.min_item_count, bundle.min_sub_quantity)`（按总件数）
   - 最低捆物金额 = `max(pool.min_amount, bundle.min_sub_amount)`
-  - 最多捆物种数 = `bundle.max_sub_quantity`（0 表示不限制）
+  - 最多捆物数量 = `bundle.max_sub_quantity`（0 表示不限制）
+  - 同一捆物商品允许重复选择，数量累加
 - 捆仍可单独售卖，不因被组合包引用而停用。
 - 库存不足判定（客户侧）：
   1. 没有任何可用主商品，或
@@ -119,15 +120,18 @@
 - 新接口：`/zzz-goodser/bundle-pools` 增删改查。
 - 捆新增 `pool_id` / `pool` / `availability`；组合包组件新增
   `item_type` / `bundle_id` / `bundle_name`。
-- 组合包展开捆组件时，自动选择满足主商品库存、池最少种数、最低金额且有库存的
-  主商品与池成员，按组合包固定价结算。
-- 客户库存查询隐藏主商品无库存或池可售种数不足的捆；组合包按组件（含捆）可用量过滤。
+- 组合包展开捆组件时必须由调用方传 `combo_bundles` 手工选择主商品与捆物，
+  服务端不做自动搭配；同一捆物商品可重复选择并按数量累加。
+- 库存目录支持 `sort_order`，列表按 `sort_order`、`created_at` 升序，Web 默认打开第一个。
+- 客户库存查询隐藏主商品无库存或池可售数量不足的捆；组合包按组件（含捆）可用量过滤。
 - Web：捆页签新增「捆物池管理」，捆表单支持选择池并只读展示池成员；组合包表单支持
-  「商品 / 捆」组件切换与捆组件添加。
+  「商品 / 捆」组件切换与捆组件添加；订单表单在组合包含捆时展开手工选择区；
+  库存目录新建/编辑支持排序。
 - 验证：
   - `go test ./zzz/goodser/...` 通过（新增 `TestBundleEffectiveSubRules`、
     `TestBundleAvailability`、`TestBundlePoolSubProducts`）。
-  - `.local/verify-bundle-pool-api.js`：12 项全部通过（池/捆/组合包 CRUD、规则校验、
-    引用保护、客户查询）。
-  - `.local/verify-bundle-pool-web.js`：25 项全部通过（池管理、捆绑定池、组合包含捆）。
+  - `.local/verify-bundle-pool-api.js`：17 项全部通过（池/捆/组合包 CRUD、规则校验、
+    组合包手工选捆与重复选择、库存目录排序、引用保护、客户查询）。
+  - `.local/verify-bundle-pool-web.js`：34 项全部通过（池管理、捆绑定池、组合包含捆、
+    订单手工选捆、库存目录排序与默认打开第一个）。
 

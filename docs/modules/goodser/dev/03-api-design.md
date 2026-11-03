@@ -84,9 +84,9 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/zzz-goodser/inventories` | 列表 |
-| POST | `/api/v1/zzz-goodser/inventories` | 创建 |
-| PUT | `/api/v1/zzz-goodser/inventories/:id` | 更新 |
+| GET | `/api/v1/zzz-goodser/inventories` | 列表，按 `sort_order`、`created_at` 升序；前端默认打开第一个 |
+| POST | `/api/v1/zzz-goodser/inventories` | 创建，可传 `sort_order` |
+| PUT | `/api/v1/zzz-goodser/inventories/:id` | 更新名称或排序 |
 | DELETE | `/api/v1/zzz-goodser/inventories/:id` | 删除 |
 | GET | `/api/v1/zzz-goodser/inventories/:id/stats` | 店主统计总览，支持 `days` 1-365（默认 30）或 `start_date`/`end_date` 自定义区间 |
 
@@ -194,15 +194,35 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 组合包不持有独立库存，`availability = min(组件可用量 / 组件数量)`。组件支持
 `item_type=product|bundle`：商品组件用 `product_id`，捆组件用 `bundle_id`。
 捆组件可售量按捆的主商品库存与捆物池规则推导。创建出库/
-预留单时传 `combo_id` + `combo_quantity`，服务端会展开为组件商品并按组件扣减库存；
-组合包中的捆组件会自动选取满足池规则且有库存的主商品与捆物。
+预留单时传 `combo_id` + `combo_quantity`，含捆组件时还必须传 `combo_bundles`
+手工选择每套捆的主商品与捆物，服务端不做自动搭配：
+
+```json
+{
+  "combo_id": "combo-1",
+  "combo_quantity": 1,
+  "combo_bundles": [
+    {
+      "bundle_id": "bundle-1",
+      "main_product_id": "product-main",
+      "main_quantity": 1,
+      "sub_items": [
+        {"product_id": "product-sub-1", "quantity": 2}
+      ]
+    }
+  ]
+}
+```
+
+`sub_items` 允许同一商品重复出现，服务端按商品聚合数量；最少捆物数量按总件数校验。
 
 捆由主商品条件与捆物池组成。主商品可显式指定，也可通过
 `main_filter` 按系列、角色、套型、类型、状态、关键词动态筛选，两者同时存在时按
 AND 校验。捆通过 `pool_id` 绑定一个库存目录级的捆物池，池包含成员商品、
-`min_item_count`（最少选择商品种数）与 `min_amount`（最低捆物金额）。
+`min_item_count`（最少选择商品数量）与 `min_amount`（最低捆物金额）。
 捆级 `min_sub_quantity` / `min_sub_amount` 与池规则取较大值生效，`max_sub_quantity`
-仍限制单捆捆物总件数。未绑定池的存量捆继续使用 `sub_products` 清单。
+仍限制单捆捆物总件数；同一捆物商品可重复选择，按数量累加。未绑定池的存量捆继续使用
+`sub_products` 清单。
 
 更新捆时 `main_filter` 省略或传 `null` 表示不修改，传 `{}` 表示清空筛选；
 清空后必须仍有显式主商品，否则返回“缺少主商品条件”。下单时传：
@@ -228,7 +248,7 @@ AND 校验。捆通过 `pool_id` 绑定一个库存目录级的捆物池，池�
 单捆数量乘以 `quantity`。使用捆下单时 `items` 必须留空，服务端会：
 
 1. 校验主商品在允许范围内，且满足主商品最低数量、最低金额。
-2. 校验捆物都来自绑定的捆物池（或存量副区商品清单），满足最少种数、最低金额与最多件数。
+2. 校验捆物都来自绑定的捆物池（或存量副区商品清单），满足最少数量、最低金额与最多件数；同一商品可重复选择并按数量累加。
 3. 按 `price_mode` 计算单捆价与总价。
 4. 展开为主商品与捆物商品明细，按 D1 规则锁定库存。
 5. 在出库单写入 `bundle_snapshot`，保存选择内容、价格与规则快照。

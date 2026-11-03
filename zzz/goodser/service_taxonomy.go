@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
-	"sort"
 	"strings"
 	"time"
 
@@ -350,8 +349,14 @@ func (s *Service) validateComboItems(ctx context.Context, inventoryID string, it
 	return nil
 }
 
-// expandCombo 把组合包展开为组件商品明细
-func (s *Service) expandCombo(ctx context.Context, inventoryID, comboID string, comboQuantity int) ([]OrderItem, error) {
+// expandCombo 把组合包展开为组件商品明细。
+// 含捆组件时必须由调用方提供手工选择，服务端不做自动搭配。
+func (s *Service) expandCombo(
+	ctx context.Context,
+	inventoryID, comboID string,
+	comboQuantity int,
+	bundleSelections []ComboBundleSelection,
+) ([]OrderItem, error) {
 	if comboQuantity <= 0 {
 		comboQuantity = 1
 	}
@@ -368,123 +373,75 @@ func (s *Service) expandCombo(ctx context.Context, inventoryID, comboID string, 
 	if len(combo.Items) == 0 {
 		return nil, NewGoodserError(ErrComboItemsRequired)
 	}
+
+	selections := make(map[string]ComboBundleSelection, len(bundleSelections))
+	for _, selection := range bundleSelections {
+		bundleID := strings.TrimSpace(selection.BundleID)
+		if bundleID == "" {
+			continue
+		}
+		if _, exists := selections[bundleID]; exists {
+			return nil, NewGoodserError(ErrInvalidDimension, "组合包捆选择重复")
+		}
+		selections[bundleID] = selection
+	}
+
 	items := make([]OrderItem, 0, len(combo.Items))
 	for _, component := range combo.Items {
-		if component.ItemType == ComboItemTypeBundle {
-			bundleItems, err := s.expandComboBundle(ctx, inventoryID, component.BundleID, component.Quantity*comboQuantity)
-			if err != nil {
-				return nil, err
-			}
-			items = append(items, bundleItems...)
+		if component.ItemType != ComboItemTypeBundle {
+			items = append(items, OrderItem{
+				ProductID:   component.ProductID,
+				ProductName: component.ProductName,
+				ProductCode: component.ProductCode,
+				Quantity:    component.Quantity * comboQuantity,
+				ImageURL:    component.ImageURL,
+			})
 			continue
+		}
+
+		selection, ok := selections[component.BundleID]
+		if !ok || strings.TrimSpace(selection.MainProductID) == "" {
+			return nil, NewGoodserError(ErrBundleRule,
+				"组合包含捆「"+component.BundleName+"」，请手动选择主商品与捆物")
+		}
+		bundle, err := s.GetBundle(ctx, component.BundleID)
+		if err != nil {
+			return nil, err
+		}
+		if bundle.InventoryID != inventoryID {
+			return nil, NewGoodserError(ErrProductInventory, "组合包捆组件不属于该库存目录")
+		}
+		bundleQty := component.Quantity
+		if bundleQty <= 0 {
+			bundleQty = 1
+		}
+		bundleSelection := &BundleOrderSelection{
+			BundleID:      component.BundleID,
+			MainProductID: selection.MainProductID,
+			MainQuantity:  selection.MainQuantity,
+			Quantity:      bundleQty,
+			SubItems:      selection.SubItems,
+		}
+		_, snapshot, err := s.buildBundleSelection(ctx, bundle, bundleSelection, func(productID string) (*Product, error) {
+			return s.repo.GetProduct(ctx, productID)
+		})
+		if err != nil {
+			return nil, err
 		}
 		items = append(items, OrderItem{
-			ProductID:   component.ProductID,
-			ProductName: component.ProductName,
-			ProductCode: component.ProductCode,
-			Quantity:    component.Quantity * comboQuantity,
-			ImageURL:    component.ImageURL,
+			ProductID:   snapshot.MainProductID,
+			ProductName: snapshot.MainProductName,
+			Quantity:    snapshot.MainQuantity * snapshot.Quantity * comboQuantity,
 		})
-	}
-	return items, nil
-}
-
-// expandComboBundle 把组合包中的捆组件展开为具体商品。
-// 组合包使用固定价，这里只负责选出满足池规则且库存足够的商品组合。
-func (s *Service) expandComboBundle(ctx context.Context, inventoryID, bundleID string, quantity int) ([]OrderItem, error) {
-	if quantity <= 0 {
-		quantity = 1
-	}
-	bundle, err := s.GetBundle(ctx, bundleID)
-	if err != nil {
-		return nil, err
-	}
-	if bundle.InventoryID != inventoryID {
-		return nil, NewGoodserError(ErrProductInventory, "组合包捆组件不属于该库存目录")
-	}
-	if bundle.Status != BundleStatusActive {
-		return nil, NewGoodserError(ErrBundleNotFound, "捆已停用")
-	}
-	if bundle.Pool != nil && bundle.Pool.Status != BundlePoolStatusActive {
-		return nil, NewGoodserError(ErrBundlePoolNotFound, "捆物池已停用")
-	}
-
-	minMainQty := bundle.MinMainQuantity
-	if minMainQty <= 0 {
-		minMainQty = 1
-	}
-	var main *BundleMainProduct
-	for i := range bundle.MainProducts {
-		item := &bundle.MainProducts[i]
-		if item.Available >= minMainQty*quantity &&
-			item.ExpectedPrice*float64(minMainQty) >= bundle.MinMainAmount {
-			main = item
-			break
+		for _, sub := range snapshot.SubItems {
+			items = append(items, OrderItem{
+				ProductID:   sub.ProductID,
+				ProductName: sub.ProductName,
+				ProductCode: sub.ProductCode,
+				Quantity:    sub.Quantity * snapshot.Quantity * comboQuantity,
+				ImageURL:    sub.ImageURL,
+			})
 		}
-	}
-	if main == nil {
-		return nil, NewGoodserError(ErrInsufficientStock, "捆主商品库存不足")
-	}
-
-	minItems := bundle.EffectiveMinItemCount()
-	minAmount := bundle.EffectiveMinSubAmount()
-	selected := make([]BundleSubProduct, 0)
-	distinct := 0
-	amount := 0.0
-	totalQty := 0
-	order := append([]BundleSubProduct(nil), bundle.SubProducts...)
-	sort.SliceStable(order, func(i, j int) bool {
-		if order[i].Available <= 0 {
-			return false
-		}
-		if order[j].Available <= 0 {
-			return true
-		}
-		return order[i].ExpectedPrice < order[j].ExpectedPrice
-	})
-	for _, item := range order {
-		qty := item.DefaultQuantity
-		if qty <= 0 {
-			qty = 1
-		}
-		if item.Available < qty*quantity {
-			continue
-		}
-		if bundle.MaxSubQuantity > 0 && totalQty+qty > bundle.MaxSubQuantity {
-			continue
-		}
-		selected = append(selected, item)
-		distinct++
-		totalQty += qty
-		amount += item.ExpectedPrice * float64(qty)
-		if distinct >= minItems && roundMoney(amount) >= minAmount {
-			break
-		}
-	}
-	if distinct < minItems || roundMoney(amount) < minAmount {
-		return nil, NewGoodserError(ErrInsufficientStock, "捆物池库存不足")
-	}
-
-	items := make([]OrderItem, 0, len(selected)+1)
-	items = append(items, OrderItem{
-		ProductID:   main.ProductID,
-		ProductName: main.ProductName,
-		ProductCode: main.ProductCode,
-		Quantity:    minMainQty * quantity,
-		ImageURL:    main.ImageURL,
-	})
-	for _, item := range selected {
-		qty := item.DefaultQuantity
-		if qty <= 0 {
-			qty = 1
-		}
-		items = append(items, OrderItem{
-			ProductID:   item.ProductID,
-			ProductName: item.ProductName,
-			ProductCode: item.ProductCode,
-			Quantity:    qty * quantity,
-			ImageURL:    item.ImageURL,
-		})
 	}
 	return items, nil
 }
@@ -731,6 +688,7 @@ func (s *Service) CustomerOrderRequest(ctx context.Context, req *CustomerOrderRe
 		Remark:        req.Remark,
 		Items:         customerItems,
 		ComboQuantity: req.ComboQuantity,
+		ComboBundles:  req.ComboBundles,
 		Bundle:        req.Bundle,
 	}
 	if strings.TrimSpace(req.ComboID) != "" {

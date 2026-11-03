@@ -21582,6 +21582,9 @@ const docTemplate = `{
             "properties": {
                 "name": {
                     "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
                 }
             }
         },
@@ -21595,6 +21598,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/zzz_goodser.BundleOrderSelection"
                         }
                     ]
+                },
+                "combo_bundles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.ComboBundleSelection"
+                    }
                 },
                 "combo_id": {
                     "type": "string"
@@ -21850,6 +21859,12 @@ const docTemplate = `{
             "properties": {
                 "bundle": {
                     "$ref": "#/definitions/zzz_goodser.BundleOrderSelection"
+                },
+                "combo_bundles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.ComboBundleSelection"
+                    }
                 },
                 "combo_id": {
                     "type": "string"
@@ -23195,6 +23210,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
                 }
             }
         },
@@ -26471,6 +26489,26 @@ const docTemplate = `{
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.ComboBundleSelection": {
+            "type": "object",
+            "properties": {
+                "bundle_id": {
+                    "type": "string"
+                },
+                "main_product_id": {
+                    "type": "string"
+                },
+                "main_quantity": {
+                    "type": "integer"
+                },
+                "sub_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.BundleOrderSubItem"
+                    }
                 }
             }
         }

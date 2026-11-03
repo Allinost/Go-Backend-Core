@@ -733,7 +733,7 @@ func (s *Service) CreateOutboundOrder(ctx context.Context, req *CreateOutboundRe
 	items := req.Items
 	comboQuantity := req.ComboQuantity
 	if req.ComboID != nil && strings.TrimSpace(*req.ComboID) != "" {
-		comboItems, err := s.expandCombo(ctx, req.InventoryID, *req.ComboID, comboQuantity)
+		comboItems, err := s.expandCombo(ctx, req.InventoryID, *req.ComboID, comboQuantity, req.ComboBundles)
 		if err != nil {
 			return nil, err
 		}

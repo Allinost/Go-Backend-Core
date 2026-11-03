@@ -21577,6 +21577,9 @@
             "properties": {
                 "name": {
                     "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
                 }
             }
         },
@@ -21590,6 +21593,12 @@
                             "$ref": "#/definitions/zzz_goodser.BundleOrderSelection"
                         }
                     ]
+                },
+                "combo_bundles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.ComboBundleSelection"
+                    }
                 },
                 "combo_id": {
                     "type": "string"
@@ -21845,6 +21854,12 @@
             "properties": {
                 "bundle": {
                     "$ref": "#/definitions/zzz_goodser.BundleOrderSelection"
+                },
+                "combo_bundles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.ComboBundleSelection"
+                    }
                 },
                 "combo_id": {
                     "type": "string"
@@ -23190,6 +23205,9 @@
                 },
                 "name": {
                     "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
                 }
             }
         },
@@ -26466,6 +26484,26 @@
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.ComboBundleSelection": {
+            "type": "object",
+            "properties": {
+                "bundle_id": {
+                    "type": "string"
+                },
+                "main_product_id": {
+                    "type": "string"
+                },
+                "main_quantity": {
+                    "type": "integer"
+                },
+                "sub_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.BundleOrderSubItem"
+                    }
                 }
             }
         }
