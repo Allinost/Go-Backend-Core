@@ -288,6 +288,27 @@
 - Web 7 个套件共 233 条断言、小程序 4 个套件共 78 条断言，最终执行 0 失败。
 - 已知缺口与下一轮清单已写入 Checklist 第 7、8 节：弹窗可访问性、集成测试结果持久化、小程序未保存拦截、组合包可售为 0 的提交禁用、小程序视觉回归、文案标点统一。
 
+## 14. UI-4 P0 修复（2026-11-03）
+
+已完成：
+
+- **NKUI 组件层**（NKUI 仓库 `3c7a745`/`bc68317`）：
+  - Dialog：`role="dialog"`、`aria-modal`、`aria-labelledby`、Esc 关闭（`close-on-esc`）、Tab 焦点锁定、打开锁定页面滚动并恢复原焦点；宽度支持数字；关闭按钮补 `type`/`aria-label`。
+  - Drawer：同一套可访问性能力与 `close-on-esc`。
+  - Button：原生 `type` 默认 `button`，新增 `nativeType`，避免表单内误提交；补 `aria-busy`/`aria-disabled`。
+  - Select：点击外部关闭、Esc 关闭、方向键/Enter 键盘选择、`aria-combobox/listbox`、`clearable` 清空按钮、触发器焦点样式。
+  - Tabs：`line` 变体补指示条定位（此前 `inkStyle` 从未赋值，指示条不显示），新增 `tablist/tab` 语义与方向键/Home/End 导航。
+  - 文档同步更新 Dialog/Drawer/Select/Tabs/Button。
+- **Web**：Vite 将 `@nkui/vue` 排除预构建（junction 源码链接，避免 dev 使用旧缓存导致 `width` 等属性失效）；出库创建弹窗展示组合包可售量，可售为 0 或超量时提示并禁用提交。
+- **小程序**：修复 `wx.enableAlertBeforeUnload` 返回值误用，创建成功后调用 `wx.disableAlertBeforeUnload` 正确解除离开确认。
+
+验证说明：
+
+- 新增 `verify-nkui-a11y.js`（23 条）：弹窗语义/宽度/滚动锁/焦点移入/Tab 循环/Esc 关闭与焦点恢复、Select 外部关闭与键盘选择。
+- 新增 `verify-combo-guard-web.js`（7 条）：组合包可售为 0 时提示与提交禁用。
+- Web 既有 7 个套件与小程序 4 个套件全部回归通过；`vue-tsc`、`vite build`、NKUI `typecheck`/`build` 通过。
+- 截图基线重新生成（页签指示条生效）。
+
 验证说明：
 
 - Web 通过 Puppeteer 实际验证：统计 4 张指标卡、30 根趋势柱、点选切换单日明细、CSV 导出按钮、商品批量栏与本页全选/取消、退货 Tab、768px 无横向溢出、无控制台错误。

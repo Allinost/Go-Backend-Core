@@ -27,7 +27,9 @@
 | I4 | 弹窗关闭方式：取消、右上角 ×、遮罩点击 | 通过 |
 | I5 | 跨页联动保留上下文（系列→商品筛选、捆→出库、退货→订单） | 通过 |
 | I6 | 分页/加载更多不会重复追加同一条数据 | 通过（page 重置） |
-| I7 | 小程序返回时有未保存修改提示 | 未覆盖（出库创建页 `_hasChanges` 仅用于切目录，返回未拦截） |
+| I7 | 小程序返回时有未保存修改提示 | 通过（`enableAlertBeforeUnload`，提交成功后解除） |
+| I8 | 弹窗打开后焦点进入内容区、Tab 不逃逸、Esc 可关闭 | 通过（NKUI Dialog/Drawer） |
+| I9 | 下拉选择支持点击外部/Esc 收起与键盘选择 | 通过（NKUI Select） |
 
 ### 1.3 文案
 
@@ -58,8 +60,8 @@
 | A2 | 触控目标 ≥ 44×44px | 小程序主要按钮通过；部分 `btn-xs` 偏小 |
 | A3 | 图片有占位/失败回退 | 通过（商品卡、白名单头像） |
 | A4 | 表单 label 与输入控件关联（`label for` / `aria-label`） | 未通过（视觉 label 仅作排版） |
-| A5 | 弹窗 `aria-modal` / 焦点锁定 / Esc 关闭 | 未通过（NKUI Dialog 未实现，需组件层改造） |
-| A6 | 仅图标按钮有可读名称 | 部分通过（🔄 刷新、✕ 关闭依赖上下文） |
+| A5 | 弹窗 `aria-modal` / 焦点锁定 / Esc 关闭 | 通过（NKUI Dialog/Drawer 已实现） |
+| A6 | 仅图标按钮有可读名称 | 部分通过（弹窗/抽屉关闭按钮已补 `aria-label`，页面内图标按钮待补） |
 
 ## 2. Web 页面清单
 
@@ -112,8 +114,10 @@
 | 小程序 `verify-ui2.js` | 16 | 全通过 |
 | 小程序 `verify-ui3.js` | 24 | 全通过 |
 | 小程序 `verify-ui4.js` | 20 | 全通过 |
+| Web `verify-nkui-a11y.js` | 23 | 全通过（弹窗/抽屉语义、焦点、Esc、Select 键盘与外部关闭） |
+| Web `verify-combo-guard-web.js` | 7 | 全通过（组合包可售为 0 拦截） |
 
-- 合计 311 条自动化断言，最终执行 0 失败；自动化未发现功能阻断问题。
+- 合计 341 条自动化断言，最终执行 0 失败；自动化未发现功能阻断问题。
 - 截图基线：`.local/baselines/`（`web-products-1440/480`、`web-returns-1440`、`web-stats-1440`、`web-integration-1440/480`），清单见同目录 `manifest.json`。
 
 ## 6. 复现命令
@@ -128,6 +132,8 @@ node .local/verify-settings-web.js
 node .local/verify-responsive-web.js
 node .local/verify-integration-web.js   # 需先启动 .local/webhook-receiver.js
 node .local/verify-baseline-web.js
+node .local/verify-nkui-a11y.js
+node .local/verify-combo-guard-web.js
 
 # 小程序（微信开发者工具自动化端口 9420）
 cd .local/mp-auto
@@ -139,26 +145,25 @@ node verify-ui4.js
 
 ## 7. 已知缺口
 
-1. **可访问性**：NKUI Dialog 无 `aria-modal`、焦点锁定与 Esc 关闭；表单 label 未与控件关联；纯图标按钮缺少可读名称。建议在 NKUI 组件层统一改造，而不是逐页打补丁。
+1. **可访问性**：NKUI Dialog/Drawer 已完成 `aria-modal`、焦点锁定与 Esc 关闭；仍缺表单 label 与控件关联、页面内纯图标按钮的可读名称。建议后续在 NKUI 表单组件与应用层逐步补齐。
 2. **集成测试结果**：仅保存在浏览器 `localStorage`，换设备/清缓存后丢失；如需审计应落到后端。
-3. **小程序未保存拦截**：出库创建页修改后直接返回不会提示。
-4. **组合包可售为 0**：下单页仍允许进入并提交，最终由后端拒绝；可前置禁用提交并提示补货。
-5. **自动化时序**：`verify-orders-web.js` 首次执行偶发失败，建议对订单卡渲染增加显式 `waitForSelector`。
+3. **小程序未保存拦截**：已接入 `wx.enableAlertBeforeUnload`，创建成功后解除；若基础库不支持该 API 会静默跳过。
+4. **组合包可售为 0**：Web 与小程序均已前置拦截（提示 + 禁用/阻止提交）。
+5. **自动化时序**：`verify-orders-web.js` 已改为等待订单卡/捆预览渲染，连续执行稳定。
 6. **视觉回归**：小程序目前只有数据级断言，未接入截图比对。
 
 ## 8. 下一轮优化清单
 
 ### P0
 
-- 为 Web 弹窗补焦点锁定 / Esc 关闭 / `aria-modal`（NKUI 层）。
-- 小程序出库创建返回前增加「未保存」确认。
-- 组合包可售为 0 时禁用下单提交并提示原因。
+- Web 表单 label 关联控件（`label for` / `aria-label`）。
+- 页面内纯图标按钮补可读名称（刷新、关闭等）。
 
 ### P1
 
 - 连接器测试结果落到后端（最近一次时间/状态/错误），前端改为读取。
-- Web 表单 label 关联控件，图标按钮补 `aria-label`。
 - 小程序接入视觉回归（关键 5 页截图基线）。
+- NKUI 组件补齐键盘操作文档与自动化测试（Dialog/Drawer/Select/Tabs）。
 
 ### P2
 
