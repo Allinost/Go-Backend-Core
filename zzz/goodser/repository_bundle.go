@@ -18,7 +18,7 @@ const (
 
 // ListBundles 查询捆模板基础信息
 func (r *Repository) ListBundles(ctx context.Context, inventoryID, status string) ([]Bundle, error) {
-	query := `SELECT id, inventory_id, code, name, description, status, main_filter,
+	query := `SELECT id, inventory_id, code, name, description, status, main_filter, pool_id,
 		min_main_quantity, min_main_amount, min_sub_quantity, max_sub_quantity, min_sub_amount,
 		price_mode, fixed_price, created_at, updated_at
 		FROM ` + tableBundles + ` WHERE inventory_id = ?`
@@ -47,7 +47,7 @@ func (r *Repository) ListBundles(ctx context.Context, inventoryID, status string
 
 // GetBundle 查询捆模板基础信息
 func (r *Repository) GetBundle(ctx context.Context, id string) (*Bundle, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT id, inventory_id, code, name, description, status, main_filter,
+	row := r.db.QueryRowContext(ctx, `SELECT id, inventory_id, code, name, description, status, main_filter, pool_id,
 		min_main_quantity, min_main_amount, min_sub_quantity, max_sub_quantity, min_sub_amount,
 		price_mode, fixed_price, created_at, updated_at
 		FROM `+tableBundles+` WHERE id = ?`, id)
@@ -62,7 +62,7 @@ func (r *Repository) GetBundle(ctx context.Context, id string) (*Bundle, error) 
 }
 
 func (r *Repository) getBundleForUpdateTx(ctx context.Context, tx *sql.Tx, id string) (*Bundle, error) {
-	row := tx.QueryRowContext(ctx, `SELECT id, inventory_id, code, name, description, status, main_filter,
+	row := tx.QueryRowContext(ctx, `SELECT id, inventory_id, code, name, description, status, main_filter, pool_id,
 		min_main_quantity, min_main_amount, min_sub_quantity, max_sub_quantity, min_sub_amount,
 		price_mode, fixed_price, created_at, updated_at
 		FROM `+tableBundles+` WHERE id = ? FOR UPDATE`, id)
@@ -81,12 +81,16 @@ func scanBundle(scanner interface{ Scan(...any) error }) (Bundle, error) {
 		item        Bundle
 		description sql.NullString
 		filterRaw   sql.NullString
+		poolID      sql.NullString
 		status      string
 	)
-	if err := scanner.Scan(&item.ID, &item.InventoryID, &item.Code, &item.Name, &description, &status, &filterRaw,
+	if err := scanner.Scan(&item.ID, &item.InventoryID, &item.Code, &item.Name, &description, &status, &filterRaw, &poolID,
 		&item.MinMainQuantity, &item.MinMainAmount, &item.MinSubQuantity, &item.MaxSubQuantity, &item.MinSubAmount,
 		&item.PriceMode, &item.FixedPrice, &item.CreatedAt, &item.UpdatedAt); err != nil {
 		return Bundle{}, err
+	}
+	if poolID.Valid && strings.TrimSpace(poolID.String) != "" {
+		item.PoolID = &poolID.String
 	}
 	if description.Valid {
 		item.Description = &description.String
@@ -303,6 +307,7 @@ func (r *Repository) CreateBundle(ctx context.Context, req *CreateBundleReq) (*B
 		Name:            strings.TrimSpace(req.Name),
 		Description:     req.Description,
 		Status:          status,
+		PoolID:          normalizeOptionalID(req.PoolID),
 		MinMainQuantity: req.MinMainQuantity,
 		MinMainAmount:   req.MinMainAmount,
 		MinSubQuantity:  req.MinSubQuantity,
@@ -319,11 +324,11 @@ func (r *Repository) CreateBundle(ctx context.Context, req *CreateBundleReq) (*B
 	}
 
 	if _, err := tx.ExecContext(ctx, `INSERT INTO `+tableBundles+`
-		(id, inventory_id, code, name, description, status, main_filter,
+		(id, inventory_id, code, name, description, status, main_filter, pool_id,
 		 min_main_quantity, min_main_amount, min_sub_quantity, max_sub_quantity, min_sub_amount,
 		 price_mode, fixed_price, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		bundle.ID, bundle.InventoryID, bundle.Code, bundle.Name, bundle.Description, bundle.Status, filterJSON,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		bundle.ID, bundle.InventoryID, bundle.Code, bundle.Name, bundle.Description, bundle.Status, filterJSON, bundle.PoolID,
 		bundle.MinMainQuantity, bundle.MinMainAmount, bundle.MinSubQuantity, bundle.MaxSubQuantity, bundle.MinSubAmount,
 		bundle.PriceMode, bundle.FixedPrice, bundle.CreatedAt, bundle.UpdatedAt); err != nil {
 		return nil, err
@@ -389,15 +394,18 @@ func (r *Repository) UpdateBundle(ctx context.Context, req *UpdateBundleReq) (*B
 	if req.FixedPrice != nil {
 		bundle.FixedPrice = *req.FixedPrice
 	}
+	if req.PoolID != nil {
+		bundle.PoolID = normalizeOptionalID(req.PoolID)
+	}
 	bundle.UpdatedAt = time.Now()
 
 	filterJSON := marshalBundleFilter(&bundle.MainFilter)
 	if _, err := tx.ExecContext(ctx, `UPDATE `+tableBundles+`
-		SET code = ?, name = ?, description = ?, status = ?, main_filter = ?,
+		SET code = ?, name = ?, description = ?, status = ?, main_filter = ?, pool_id = ?,
 		    min_main_quantity = ?, min_main_amount = ?, min_sub_quantity = ?, max_sub_quantity = ?, min_sub_amount = ?,
 		    price_mode = ?, fixed_price = ?, updated_at = ?
 		WHERE id = ?`,
-		bundle.Code, bundle.Name, bundle.Description, bundle.Status, filterJSON,
+		bundle.Code, bundle.Name, bundle.Description, bundle.Status, filterJSON, bundle.PoolID,
 		bundle.MinMainQuantity, bundle.MinMainAmount, bundle.MinSubQuantity, bundle.MaxSubQuantity, bundle.MinSubAmount,
 		bundle.PriceMode, bundle.FixedPrice, bundle.UpdatedAt, bundle.ID); err != nil {
 		return nil, err
@@ -426,6 +434,13 @@ func (r *Repository) DeleteBundle(ctx context.Context, id string) error {
 	}
 	defer tx.Rollback()
 
+	var comboRefs int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+tableComboItems+` WHERE item_type = 'bundle' AND bundle_id = ?`, id).Scan(&comboRefs); err != nil {
+		return err
+	}
+	if comboRefs > 0 {
+		return NewGoodserError(ErrBundleInUse)
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM `+tableBundleMainProducts+` WHERE bundle_id = ?`, id); err != nil {
 		return err
 	}
@@ -446,16 +461,19 @@ func (r *Repository) DeleteBundle(ctx context.Context, id string) error {
 	return tx.Commit()
 }
 
-// CountProductBundleRefs 统计商品被捆主商品或副区商品引用的次数
+// CountProductBundleRefs 统计商品被捆主商品、副区商品或捆物池引用的次数
 func (r *Repository) CountProductBundleRefs(ctx context.Context, productID string) (int, error) {
-	var mainCount, subCount int
+	var mainCount, subCount, poolCount int
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+tableBundleMainProducts+` WHERE product_id = ?`, productID).Scan(&mainCount); err != nil {
 		return 0, err
 	}
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+tableBundleSubProducts+` WHERE product_id = ?`, productID).Scan(&subCount); err != nil {
 		return 0, err
 	}
-	return mainCount + subCount, nil
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+tableBundlePoolItems+` WHERE product_id = ?`, productID).Scan(&poolCount); err != nil {
+		return 0, err
+	}
+	return mainCount + subCount + poolCount, nil
 }
 
 // CountBundlesByProduct 供删除商品时给出更准确的提示

@@ -68,13 +68,76 @@ func (s *Service) hydrateBundle(ctx context.Context, bundle *Bundle) error {
 	if err := s.attachBundleMainCharacters(ctx, mainProducts); err != nil {
 		return err
 	}
-	subProducts, err := s.repo.LoadBundleSubProducts(ctx, bundle.ID, "", false)
-	if err != nil {
-		return err
-	}
 	bundle.MainProducts = mainProducts
-	bundle.SubProducts = subProducts
+	if bundle.PoolID != nil {
+		pool, err := s.repo.GetBundlePool(ctx, *bundle.PoolID)
+		if err != nil {
+			return err
+		}
+		bundle.Pool = pool
+		bundle.SubProducts = bundlePoolSubProducts(pool)
+	} else {
+		subProducts, err := s.repo.LoadBundleSubProducts(ctx, bundle.ID, "", false)
+		if err != nil {
+			return err
+		}
+		bundle.SubProducts = subProducts
+	}
+	bundle.Availability = bundleAvailability(bundle)
 	return nil
+}
+
+// bundleAvailability 估算客户可购买的捆数量，用于列表展示与库存不足隐藏。
+// 主商品决定上限，捆物池只需满足最少种数与最低金额规则。
+func bundleAvailability(bundle *Bundle) int {
+	if bundle == nil || bundle.Status != BundleStatusActive {
+		return 0
+	}
+	if bundle.Pool != nil && bundle.Pool.Status != BundlePoolStatusActive {
+		return 0
+	}
+	mainAvailable := 0
+	minMainQty := bundle.MinMainQuantity
+	if minMainQty <= 0 {
+		minMainQty = 1
+	}
+	for _, item := range bundle.MainProducts {
+		if item.Available < minMainQty {
+			continue
+		}
+		if item.ExpectedPrice*float64(minMainQty) < bundle.MinMainAmount {
+			continue
+		}
+		if item.Available > mainAvailable {
+			mainAvailable = item.Available
+		}
+	}
+	if mainAvailable == 0 {
+		return 0
+	}
+
+	minItems := bundle.EffectiveMinItemCount()
+	minAmount := bundle.EffectiveMinSubAmount()
+	if minItems == 0 && minAmount == 0 {
+		return mainAvailable
+	}
+	distinct := 0
+	amount := 0.0
+	for _, item := range bundle.SubProducts {
+		if item.Available <= 0 {
+			continue
+		}
+		distinct++
+		qty := item.DefaultQuantity
+		if qty <= 0 {
+			qty = 1
+		}
+		amount += item.ExpectedPrice * float64(qty)
+	}
+	if distinct < minItems || roundMoney(amount) < minAmount {
+		return 0
+	}
+	return mainAvailable
 }
 
 func (s *Service) attachBundleMainCharacters(ctx context.Context, products []BundleMainProduct) error {
@@ -148,6 +211,7 @@ func (s *Service) UpdateBundle(ctx context.Context, req *UpdateBundleReq) (*Bund
 		MainFilter:      &existing.MainFilter,
 		MainProductIDs:  mainProductIDs,
 		SubProducts:     subReqs,
+		PoolID:          existing.PoolID,
 		MinMainQuantity: existing.MinMainQuantity,
 		MinMainAmount:   existing.MinMainAmount,
 		MinSubQuantity:  existing.MinSubQuantity,
@@ -199,6 +263,9 @@ func (s *Service) UpdateBundle(ctx context.Context, req *UpdateBundleReq) (*Bund
 	if req.FixedPrice != nil {
 		candidate.FixedPrice = *req.FixedPrice
 	}
+	if req.PoolID != nil {
+		candidate.PoolID = normalizeOptionalID(req.PoolID)
+	}
 
 	if err := s.validateBundleCreate(ctx, candidate); err != nil {
 		return nil, err
@@ -211,6 +278,7 @@ func (s *Service) UpdateBundle(ctx context.Context, req *UpdateBundleReq) (*Bund
 	req.MainFilter = candidate.MainFilter
 	req.MainProductIDs = &candidate.MainProductIDs
 	req.SubProducts = &candidate.SubProducts
+	req.PoolID = candidate.PoolID
 	req.MinMainQuantity = &candidate.MinMainQuantity
 	req.MinMainAmount = &candidate.MinMainAmount
 	req.MinSubQuantity = &candidate.MinSubQuantity
@@ -273,6 +341,32 @@ func (s *Service) validateBundleCreate(ctx context.Context, req *CreateBundleReq
 	}
 	if req.MaxSubQuantity > 0 && req.MaxSubQuantity < req.MinSubQuantity {
 		return NewGoodserError(ErrBundleRule, "副区商品最多数量不能小于最少数量")
+	}
+	if req.PoolID != nil {
+		req.PoolID = normalizeOptionalID(req.PoolID)
+	}
+	if req.PoolID != nil {
+		pool, err := s.repo.GetBundlePool(ctx, *req.PoolID)
+		if err != nil {
+			return err
+		}
+		if pool.InventoryID != req.InventoryID {
+			return NewGoodserError(ErrProductInventory, "捆物池不属于该库存目录")
+		}
+		if len(pool.Items) == 0 {
+			return NewGoodserError(ErrBundlePoolItemsEmpty)
+		}
+		req.SubProducts = make([]BundleSubItemReq, 0, len(pool.Items))
+		for _, item := range pool.Items {
+			qty := item.DefaultQuantity
+			if qty <= 0 {
+				qty = 1
+			}
+			req.SubProducts = append(req.SubProducts, BundleSubItemReq{
+				ProductID:       item.ProductID,
+				DefaultQuantity: qty,
+			})
+		}
 	}
 
 	if req.MainFilter != nil {
@@ -410,10 +504,23 @@ func (s *Service) ListBundleMainProducts(ctx context.Context, bundleID, keyword 
 
 // ListBundleSubProducts 查询捆允许的副区商品
 func (s *Service) ListBundleSubProducts(ctx context.Context, bundleID, keyword string, onlyAvailable bool) ([]BundleSubProduct, error) {
-	if _, err := s.repo.GetBundle(ctx, bundleID); err != nil {
+	bundle, err := s.GetBundle(ctx, bundleID)
+	if err != nil {
 		return nil, err
 	}
-	return s.repo.LoadBundleSubProducts(ctx, bundleID, keyword, onlyAvailable)
+	kw := strings.ToLower(strings.TrimSpace(keyword))
+	items := make([]BundleSubProduct, 0, len(bundle.SubProducts))
+	for _, item := range bundle.SubProducts {
+		if onlyAvailable && item.Available <= 0 {
+			continue
+		}
+		if kw != "" && !strings.Contains(strings.ToLower(item.ProductName), kw) &&
+			!strings.Contains(strings.ToLower(item.ProductCode), kw) {
+			continue
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 
 // PreviewBundle 校验一次捆选择并返回价格，不改变库存
@@ -492,6 +599,9 @@ func (s *Service) buildBundleSelection(
 	if bundle.Status != BundleStatusActive {
 		return nil, nil, NewGoodserError(ErrBundleNotFound, "捆已停用")
 	}
+	if bundle.Pool != nil && bundle.Pool.Status != BundlePoolStatusActive {
+		return nil, nil, NewGoodserError(ErrBundlePoolNotFound, "捆物池已停用")
+	}
 	selection.Normalize()
 	if selection.MainProductID == "" {
 		return nil, nil, NewGoodserError(ErrBundleMainRequired)
@@ -553,9 +663,9 @@ func (s *Service) buildBundleSelection(
 	for _, qty := range aggregated {
 		subQty += qty
 	}
-	if subQty < bundle.MinSubQuantity {
+	if minItems := bundle.EffectiveMinItemCount(); len(aggregated) < minItems {
 		return nil, nil, NewGoodserError(ErrBundleRule,
-			fmt.Sprintf("副区商品数量不足，至少 %d 件", bundle.MinSubQuantity))
+			fmt.Sprintf("捆物至少选择 %d 种商品", minItems))
 	}
 	if bundle.MaxSubQuantity > 0 && subQty > bundle.MaxSubQuantity {
 		return nil, nil, NewGoodserError(ErrBundleRule,
@@ -591,9 +701,9 @@ func (s *Service) buildBundleSelection(
 		})
 	}
 	subAmount = roundMoney(subAmount)
-	if subAmount < bundle.MinSubAmount {
+	if minAmount := bundle.EffectiveMinSubAmount(); subAmount < minAmount {
 		return nil, nil, NewGoodserError(ErrBundleRule,
-			fmt.Sprintf("副区商品金额不足，至少 %.2f 元", bundle.MinSubAmount))
+			fmt.Sprintf("捆物金额不足，至少 %.2f 元", minAmount))
 	}
 
 	unitPrice := 0.0
@@ -645,6 +755,8 @@ func (s *Service) buildBundleSelection(
 		BundleID:        bundle.ID,
 		BundleCode:      bundle.Code,
 		BundleName:      bundle.Name,
+		PoolID:          bundlePoolID(bundle),
+		PoolName:        bundlePoolName(bundle),
 		MainProductID:   mainProduct.ID,
 		MainProductName: mainProduct.Name,
 		MainQuantity:    mainQty,
@@ -653,9 +765,9 @@ func (s *Service) buildBundleSelection(
 		PriceMode:       bundle.PriceMode,
 		MinMainQuantity: bundle.MinMainQuantity,
 		MinMainAmount:   bundle.MinMainAmount,
-		MinSubQuantity:  bundle.MinSubQuantity,
+		MinSubQuantity:  bundle.EffectiveMinItemCount(),
 		MaxSubQuantity:  bundle.MaxSubQuantity,
-		MinSubAmount:    bundle.MinSubAmount,
+		MinSubAmount:    bundle.EffectiveMinSubAmount(),
 		UnitPrice:       unitPrice,
 		TotalPrice:      totalPrice,
 	}
@@ -679,6 +791,20 @@ func (s *Service) buildBundleSelection(
 		Snapshot:     *snapshot,
 	}
 	return resp, snapshot, nil
+}
+
+func bundlePoolID(bundle *Bundle) string {
+	if bundle == nil || bundle.PoolID == nil {
+		return ""
+	}
+	return *bundle.PoolID
+}
+
+func bundlePoolName(bundle *Bundle) string {
+	if bundle == nil || bundle.Pool == nil {
+		return ""
+	}
+	return bundle.Pool.Name
 }
 
 func (s *Service) bundleAllowsMainProduct(ctx context.Context, bundle *Bundle, product *Product) (bool, error) {
@@ -730,6 +856,9 @@ func (s *Service) CustomerBundles(ctx context.Context, inventoryID, keyword stri
 			!strings.Contains(strings.ToLower(bundle.Code), kw) {
 			continue
 		}
+		if bundle.Availability <= 0 {
+			continue
+		}
 		views = append(views, CustomerBundleView{
 			ID:              bundle.ID,
 			InventoryID:     bundle.InventoryID,
@@ -739,11 +868,13 @@ func (s *Service) CustomerBundles(ctx context.Context, inventoryID, keyword stri
 			MainFilter:      bundle.MainFilter,
 			MainProducts:    bundle.MainProducts,
 			SubProducts:     bundle.SubProducts,
+			Pool:            bundle.Pool,
+			Availability:    bundle.Availability,
 			MinMainQuantity: bundle.MinMainQuantity,
 			MinMainAmount:   bundle.MinMainAmount,
-			MinSubQuantity:  bundle.MinSubQuantity,
+			MinSubQuantity:  bundle.EffectiveMinItemCount(),
 			MaxSubQuantity:  bundle.MaxSubQuantity,
-			MinSubAmount:    bundle.MinSubAmount,
+			MinSubAmount:    bundle.EffectiveMinSubAmount(),
 			PriceMode:       bundle.PriceMode,
 			FixedPrice:      bundle.FixedPrice,
 		})

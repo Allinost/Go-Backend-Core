@@ -363,10 +363,12 @@ func (r *Repository) ListSeriesSummary(ctx context.Context, inventoryID string) 
 func (r *Repository) ListCombos(ctx context.Context, inventoryID, status string) ([]Combo, error) {
 	query := `SELECT c.id, c.inventory_id, c.code, c.name, c.description, c.image_url, c.price, c.status,
 		c.created_at, c.updated_at,
-		ci.product_id, p.name, p.code, p.image_url, ci.quantity, p.quantity
+		ci.item_type, ci.product_id, p.name, p.code, p.image_url, ci.quantity, p.quantity,
+		ci.bundle_id, b.name
 		FROM ` + tableCombos + ` c
 		LEFT JOIN ` + tableComboItems + ` ci ON ci.combo_id = c.id
 		LEFT JOIN ` + tableProducts + ` p ON p.id = ci.product_id
+		LEFT JOIN ` + tableBundles + ` b ON b.id = ci.bundle_id
 		WHERE c.inventory_id = ?`
 	args := []any{inventoryID}
 	if status != "" {
@@ -404,9 +406,11 @@ func (r *Repository) GetCombo(ctx context.Context, id string) (*Combo, error) {
 }
 
 func (r *Repository) loadComboItems(ctx context.Context, comboID string) ([]ComboItem, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT ci.product_id, p.name, p.code, p.image_url, ci.quantity, p.quantity
+	rows, err := r.db.QueryContext(ctx, `SELECT ci.item_type, ci.product_id, p.name, p.code, p.image_url,
+		ci.quantity, p.quantity, ci.bundle_id, b.name
 		FROM `+tableComboItems+` ci
-		JOIN `+tableProducts+` p ON p.id = ci.product_id
+		LEFT JOIN `+tableProducts+` p ON p.id = ci.product_id
+		LEFT JOIN `+tableBundles+` b ON b.id = ci.bundle_id
 		WHERE ci.combo_id = ?
 		ORDER BY ci.sort_order, ci.id`, comboID)
 	if err != nil {
@@ -415,11 +419,35 @@ func (r *Repository) loadComboItems(ctx context.Context, comboID string) ([]Comb
 	defer rows.Close()
 	items := make([]ComboItem, 0)
 	for rows.Next() {
-		var item ComboItem
-		if err := rows.Scan(&item.ProductID, &item.ProductName, &item.ProductCode, &item.ImageURL,
-			&item.Quantity, &item.Available); err != nil {
+		var (
+			item         ComboItem
+			itemType     sql.NullString
+			productID    sql.NullString
+			productName  sql.NullString
+			productCode  sql.NullString
+			productImage sql.NullString
+			available    sql.NullInt64
+			bundleID     sql.NullString
+			bundleName   sql.NullString
+		)
+		if err := rows.Scan(&itemType, &productID, &productName, &productCode, &productImage,
+			&item.Quantity, &available, &bundleID, &bundleName); err != nil {
 			return nil, err
 		}
+		item.ItemType = itemType.String
+		if item.ItemType == "" {
+			item.ItemType = ComboItemTypeProduct
+		}
+		item.ProductID = productID.String
+		item.ProductName = productName.String
+		item.ProductCode = productCode.String
+		if productImage.Valid {
+			value := productImage.String
+			item.ImageURL = &value
+		}
+		item.Available = int(available.Int64)
+		item.BundleID = bundleID.String
+		item.BundleName = bundleName.String
 		items = append(items, item)
 	}
 	return items, rows.Err()
@@ -556,8 +584,21 @@ func replaceComboItemsTx(ctx context.Context, tx *sql.Tx, comboID string, items 
 		return err
 	}
 	for i, item := range items {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO `+tableComboItems+` (combo_id, product_id, quantity, sort_order)
-			VALUES (?, ?, ?, ?)`, comboID, item.ProductID, item.Quantity, i); err != nil {
+		itemType := strings.TrimSpace(item.ItemType)
+		if itemType == "" {
+			itemType = ComboItemTypeProduct
+		}
+		var productID, bundleID any
+		if itemType == ComboItemTypeBundle {
+			bundleID = strings.TrimSpace(item.BundleID)
+			productID = nil
+		} else {
+			productID = strings.TrimSpace(item.ProductID)
+			bundleID = nil
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO `+tableComboItems+`
+			(combo_id, item_type, product_id, bundle_id, quantity, sort_order)
+			VALUES (?, ?, ?, ?, ?, ?)`, comboID, itemType, productID, bundleID, item.Quantity, i); err != nil {
 			return err
 		}
 	}
@@ -570,13 +611,16 @@ func scanComboRows(rows *sql.Rows) ([]Combo, error) {
 	for rows.Next() {
 		var (
 			combo                               Combo
+			itemType                            sql.NullString
 			productID, productName, productCode sql.NullString
 			productImage                        sql.NullString
 			itemQty, available                  sql.NullInt64
+			bundleID, bundleName                sql.NullString
 		)
 		if err := rows.Scan(&combo.ID, &combo.InventoryID, &combo.Code, &combo.Name, &combo.Description,
 			&combo.ImageURL, &combo.Price, &combo.Status, &combo.CreatedAt, &combo.UpdatedAt,
-			&productID, &productName, &productCode, &productImage, &itemQty, &available); err != nil {
+			&itemType, &productID, &productName, &productCode, &productImage, &itemQty, &available,
+			&bundleID, &bundleName); err != nil {
 			return nil, err
 		}
 		existing, ok := byID[combo.ID]
@@ -587,21 +631,32 @@ func scanComboRows(rows *sql.Rows) ([]Combo, error) {
 			order = append(order, combo.ID)
 			existing = &clone
 		}
-		if productID.Valid && productID.String != "" {
-			var image *string
+		if !itemType.Valid && !productID.Valid && !bundleID.Valid {
+			continue
+		}
+		item := ComboItem{
+			ItemType:  itemType.String,
+			ProductID: productID.String,
+			BundleID:  bundleID.String,
+			Quantity:  int(itemQty.Int64),
+			Available: int(available.Int64),
+		}
+		if item.ItemType == "" {
+			item.ItemType = ComboItemTypeProduct
+		}
+		if item.ItemType == ComboItemTypeBundle {
+			item.BundleName = bundleName.String
+			item.ProductName = bundleName.String
+			item.ProductCode = ""
+		} else {
+			item.ProductName = productName.String
+			item.ProductCode = productCode.String
 			if productImage.Valid {
 				value := productImage.String
-				image = &value
+				item.ImageURL = &value
 			}
-			existing.Items = append(existing.Items, ComboItem{
-				ProductID:   productID.String,
-				ProductName: productName.String,
-				ProductCode: productCode.String,
-				Quantity:    int(itemQty.Int64),
-				Available:   int(available.Int64),
-				ImageURL:    image,
-			})
 		}
+		existing.Items = append(existing.Items, item)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

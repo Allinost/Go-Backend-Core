@@ -178,6 +178,11 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 | GET | `/api/v1/zzz-goodser/bundles/:bid/main-products` | 捆允许的主商品，支持 `keyword` |
 | GET | `/api/v1/zzz-goodser/bundles/:bid/sub-products` | 捆允许的副区商品，支持 `keyword`、`only_available` |
 | POST | `/api/v1/zzz-goodser/bundles/:bid/preview` | 校验捆选择并计算价格，不改变库存 |
+| GET | `/api/v1/zzz-goodser/bundle-pools?inventory_id=` | 捆物池列表，含成员与规则 |
+| POST | `/api/v1/zzz-goodser/bundle-pools` | 创建捆物池 |
+| GET | `/api/v1/zzz-goodser/bundle-pools/:pid` | 捆物池详情 |
+| PUT | `/api/v1/zzz-goodser/bundle-pools/:pid` | 更新捆物池与成员 |
+| DELETE | `/api/v1/zzz-goodser/bundle-pools/:pid` | 删除捆物池（被捆引用时拒绝） |
 
 商品创建、更新、入库均支持 `series_id`、`set_type_id`、`product_type_id` 与
 `character_ids`。`tags` 仍作为自由标签保留。字典为全局共享，角色可通过
@@ -186,12 +191,20 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 更新商品时维度字段省略或传 `null` 表示“不修改”，传空字符串 `""` 表示“清空”。
 `character_ids` 传 `[]` 即清空角色关联。
 
-组合包不持有独立库存，`availability = min(组件可用量 / 组件数量)`。创建出库/
-预留单时传 `combo_id` + `combo_quantity`，服务端会展开为组件商品并按组件扣减库存。
+组合包不持有独立库存，`availability = min(组件可用量 / 组件数量)`。组件支持
+`item_type=product|bundle`：商品组件用 `product_id`，捆组件用 `bundle_id`。
+捆组件可售量按捆的主商品库存与捆物池规则推导。创建出库/
+预留单时传 `combo_id` + `combo_quantity`，服务端会展开为组件商品并按组件扣减库存；
+组合包中的捆组件会自动选取满足池规则且有库存的主商品与捆物。
 
-捆由主商品条件与店主选定的副区商品组成。主商品可显式指定，也可通过
+捆由主商品条件与捆物池组成。主商品可显式指定，也可通过
 `main_filter` 按系列、角色、套型、类型、状态、关键词动态筛选，两者同时存在时按
-AND 校验。更新捆时 `main_filter` 省略或传 `null` 表示不修改，传 `{}` 表示清空筛选；
+AND 校验。捆通过 `pool_id` 绑定一个库存目录级的捆物池，池包含成员商品、
+`min_item_count`（最少选择商品种数）与 `min_amount`（最低捆物金额）。
+捆级 `min_sub_quantity` / `min_sub_amount` 与池规则取较大值生效，`max_sub_quantity`
+仍限制单捆捆物总件数。未绑定池的存量捆继续使用 `sub_products` 清单。
+
+更新捆时 `main_filter` 省略或传 `null` 表示不修改，传 `{}` 表示清空筛选；
 清空后必须仍有显式主商品，否则返回“缺少主商品条件”。下单时传：
 
 ```json
@@ -215,13 +228,16 @@ AND 校验。更新捆时 `main_filter` 省略或传 `null` 表示不修改，�
 单捆数量乘以 `quantity`。使用捆下单时 `items` 必须留空，服务端会：
 
 1. 校验主商品在允许范围内，且满足主商品最低数量、最低金额。
-2. 校验副区商品都来自捆配置，满足副区最低/最多数量和最低金额。
+2. 校验捆物都来自绑定的捆物池（或存量副区商品清单），满足最少种数、最低金额与最多件数。
 3. 按 `price_mode` 计算单捆价与总价。
-4. 展开为主商品与副区商品明细，按 D1 规则锁定库存。
+4. 展开为主商品与捆物商品明细，按 D1 规则锁定库存。
 5. 在出库单写入 `bundle_snapshot`，保存选择内容、价格与规则快照。
 
 `preview` 接口使用同样的校验逻辑，但只返回价格与明细，不创建单据、不改变库存，
 适合 Web 控制台与 LangBot 在下单前确认。
+
+客户库存查询会隐藏主商品无库存、或池内可售商品种数不足的捆；组合包任一组件
+（商品或捆）可售量为 0 时也不会返回。管理端仍可查看并标注原因。
 
 ### 3.9 统计 Stats
 

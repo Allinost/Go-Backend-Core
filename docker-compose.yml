@@ -9,6 +9,9 @@ services:
       - "29092:29092"   # 调试/监控/运维（仅内网）
     env_file:
       - .env
+    volumes:
+      # 持久化应用设置（data/settings.json）
+      - ./data:/app/data
     environment:
       - TZ=Asia/Shanghai
       # 与下方 chrome-browser 服务名、容器端口保持一致

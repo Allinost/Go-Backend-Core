@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -176,6 +177,9 @@ func (s *Service) ListCombos(ctx context.Context, inventoryID, status string) ([
 		return nil, err
 	}
 	for i := range combos {
+		if err := s.hydrateComboItems(ctx, combos[i].Items); err != nil {
+			return nil, err
+		}
 		combos[i].Availability = comboAvailability(combos[i].Items)
 	}
 	return combos, nil
@@ -187,8 +191,38 @@ func (s *Service) GetCombo(ctx context.Context, id string) (*Combo, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := s.hydrateComboItems(ctx, combo.Items); err != nil {
+		return nil, err
+	}
 	combo.Availability = comboAvailability(combo.Items)
 	return combo, nil
+}
+
+// hydrateComboItems 为捆组件补齐名称与可售数量
+func (s *Service) hydrateComboItems(ctx context.Context, items []ComboItem) error {
+	bundles := make(map[string]*Bundle)
+	for i := range items {
+		if items[i].ItemType != ComboItemTypeBundle || strings.TrimSpace(items[i].BundleID) == "" {
+			continue
+		}
+		bundle, ok := bundles[items[i].BundleID]
+		if !ok {
+			var err error
+			bundle, err = s.GetBundle(ctx, items[i].BundleID)
+			if err != nil {
+				if goodserErr, ok := err.(*GoodserError); ok && goodserErr.Code == ErrBundleNotFound {
+					items[i].Available = 0
+					continue
+				}
+				return err
+			}
+			bundles[items[i].BundleID] = bundle
+		}
+		items[i].BundleName = bundle.Name
+		items[i].ProductName = bundle.Name
+		items[i].Available = bundle.Availability
+	}
+	return nil
 }
 
 // CreateCombo 创建组合包
@@ -254,18 +288,53 @@ func (s *Service) validateComboItems(ctx context.Context, inventoryID string, it
 		return NewGoodserError(ErrComboItemsRequired)
 	}
 	seen := make(map[string]struct{}, len(items))
-	for _, item := range items {
-		if strings.TrimSpace(item.ProductID) == "" {
-			return NewGoodserError(ErrProductNotFound)
+	for i := range items {
+		itemType := strings.TrimSpace(items[i].ItemType)
+		if itemType == "" {
+			itemType = ComboItemTypeProduct
 		}
-		if item.Quantity <= 0 {
+		if itemType != ComboItemTypeProduct && itemType != ComboItemTypeBundle {
+			return NewGoodserError(ErrComboBundleInvalid, "组件类型仅支持 product/bundle")
+		}
+		items[i].ItemType = itemType
+		if items[i].Quantity <= 0 {
 			return NewGoodserError(ErrInvalidQuantity)
 		}
-		if _, exists := seen[item.ProductID]; exists {
+		if itemType == ComboItemTypeBundle {
+			bundleID := strings.TrimSpace(items[i].BundleID)
+			if bundleID == "" {
+				return NewGoodserError(ErrBundleNotFound)
+			}
+			key := "bundle:" + bundleID
+			if _, exists := seen[key]; exists {
+				return NewGoodserError(ErrInvalidDimension, "组合包捆组件重复")
+			}
+			seen[key] = struct{}{}
+			bundle, err := s.repo.GetBundle(ctx, bundleID)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return NewGoodserError(ErrBundleNotFound)
+				}
+				return err
+			}
+			if bundle.InventoryID != inventoryID {
+				return NewGoodserError(ErrProductInventory, "组合包捆组件不属于该库存目录")
+			}
+			items[i].BundleID = bundleID
+			items[i].ProductID = ""
+			continue
+		}
+
+		productID := strings.TrimSpace(items[i].ProductID)
+		if productID == "" {
+			return NewGoodserError(ErrProductNotFound)
+		}
+		key := "product:" + productID
+		if _, exists := seen[key]; exists {
 			return NewGoodserError(ErrInvalidDimension, "组合包组件商品重复")
 		}
-		seen[item.ProductID] = struct{}{}
-		product, err := s.repo.GetProduct(ctx, item.ProductID)
+		seen[key] = struct{}{}
+		product, err := s.repo.GetProduct(ctx, productID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return NewGoodserError(ErrProductNotFound)
@@ -275,6 +344,8 @@ func (s *Service) validateComboItems(ctx context.Context, inventoryID string, it
 		if product.InventoryID != inventoryID {
 			return NewGoodserError(ErrProductInventory)
 		}
+		items[i].ProductID = productID
+		items[i].BundleID = ""
 	}
 	return nil
 }
@@ -299,12 +370,120 @@ func (s *Service) expandCombo(ctx context.Context, inventoryID, comboID string, 
 	}
 	items := make([]OrderItem, 0, len(combo.Items))
 	for _, component := range combo.Items {
+		if component.ItemType == ComboItemTypeBundle {
+			bundleItems, err := s.expandComboBundle(ctx, inventoryID, component.BundleID, component.Quantity*comboQuantity)
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, bundleItems...)
+			continue
+		}
 		items = append(items, OrderItem{
 			ProductID:   component.ProductID,
 			ProductName: component.ProductName,
 			ProductCode: component.ProductCode,
 			Quantity:    component.Quantity * comboQuantity,
 			ImageURL:    component.ImageURL,
+		})
+	}
+	return items, nil
+}
+
+// expandComboBundle 把组合包中的捆组件展开为具体商品。
+// 组合包使用固定价，这里只负责选出满足池规则且库存足够的商品组合。
+func (s *Service) expandComboBundle(ctx context.Context, inventoryID, bundleID string, quantity int) ([]OrderItem, error) {
+	if quantity <= 0 {
+		quantity = 1
+	}
+	bundle, err := s.GetBundle(ctx, bundleID)
+	if err != nil {
+		return nil, err
+	}
+	if bundle.InventoryID != inventoryID {
+		return nil, NewGoodserError(ErrProductInventory, "组合包捆组件不属于该库存目录")
+	}
+	if bundle.Status != BundleStatusActive {
+		return nil, NewGoodserError(ErrBundleNotFound, "捆已停用")
+	}
+	if bundle.Pool != nil && bundle.Pool.Status != BundlePoolStatusActive {
+		return nil, NewGoodserError(ErrBundlePoolNotFound, "捆物池已停用")
+	}
+
+	minMainQty := bundle.MinMainQuantity
+	if minMainQty <= 0 {
+		minMainQty = 1
+	}
+	var main *BundleMainProduct
+	for i := range bundle.MainProducts {
+		item := &bundle.MainProducts[i]
+		if item.Available >= minMainQty*quantity &&
+			item.ExpectedPrice*float64(minMainQty) >= bundle.MinMainAmount {
+			main = item
+			break
+		}
+	}
+	if main == nil {
+		return nil, NewGoodserError(ErrInsufficientStock, "捆主商品库存不足")
+	}
+
+	minItems := bundle.EffectiveMinItemCount()
+	minAmount := bundle.EffectiveMinSubAmount()
+	selected := make([]BundleSubProduct, 0)
+	distinct := 0
+	amount := 0.0
+	totalQty := 0
+	order := append([]BundleSubProduct(nil), bundle.SubProducts...)
+	sort.SliceStable(order, func(i, j int) bool {
+		if order[i].Available <= 0 {
+			return false
+		}
+		if order[j].Available <= 0 {
+			return true
+		}
+		return order[i].ExpectedPrice < order[j].ExpectedPrice
+	})
+	for _, item := range order {
+		qty := item.DefaultQuantity
+		if qty <= 0 {
+			qty = 1
+		}
+		if item.Available < qty*quantity {
+			continue
+		}
+		if bundle.MaxSubQuantity > 0 && totalQty+qty > bundle.MaxSubQuantity {
+			continue
+		}
+		selected = append(selected, item)
+		distinct++
+		totalQty += qty
+		amount += item.ExpectedPrice * float64(qty)
+		if distinct >= minItems && roundMoney(amount) >= minAmount {
+			break
+		}
+	}
+	if distinct < minItems || roundMoney(amount) < minAmount {
+		return nil, NewGoodserError(ErrInsufficientStock, "捆物池库存不足")
+	}
+
+	items := make([]OrderItem, 0, len(selected)+1)
+	items = append(items, OrderItem{
+		ProductID:   main.ProductID,
+		ProductName: main.ProductName,
+		ProductCode: main.ProductCode,
+		Quantity:    minMainQty * quantity,
+		ImageURL:    main.ImageURL,
+	})
+	for _, item := range selected {
+		qty := item.DefaultQuantity
+		if qty <= 0 {
+			qty = 1
+		}
+		items = append(items, OrderItem{
+			ProductID:   item.ProductID,
+			ProductName: item.ProductName,
+			ProductCode: item.ProductCode,
+			Quantity:    qty * quantity,
+			ImageURL:    item.ImageURL,
 		})
 	}
 	return items, nil

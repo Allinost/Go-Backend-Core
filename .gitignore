@@ -31,6 +31,8 @@ go.work.sum
 # Build artifacts
 server.exe
 tmp/
+data/
+logs/
 
 # Local secrets and scratch files
 .local/

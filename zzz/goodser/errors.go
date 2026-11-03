@@ -42,6 +42,11 @@ const (
 	ErrBundleSubRequired    = 20220
 	ErrBundleSubNotAllowed  = 20221
 	ErrBundleRule           = 20222
+	ErrBundlePoolNotFound   = 20223
+	ErrBundlePoolInUse      = 20224
+	ErrBundlePoolItemsEmpty = 20225
+	ErrComboBundleInvalid   = 20226
+	ErrBundleInUse          = 20227
 
 	ErrImageUpload     = 20300
 	ErrImageNotFound   = 20301
@@ -85,6 +90,11 @@ var errMsgs = map[int]string{
 	ErrBundleSubRequired:    "捆必须配置副区商品",
 	ErrBundleSubNotAllowed:  "副区商品不在捆配置中",
 	ErrBundleRule:           "捆规则校验失败",
+	ErrBundlePoolNotFound:   "捆物池不存在",
+	ErrBundlePoolInUse:      "捆物池正在被捆引用，无法删除",
+	ErrBundlePoolItemsEmpty: "捆物池成员不能为空",
+	ErrComboBundleInvalid:   "组合包捆组件不合法",
+	ErrBundleInUse:          "捆正在被组合包引用，无法删除",
 	ErrImageUpload:          "图片上传失败",
 	ErrImageNotFound:        "图片不存在",
 	ErrStatusCodeInUse:      "状态编码正在被使用，无法删除",

@@ -263,11 +263,20 @@ const (
 	ComboStatusInactive = "inactive"
 )
 
-// ComboItem 组合包组件
+// 组合包组件类型
+const (
+	ComboItemTypeProduct = "product"
+	ComboItemTypeBundle  = "bundle"
+)
+
+// ComboItem 组合包组件，item_type=product 时使用商品，bundle 时使用捆
 type ComboItem struct {
-	ProductID   string  `json:"product_id"`
-	ProductName string  `json:"product_name"`
-	ProductCode string  `json:"product_code"`
+	ItemType    string  `json:"item_type"`
+	ProductID   string  `json:"product_id,omitempty"`
+	ProductName string  `json:"product_name,omitempty"`
+	ProductCode string  `json:"product_code,omitempty"`
+	BundleID    string  `json:"bundle_id,omitempty"`
+	BundleName  string  `json:"bundle_name,omitempty"`
 	Quantity    int     `json:"quantity"`
 	Available   int     `json:"available"`
 	ImageURL    *string `json:"image_url,omitempty"`
@@ -701,7 +710,9 @@ type UpdateDictionaryReq struct {
 }
 
 type ComboItemReq struct {
+	ItemType  string `json:"item_type"`
 	ProductID string `json:"product_id"`
+	BundleID  string `json:"bundle_id"`
 	Quantity  int    `json:"quantity"`
 }
 

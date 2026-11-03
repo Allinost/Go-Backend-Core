@@ -93,6 +93,9 @@ type Bundle struct {
 	MainProductIDs  []string            `json:"main_product_ids"`
 	MainProducts    []BundleMainProduct `json:"main_products"`
 	SubProducts     []BundleSubProduct  `json:"sub_products"`
+	PoolID          *string             `json:"pool_id,omitempty"`
+	Pool            *BundlePool         `json:"pool,omitempty"`
+	Availability    int                 `json:"availability"`
 	MinMainQuantity int                 `json:"min_main_quantity"`
 	MinMainAmount   float64             `json:"min_main_amount"`
 	MinSubQuantity  int                 `json:"min_sub_quantity"`
@@ -120,6 +123,7 @@ type CreateBundleReq struct {
 	MainFilter      *BundleMainFilter  `json:"main_filter"`
 	MainProductIDs  []string           `json:"main_product_ids"`
 	SubProducts     []BundleSubItemReq `json:"sub_products"`
+	PoolID          *string            `json:"pool_id"`
 	MinMainQuantity int                `json:"min_main_quantity"`
 	MinMainAmount   float64            `json:"min_main_amount"`
 	MinSubQuantity  int                `json:"min_sub_quantity"`
@@ -139,6 +143,7 @@ type UpdateBundleReq struct {
 	MainFilter      *BundleMainFilter   `json:"main_filter"`
 	MainProductIDs  *[]string           `json:"main_product_ids"`
 	SubProducts     *[]BundleSubItemReq `json:"sub_products"`
+	PoolID          *string             `json:"pool_id"`
 	MinMainQuantity *int                `json:"min_main_quantity"`
 	MinMainAmount   *float64            `json:"min_main_amount"`
 	MinSubQuantity  *int                `json:"min_sub_quantity"`
@@ -223,6 +228,8 @@ type BundleOrderSnapshot struct {
 	BundleID        string                  `json:"bundle_id"`
 	BundleCode      string                  `json:"bundle_code"`
 	BundleName      string                  `json:"bundle_name"`
+	PoolID          string                  `json:"pool_id,omitempty"`
+	PoolName        string                  `json:"pool_name,omitempty"`
 	MainProductID   string                  `json:"main_product_id"`
 	MainProductName string                  `json:"main_product_name"`
 	MainQuantity    int                     `json:"main_quantity"`
@@ -248,6 +255,8 @@ type CustomerBundleView struct {
 	MainFilter      BundleMainFilter    `json:"main_filter"`
 	MainProducts    []BundleMainProduct `json:"main_products"`
 	SubProducts     []BundleSubProduct  `json:"sub_products"`
+	Pool            *BundlePool         `json:"pool,omitempty"`
+	Availability    int                 `json:"availability"`
 	MinMainQuantity int                 `json:"min_main_quantity"`
 	MinMainAmount   float64             `json:"min_main_amount"`
 	MinSubQuantity  int                 `json:"min_sub_quantity"`

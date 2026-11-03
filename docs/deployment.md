@@ -114,6 +114,12 @@ docker compose up -d app
 
 > 说明：`docker-compose.yml` 同时保留 `image` 与 `build`。`pull` 使用镜像，`build` 使用本地源码，二者按命令选择。
 
+### 应用设置持久化
+
+- 设置文件：`data/settings.json`（0600，原子写入，可由 `APP_SETTINGS_FILE` 覆盖）
+- Compose 已挂载 `./data:/app/data`，容器重建后设置保留
+- 页面顶部「设置」→「后端设置」可修改公开地址/前端默认值/外部工具地址；数据库、Redis、JWT 等仍需改 `.env` 后重启
+
 ### 采集浏览器（chrome-browser）
 
 `docker-compose.yml` 内置 `chrome-browser`（browserless/chrome），供 shopchecker / login3rd 的浏览器采集使用：

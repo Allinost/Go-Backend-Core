@@ -27,6 +27,7 @@ import (
 	"github.com/Allinost/go-backend-core/internal/modules/s1"
 	"github.com/Allinost/go-backend-core/internal/modules/s2"
 	"github.com/Allinost/go-backend-core/internal/modules/servicenav"
+	"github.com/Allinost/go-backend-core/internal/modules/settings"
 	"github.com/Allinost/go-backend-core/internal/modules/webhook"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/Allinost/go-backend-core/internal/services/crypto"
@@ -108,6 +109,7 @@ func main() {
 	modules.Register(&login3rd.Module{})
 	modules.Register(&ia.Module{})
 	modules.Register(&developmentmanager.Module{})
+	modules.Register(&settings.Module{})
 
 	// 初始化所有模块（调用 Init，不挂载路由）
 	modules.InitAll(cfg)

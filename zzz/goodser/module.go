@@ -255,6 +255,13 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/bundles/:bid/sub-products", read, m.h.ListBundleSubProductsREST)
 	r.POST("/bundles/:bid/preview", read, m.h.PreviewBundleREST)
 
+	// 捆物池：按库存目录隔离，可被多个捆复用
+	r.GET("/bundle-pools", read, m.h.ListBundlePoolsREST)
+	r.POST("/bundle-pools", write, m.h.CreateBundlePoolREST)
+	r.GET("/bundle-pools/:pid", read, m.h.GetBundlePoolREST)
+	r.PUT("/bundle-pools/:pid", write, m.h.UpdateBundlePoolREST)
+	r.DELETE("/bundle-pools/:pid", write, m.h.DeleteBundlePoolREST)
+
 	// Products (standalone CRUD)
 	r.GET("/products/:id", read, m.h.GetProductREST)
 	r.PUT("/products/:id", write, m.h.UpdateProductREST)
