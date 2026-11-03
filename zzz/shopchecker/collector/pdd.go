@@ -322,13 +322,29 @@ func (c *PDDCollector) fetchPriceBrowserWithCookies(ctx context.Context, pageURL
 			time.Sleep(500 * time.Millisecond)
 		}
 	}
-	chromedp.Run(tabCtx, chromedp.Sleep(6*time.Second))
+	// 等待商品数据/价格区域渲染（PDD 数据异步加载，固定等待经常只拿到页面壳）。
+	readyDeadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(readyDeadline) {
+		var ready bool
+		if err := chromedp.Run(tabCtx, chromedp.Evaluate(`(function(){
+			var body = document.body ? document.body.innerText : '';
+			return body.indexOf('大促价') >= 0 || body.indexOf('百亿补贴') >= 0 ||
+				body.indexOf('补贴后') >= 0 || body.indexOf('券后价') >= 0 ||
+				body.indexOf('单独购买') >= 0 || body.indexOf('前往APP查看价格') >= 0;
+		})()`, &ready)); err == nil && ready {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 	navCancel()
 
 	var currentURL, pageTitle string
 	chromedp.Run(tabCtx, chromedp.Location(&currentURL))
 	chromedp.Run(tabCtx, chromedp.Title(&pageTitle))
 	fmt.Fprintf(os.Stderr, "[pdd] 浏览器导航完成 currentURL=%s title=%q\n", currentURL, pageTitle)
+	if strings.Contains(strings.ToLower(currentURL), "verification") {
+		return nil, fmt.Errorf("拼多多触发安全验证（%s），稍后重试", currentURL)
+	}
 	if isPDDLoginRedirect(currentURL, pageTitle) {
 		return nil, fmt.Errorf("需要登录（session 已过期或缺失），currentURL=%s", currentURL)
 	}

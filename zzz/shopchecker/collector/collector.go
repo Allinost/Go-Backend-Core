@@ -61,7 +61,7 @@ func IsRateLimitError(err error) bool {
 		return false
 	}
 	msg := strings.ToLower(err.Error())
-	for _, kw := range []string{"频控", "pc-frequent", "访问频率", "too many requests", "http 403", "status 403"} {
+	for _, kw := range []string{"频控", "pc-frequent", "访问频率", "安全验证", "verification", "too many requests", "http 403", "status 403"} {
 		if strings.Contains(msg, kw) {
 			return true
 		}
