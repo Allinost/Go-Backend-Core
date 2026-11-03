@@ -121,19 +121,23 @@ docker compose up -d app
 ```
 ghcr.io/allinost/go-frontend-core:<tag>
 ghcr.io/allinost/go-frontend-core:latest
+ghcr.io/allinost/go-frontend-core:sha-<commit>
 ```
 
-服务器拉取：
+服务器拉取（GHCR 包默认私有，需要 `read:packages` 的 PAT；设为公开后可跳过登录）：
 
 ```bash
+echo "$GHCR_PAT" | docker login ghcr.io -u <github-username> --password-stdin
 docker pull ghcr.io/allinost/go-frontend-core:latest
 docker run -d --name go-frontend-core \
+  --restart unless-stopped \
   --network 1panel-network \
   -p 8080:80 \
   ghcr.io/allinost/go-frontend-core:latest
 ```
 
 - 容器内 nginx 将 `/api/` 反代到 `http://gobackendcore:29090`，需与后端同处 `1panel-network`。
+- nginx 使用 Docker DNS 延迟解析后端地址：后端暂未启动时前端容器也能正常启动，后端恢复后自动可用。
 - 若后端服务名不是 `gobackendcore`，需修改 `deploy/nginx.conf` 后重新构建镜像。
 - 前端 API 地址也可在页面「设置 → 前端设置」中改为公网后端地址。
 
