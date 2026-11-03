@@ -238,6 +238,28 @@
 - 小程序统计页可继续加自定义日期区间与系列/商品下钻。
 - 出库创建可继续加商品分组浏览与最近使用商品。
 
+## 11. Phase UI-3 进展（2026-11-03）
+
+已完成：
+
+- Web Goodser 按 Tab 拆分为独立组件：`components/ProductsTab.vue`、`OrdersTab.vue`、`ReturnsTab.vue`、`StatsTab.vue`、`SeriesTab.vue`、`CombosTab.vue`、`BundlesTab.vue`、`LogsTab.vue`、`InventoriesTab.vue`，`index.vue` 从 4559 行降到 760 行。
+- 抽出 `utils.ts`（日期/状态/退货/捆价格文案）与 `styles/_shared.scss`（卡片、订单、退货、表单、空态等公共样式）。
+- 跨 Tab 联动改为 props + emit：捆「下单」跳转出库并预选捆；退货单「查看出库单」跳转订单详情；系列卡点击跳转商品列表并自动套用系列筛选。
+- 各 Tab 自管数据请求与弹窗状态，父组件仅保留页签、设置弹窗与库存目录共享状态。
+- 清理父组件中因拆分而失效的样式、状态与接口调用。
+
+验证说明：
+
+- 四组 Puppeteer 脚本全部通过：`verify-split-web.js`（系列/组合包/捆/入库/统计/退货及弹窗）、`verify-orders-web.js`（订单列表/详情/新建/捆下单联动/退货跳转/库存目录）、`verify-products-web.js`（商品列表/详情/编辑/筛选/新建/系列筛选联动/批量）、`verify-settings-web.js`（设置三页签）。
+- 原有 `verify-ui2-web.js` 回归通过。
+- `vue-tsc` 与 `vite build` 通过，385/768px 均无横向溢出，无控制台错误。
+
+下一步：
+
+- Web 1024/768/480 断点与窄屏弹窗（全宽/底部抽屉）。
+- 集成管理页补齐连接器测试结果、事件筛选与空态。
+- 小程序 safe-area、图片占位、加载骨架与错误重试补齐。
+
 验证说明：
 
 - Web 通过 Puppeteer 实际验证：统计 4 张指标卡、30 根趋势柱、点选切换单日明细、CSV 导出按钮、商品批量栏与本页全选/取消、退货 Tab、768px 无横向溢出、无控制台错误。
