@@ -260,6 +260,20 @@
 - 集成管理页补齐连接器测试结果、事件筛选与空态。
 - 小程序 safe-area、图片占位、加载骨架与错误重试补齐。
 
+## 12. Phase UI-3 收尾（2026-11-03）
+
+已完成：
+
+- Web 响应式：全局弹窗在 ≤768px 变为全宽吸底抽屉、≤480px 收紧内边距；Goodser 各 Tab 在 768px 下表单纵向排布、元信息与分页换行，480px 下卡片单列。
+- 集成管理页：连接器卡片展示最近一次测试结果（成功/失败、时间、失败原因，写入 localStorage）；事件页新增主题筛选与清空筛选；空态区分「筛选无结果」与「暂无数据」；请求层优先透出后端 `message`。
+- 小程序：库存、出库、入库、组合包/捆列表接入 `skeleton` 与 `error-state`（含重试）；商品卡图片加载失败回退占位图，白名单头像补默认图；库存/出库底部选择面板补 `env(safe-area-inset-bottom)`。
+
+验证说明：
+
+- Web：`verify-responsive-web.js` 覆盖 1024/768/480/320 四个宽度 × 9 个 Tab 无横向溢出，768/480 弹窗为吸底全宽抽屉、480 表单纵向排布、1024 弹窗居中；`verify-integration-web.js` 覆盖连接器测试成功/失败结果、结果持久化、主题筛选、状态叠加筛选空态、清空筛选与 480px 无溢出；`verify-split-web.js`、`verify-orders-web.js`、`verify-products-web.js`、`verify-settings-web.js`、`verify-ui2-web.js` 回归通过。
+- 小程序：`verify-ui3.js` 覆盖四个列表页加载完成且无错误、骨架屏渲染、错误态文案与重试按钮、重试后列表恢复、商品卡占位图、组合包/捆切换与白名单页；`verify-ui1.js`、`verify-ui2.js` 回归通过。
+- Web `vue-tsc` 与 `vite build` 通过；小程序 `node --check` 通过且自动化无控制台错误。
+
 验证说明：
 
 - Web 通过 Puppeteer 实际验证：统计 4 张指标卡、30 根趋势柱、点选切换单日明细、CSV 导出按钮、商品批量栏与本页全选/取消、退货 Tab、768px 无横向溢出、无控制台错误。
