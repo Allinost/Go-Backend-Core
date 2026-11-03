@@ -3,6 +3,7 @@ package settings
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -64,6 +65,7 @@ func defaults(cfg *config.Config) Data {
 		PublicBaseURL:   cfg.Server.PublicBaseURL,
 		FrontendTitle:   cfg.Server.Name,
 		FrontendAPIBase: "/api/v1",
+		BrowserURL:      cfg.Net.ChromeRemoteURL,
 		N8nURL:          defaultN8nURL,
 		OpenClawURL:     defaultOpenClawURL,
 		LangBotURL:      defaultLangBotURL,
@@ -112,9 +114,8 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	// 运行时应用公开地址（第三方登录回调/远程登录链接）
-	h.cfg.Server.PublicBaseURL = normalized.PublicBaseURL
-	login3rd.SetPublicBaseURL(normalized.PublicBaseURL)
+	// 运行时应用公开地址与 Browser 地址
+	applyRuntime(h.cfg, normalized)
 
 	uid := ""
 	if v, ok := c.Get("user_id"); ok {
@@ -155,7 +156,7 @@ func (h *Handler) buildView() (*View, error) {
 		SettingsFile:    h.store.Path(),
 		Persisted:       h.store.Exists(),
 		ChromeRemoteURL: h.cfg.Net.ChromeRemoteURL,
-		ReadOnlyKeys:    []string{"mysql", "redis", "jwt", "postgres", "rustfs", "chrome"},
+		ReadOnlyKeys:    []string{"mysql", "redis", "jwt", "postgres", "rustfs"},
 	}
 	return &View{Settings: data, Status: items, Meta: meta}, nil
 }
@@ -182,6 +183,9 @@ func normalizeData(in Data) (Data, error) {
 		}
 	}
 
+	if out.BrowserURL, err = normalizeURL(in.BrowserURL, true, "ws", "wss", "http", "https"); err != nil {
+		return out, fmt.Errorf("Browser 地址不合法: %w", err)
+	}
 	if out.N8nURL, err = normalizeURL(in.N8nURL, true, "http", "https", "ws", "wss"); err != nil {
 		return out, fmt.Errorf("n8n 地址不合法: %w", err)
 	}
@@ -192,6 +196,36 @@ func normalizeData(in Data) (Data, error) {
 		return out, fmt.Errorf("LangBot 地址不合法: %w", err)
 	}
 	return out, nil
+}
+
+// applyRuntime 应用可在线生效的设置
+func applyRuntime(cfg *config.Config, data Data) {
+	cfg.Server.PublicBaseURL = data.PublicBaseURL
+	login3rd.SetPublicBaseURL(data.PublicBaseURL)
+
+	cfg.Net.ChromeRemoteURL = data.BrowserURL
+	if data.BrowserURL != "" {
+		_ = os.Setenv("CHROME_REMOTE_URL", data.BrowserURL)
+	} else {
+		_ = os.Unsetenv("CHROME_REMOTE_URL")
+	}
+}
+
+// ApplyEarly 在模块初始化前应用已持久化设置（公开地址、Browser 地址），
+// 保证 login3rd/shopchecker 启动时读到的是设置页保存的值。
+func ApplyEarly(cfg *config.Config) {
+	store := NewStore(settingsFilePath())
+	data, err := store.Load(defaults(cfg))
+	if err != nil {
+		return
+	}
+	if data.PublicBaseURL != "" {
+		cfg.Server.PublicBaseURL = data.PublicBaseURL
+	}
+	if data.BrowserURL != "" {
+		cfg.Net.ChromeRemoteURL = data.BrowserURL
+		_ = os.Setenv("CHROME_REMOTE_URL", data.BrowserURL)
+	}
 }
 
 // normalizeURL 校验 URL；空字符串允许时返回空

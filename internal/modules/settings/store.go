@@ -13,6 +13,7 @@ type Data struct {
 	PublicBaseURL   string `json:"public_base_url"`
 	FrontendTitle   string `json:"frontend_title"`
 	FrontendAPIBase string `json:"frontend_api_base_url"`
+	BrowserURL      string `json:"browser_url"`
 	N8nURL          string `json:"n8n_url"`
 	OpenClawURL     string `json:"openclaw_url"`
 	LangBotURL      string `json:"langbot_url"`

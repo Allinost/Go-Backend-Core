@@ -18,6 +18,7 @@ GET /api/v1/settings
       "public_base_url": "https://et.hailong.site:29090",
       "frontend_title": "go-backend-core",
       "frontend_api_base_url": "/api/v1",
+      "browser_url": "ws://chrome-browser:3000",
       "n8n_url": "http://n8n:5678",
       "openclaw_url": "http://openclaw:18789",
       "langbot_url": "http://langbot:5300"
@@ -53,6 +54,7 @@ Content-Type: application/json
   "public_base_url": "https://et.hailong.site:29090",
   "frontend_title": "go-backend-core",
   "frontend_api_base_url": "/api/v1",
+  "browser_url": "ws://chrome-browser:3000",
   "n8n_url": "http://n8n:5678",
   "openclaw_url": "http://openclaw:18789",
   "langbot_url": "http://langbot:5300"

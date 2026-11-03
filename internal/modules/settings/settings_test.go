@@ -46,6 +46,7 @@ func TestNormalizeData(t *testing.T) {
 	got, err := normalizeData(Data{
 		PublicBaseURL:   " https://example.com/ ",
 		FrontendAPIBase: " /api/v1/ ",
+		BrowserURL:      " ws://chrome-browser:3000/ ",
 		N8nURL:          "http://n8n:5678/",
 	})
 	if err != nil {
@@ -60,6 +61,9 @@ func TestNormalizeData(t *testing.T) {
 	if got.N8nURL != "http://n8n:5678" {
 		t.Errorf("n8n 地址未去尾斜杠：%q", got.N8nURL)
 	}
+	if got.BrowserURL != "ws://chrome-browser:3000" {
+		t.Errorf("Browser 地址未归一化：%q", got.BrowserURL)
+	}
 	if got.FrontendTitle != "" {
 		t.Errorf("空标题应保持空，实际 %q", got.FrontendTitle)
 	}
@@ -70,6 +74,7 @@ func TestNormalizeDataRejectsInvalid(t *testing.T) {
 		{PublicBaseURL: "ftp://example.com"},
 		{PublicBaseURL: "not-a-url"},
 		{FrontendAPIBase: "ftp://example.com"},
+		{BrowserURL: "ftp://chrome"},
 		{N8nURL: "javascript:alert(1)"},
 	}
 	for i, c := range cases {

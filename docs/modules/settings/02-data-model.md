@@ -13,6 +13,7 @@
   "public_base_url": "https://et.hailong.site:29090",
   "frontend_title": "go-backend-core",
   "frontend_api_base_url": "/api/v1",
+  "browser_url": "ws://chrome-browser:3000",
   "n8n_url": "http://n8n:5678",
   "openclaw_url": "http://openclaw:18789",
   "langbot_url": "http://langbot:5300"
@@ -24,6 +25,7 @@
 | public_base_url | 对外访问地址，用于第三方登录回调/远程登录 | 空或 http/https，去尾斜杠 |
 | frontend_title | 前端默认标题 | 可空 |
 | frontend_api_base_url | 前端默认 API 地址 | `/` 开头或 http/https |
+| browser_url | Chrome/Browserless 远程地址（保存后写入 `CHROME_REMOTE_URL`，重启后采集器完全生效） | 空或 ws/wss/http/https |
 | n8n_url / openclaw_url / langbot_url | 外部工具地址（展示/参考） | 空或 http/https/ws/wss |
 
 ## 不落库的内容

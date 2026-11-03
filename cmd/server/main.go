@@ -48,6 +48,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 应用设置页已持久化的公开地址 / Browser 地址（需早于模块 Init）
+	settings.ApplyEarly(cfg)
+
 	// 初始化结构化日志
 	logger.SetGlobal(logger.New(logger.Config{
 		Level:      cfg.Log.Level,
