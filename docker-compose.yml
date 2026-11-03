@@ -1,5 +1,6 @@
 services:
   app:
+    image: ghcr.io/allinost/go-backend-core:${APP_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile
