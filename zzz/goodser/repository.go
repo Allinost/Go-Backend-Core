@@ -42,7 +42,7 @@ func NewRepository(db *sql.DB) *Repository {
 func (r *Repository) ListInventories(ctx context.Context) ([]Inventory, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, name, sort_order, created_at, updated_at
-		 FROM `+tableInventories+` ORDER BY sort_order`)
+		 FROM `+tableInventories+` ORDER BY sort_order, created_at`)
 	if err != nil {
 		return nil, err
 	}
@@ -386,19 +386,27 @@ func (r *Repository) ListOutboundOrders(ctx context.Context, inventoryID string)
 	return scanOrders(rows)
 }
 
-func (r *Repository) ListOutboundOrdersPaginated(ctx context.Context, inventoryID string, limit, offset int) ([]OutboundOrder, bool, int, error) {
+func (r *Repository) ListOutboundOrdersPaginated(ctx context.Context, inventoryID, keyword string, limit, offset int) ([]OutboundOrder, bool, int, error) {
+	where := `inventory_id = ?`
+	args := []any{inventoryID}
+	if keyword != "" {
+		like := "%" + keyword + "%"
+		where += ` AND (order_no LIKE ? OR order_info LIKE ? OR remark LIKE ?)`
+		args = append(args, like, like, like)
+	}
 	var total int
 	if err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM `+tableOutboundOrders+` WHERE inventory_id = ?`, inventoryID).Scan(&total); err != nil {
+		`SELECT COUNT(*) FROM `+tableOutboundOrders+` WHERE `+where, args...).Scan(&total); err != nil {
 		return nil, false, 0, err
 	}
+	queryArgs := append(append([]any{}, args...), limit+1, offset)
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, inventory_id, order_no, type, status, order_info, remark, items,
 		        source_reserve_id, created_at, updated_at, confirmed_at, cancelled_at,
 		        converted_at, returned_at, combo_id, combo_quantity,
 		        bundle_id, bundle_main_product_id, bundle_quantity, bundle_snapshot
-		 FROM `+tableOutboundOrders+` WHERE inventory_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-		inventoryID, limit+1, offset)
+		 FROM `+tableOutboundOrders+` WHERE `+where+` ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		queryArgs...)
 	if err != nil {
 		return nil, false, 0, err
 	}

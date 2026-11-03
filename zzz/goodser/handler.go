@@ -387,7 +387,7 @@ func (h *Handler) LoadOutboundOrders(c *gin.Context) {
 		return
 	}
 	req.Normalize()
-	items, hasMore, total, err := h.svc.ListOutboundOrdersPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
+	items, hasMore, total, err := h.svc.ListOutboundOrdersPaginated(c.Request.Context(), req.InventoryID, req.Keyword, req.Page, req.PageSize)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -1003,7 +1003,7 @@ func (h *Handler) ListOutboundOrdersREST(c *gin.Context) {
 		PageSize:    parseInt(c.Query("page_size"), 20),
 	}
 	req.Normalize()
-	items, hasMore, total, err := h.svc.ListOutboundOrdersPaginated(c.Request.Context(), req.InventoryID, req.Page, req.PageSize)
+	items, hasMore, total, err := h.svc.ListOutboundOrdersPaginated(c.Request.Context(), req.InventoryID, req.Keyword, req.Page, req.PageSize)
 	if err != nil {
 		h.handleError(c, err)
 		return

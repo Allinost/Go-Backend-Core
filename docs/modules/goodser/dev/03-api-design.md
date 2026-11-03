@@ -33,7 +33,7 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 
 ---
 
-## 2. Legacy 端点（POST /api/v1/goodser/legacy/{action}）
+## 2. Legacy 端点（POST /api/v1/zzz-goodser/legacy/{action}）
 
 兼容旧 Rust 后端的扁平调用协议，前端通过 `{ baseUrl }/api/{action}` POST 调用。
 
@@ -84,44 +84,44 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/goodser/inventories` | 列表 |
-| POST | `/api/v1/goodser/inventories` | 创建 |
-| PUT | `/api/v1/goodser/inventories/:id` | 更新 |
-| DELETE | `/api/v1/goodser/inventories/:id` | 删除 |
-| GET | `/api/v1/goodser/inventories/:id/stats` | 店主统计总览，`days` 1-365（默认 30） |
+| GET | `/api/v1/zzz-goodser/inventories` | 列表 |
+| POST | `/api/v1/zzz-goodser/inventories` | 创建 |
+| PUT | `/api/v1/zzz-goodser/inventories/:id` | 更新 |
+| DELETE | `/api/v1/zzz-goodser/inventories/:id` | 删除 |
+| GET | `/api/v1/zzz-goodser/inventories/:id/stats` | 店主统计总览，`days` 1-365（默认 30） |
 
 ### 3.2 商品 Products
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/goodser/inventories/:id/products` | 列表（支持筛选、排序、分页） |
-| POST | `/api/v1/goodser/inventories/:id/products` | 创建 |
-| POST | `/api/v1/goodser/inventories/:id/allocate-seq` | 分配序号 |
-| GET | `/api/v1/goodser/products/:pid` | 详情 |
-| PUT | `/api/v1/goodser/products/:pid` | 更新 |
-| DELETE | `/api/v1/goodser/products/:pid` | 删除（可用与锁定库存均为 0） |
+| GET | `/api/v1/zzz-goodser/inventories/:id/products` | 列表（支持筛选、排序、分页） |
+| POST | `/api/v1/zzz-goodser/inventories/:id/products` | 创建 |
+| POST | `/api/v1/zzz-goodser/inventories/:id/allocate-seq` | 分配序号 |
+| GET | `/api/v1/zzz-goodser/products/:pid` | 详情 |
+| PUT | `/api/v1/zzz-goodser/products/:pid` | 更新 |
+| DELETE | `/api/v1/zzz-goodser/products/:pid` | 删除（可用与锁定库存均为 0） |
 
 ### 3.3 入库 Inbound
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/goodser/inventories/:id/inbound/single` | 单品入库 |
-| POST | `/api/v1/goodser/inventories/:id/inbound/batch` | 批量入库 |
-| POST | `/api/v1/goodser/inventories/:id/inbound/search-import` | 搜索导入入库 |
-| GET | `/api/v1/goodser/inventories/:id/inbound-logs` | 入库日志列表 |
+| POST | `/api/v1/zzz-goodser/inventories/:id/inbound/single` | 单品入库 |
+| POST | `/api/v1/zzz-goodser/inventories/:id/inbound/batch` | 批量入库 |
+| POST | `/api/v1/zzz-goodser/inventories/:id/inbound/search-import` | 搜索导入入库 |
+| GET | `/api/v1/zzz-goodser/inventories/:id/inbound-logs` | 入库日志列表 |
 
 ### 3.4 出库与预留 Outbound / Reserves
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/goodser/inventories/:id/outbound-orders` | 出库/预留单列表 |
-| POST | `/api/v1/goodser/inventories/:id/outbound-orders` | 创建出库或预留单（创建即锁定库存） |
-| GET | `/api/v1/goodser/inventories/:id/outbound-orders/:oid` | 单据详情 |
-| POST | `/api/v1/goodser/inventories/:id/outbound-orders/:oid/confirm` | 确认出库（释放锁定） |
-| POST | `/api/v1/goodser/inventories/:id/outbound-orders/:oid/cancel` | 取消单据（锁定退回可用） |
-| POST | `/api/v1/goodser/inventories/:id/reserves` | 创建预留单 |
-| POST | `/api/v1/goodser/inventories/:id/reserves/:rid/cancel` | 取消预留 |
-| POST | `/api/v1/goodser/inventories/:id/reserves/:rid/convert` | 预留转出库（库存保持锁定） |
+| GET | `/api/v1/zzz-goodser/inventories/:id/outbound-orders` | 出库/预留单列表 |
+| POST | `/api/v1/zzz-goodser/inventories/:id/outbound-orders` | 创建出库或预留单（创建即锁定库存） |
+| GET | `/api/v1/zzz-goodser/inventories/:id/outbound-orders/:oid` | 单据详情 |
+| POST | `/api/v1/zzz-goodser/inventories/:id/outbound-orders/:oid/confirm` | 确认出库（释放锁定） |
+| POST | `/api/v1/zzz-goodser/inventories/:id/outbound-orders/:oid/cancel` | 取消单据（锁定退回可用） |
+| POST | `/api/v1/zzz-goodser/inventories/:id/reserves` | 创建预留单 |
+| POST | `/api/v1/zzz-goodser/inventories/:id/reserves/:rid/cancel` | 取消预留 |
+| POST | `/api/v1/zzz-goodser/inventories/:id/reserves/:rid/convert` | 预留转出库（库存保持锁定） |
 
 单据状态：`pending → confirmed / converted / cancelled`，退货后进入
 `partially_returned` 或 `returned`。
@@ -130,11 +130,11 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/goodser/inventories/:id/outbound-orders/:oid/returns` | 创建退货单（支持多商品、回库开关） |
-| GET | `/api/v1/goodser/inventories/:id/returns` | 退货单列表，可按 `outbound_order_id` 过滤 |
-| GET | `/api/v1/goodser/inventories/:id/returns/:rid` | 退货单详情 |
-| POST | `/api/v1/goodser/inventories/:id/returns/:rid/confirm` | 确认退货（按明细回库） |
-| POST | `/api/v1/goodser/inventories/:id/returns/:rid/cancel` | 取消退货单 |
+| POST | `/api/v1/zzz-goodser/inventories/:id/outbound-orders/:oid/returns` | 创建退货单（支持多商品、回库开关） |
+| GET | `/api/v1/zzz-goodser/inventories/:id/returns` | 退货单列表，可按 `outbound_order_id` 过滤 |
+| GET | `/api/v1/zzz-goodser/inventories/:id/returns/:rid` | 退货单详情 |
+| POST | `/api/v1/zzz-goodser/inventories/:id/returns/:rid/confirm` | 确认退货（按明细回库） |
+| POST | `/api/v1/zzz-goodser/inventories/:id/returns/:rid/cancel` | 取消退货单 |
 
 退货原因：`refund_only`（仅退款，强制不回库）、`return_refund`（退货退款，默认回库）、
 `shipping_damage`（运损，默认不回库）、`other`。商品级 `restock` 可覆盖默认值，
@@ -142,39 +142,39 @@ X-Request-ID: {uuid}    // 可选的请求追踪 ID
 
 ### 3.6 图片 Images
 
-当前仅提供 Legacy 上传端点 `POST /api/v1/goodser/legacy/uploadImage`，REST 版预签名接口尚未实现。
+当前仅提供 Legacy 上传端点 `POST /api/v1/zzz-goodser/legacy/uploadImage`，REST 版预签名接口尚未实现。
 
 ### 3.7 设置 Settings
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/goodser/settings/tags` | 标签列表 |
-| GET | `/api/v1/goodser/settings/status-codes` | 状态码列表 |
-| POST | `/api/v1/goodser/legacy/createTag` | 创建标签 |
-| POST | `/api/v1/goodser/legacy/addStatusCode` | 新增状态码 |
+| GET | `/api/v1/zzz-goodser/settings/tags` | 标签列表 |
+| GET | `/api/v1/zzz-goodser/settings/status-codes` | 状态码列表 |
+| POST | `/api/v1/zzz-goodser/legacy/createTag` | 创建标签 |
+| POST | `/api/v1/zzz-goodser/legacy/addStatusCode` | 新增状态码 |
 
 ### 3.8 受控维度、组合包与捆 Dimensions / Combos / Bundles
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/v1/goodser/settings/dictionaries` | 字典列表，`kind` 支持 series/character/set_type/product_type |
-| POST | `/api/v1/goodser/settings/dictionaries` | 创建字典项 |
-| PUT | `/api/v1/goodser/settings/dictionaries/:did` | 更新字典项 |
-| DELETE | `/api/v1/goodser/settings/dictionaries/:did` | 删除字典项（被引用时拒绝） |
-| GET | `/api/v1/goodser/inventories/:id/series` | 系列聚合视图（商品数、总量、可用量） |
-| GET | `/api/v1/goodser/inventories/:id/combos` | 组合包列表，含可售数量 |
-| POST | `/api/v1/goodser/inventories/:id/combos` | 创建组合包（BOM） |
-| GET | `/api/v1/goodser/combos/:cid` | 组合包详情 |
-| PUT | `/api/v1/goodser/combos/:cid` | 更新组合包 |
-| DELETE | `/api/v1/goodser/combos/:cid` | 删除组合包 |
-| GET | `/api/v1/goodser/inventories/:id/bundles` | 捆模板列表 |
-| POST | `/api/v1/goodser/inventories/:id/bundles` | 创建捆模板 |
-| GET | `/api/v1/goodser/bundles/:bid` | 捆模板详情，含主商品与副区商品 |
-| PUT | `/api/v1/goodser/bundles/:bid` | 更新捆模板 |
-| DELETE | `/api/v1/goodser/bundles/:bid` | 删除捆模板 |
-| GET | `/api/v1/goodser/bundles/:bid/main-products` | 捆允许的主商品，支持 `keyword` |
-| GET | `/api/v1/goodser/bundles/:bid/sub-products` | 捆允许的副区商品，支持 `keyword`、`only_available` |
-| POST | `/api/v1/goodser/bundles/:bid/preview` | 校验捆选择并计算价格，不改变库存 |
+| GET | `/api/v1/zzz-goodser/settings/dictionaries` | 字典列表，`kind` 支持 series/character/set_type/product_type |
+| POST | `/api/v1/zzz-goodser/settings/dictionaries` | 创建字典项 |
+| PUT | `/api/v1/zzz-goodser/settings/dictionaries/:did` | 更新字典项 |
+| DELETE | `/api/v1/zzz-goodser/settings/dictionaries/:did` | 删除字典项（被引用时拒绝） |
+| GET | `/api/v1/zzz-goodser/inventories/:id/series` | 系列聚合视图（商品数、总量、可用量） |
+| GET | `/api/v1/zzz-goodser/inventories/:id/combos` | 组合包列表，含可售数量 |
+| POST | `/api/v1/zzz-goodser/inventories/:id/combos` | 创建组合包（BOM） |
+| GET | `/api/v1/zzz-goodser/combos/:cid` | 组合包详情 |
+| PUT | `/api/v1/zzz-goodser/combos/:cid` | 更新组合包 |
+| DELETE | `/api/v1/zzz-goodser/combos/:cid` | 删除组合包 |
+| GET | `/api/v1/zzz-goodser/inventories/:id/bundles` | 捆模板列表 |
+| POST | `/api/v1/zzz-goodser/inventories/:id/bundles` | 创建捆模板 |
+| GET | `/api/v1/zzz-goodser/bundles/:bid` | 捆模板详情，含主商品与副区商品 |
+| PUT | `/api/v1/zzz-goodser/bundles/:bid` | 更新捆模板 |
+| DELETE | `/api/v1/zzz-goodser/bundles/:bid` | 删除捆模板 |
+| GET | `/api/v1/zzz-goodser/bundles/:bid/main-products` | 捆允许的主商品，支持 `keyword` |
+| GET | `/api/v1/zzz-goodser/bundles/:bid/sub-products` | 捆允许的副区商品，支持 `keyword`、`only_available` |
+| POST | `/api/v1/zzz-goodser/bundles/:bid/preview` | 校验捆选择并计算价格，不改变库存 |
 
 商品创建、更新、入库均支持 `series_id`、`set_type_id`、`product_type_id` 与
 `character_ids`。`tags` 仍作为自由标签保留。字典为全局共享，角色可通过
@@ -224,7 +224,7 @@ AND 校验。更新捆时 `main_filter` 省略或传 `null` 表示不修改，�
 
 | 方法 | 路径 | 作用域 | 说明 |
 |------|------|--------|------|
-| GET | `/api/v1/goodser/inventories/:id/stats?days=30` | `owner:read` | 库存数量与价值、订单/退货状态数、按天趋势、系列分布、热销商品 |
+| GET | `/api/v1/zzz-goodser/inventories/:id/stats?days=30` | `owner:read` | 库存数量与价值、订单/退货状态数、按天趋势、系列分布、热销商品 |
 | Action | `goodser.stats.summary` | `owner:read` | 集成动作版统计，参数 `inventory_id`、`days` |
 
 统计口径：
@@ -241,8 +241,8 @@ AND 校验。更新捆时 `main_filter` 省略或传 `null` 表示不修改，�
 
 | 方法 | 路径 | 作用域 | 说明 |
 |------|------|--------|------|
-| POST | `/api/v1/goodser/customer/stock-query` | `customer:read` | 按关键词、系列、角色、套型、类型、状态查询库存、组合包与捆 |
-| POST | `/api/v1/goodser/customer/order-requests` | `customer:order_request` | 提交订单请求，支持商品、组合包或捆，创建 pending 预留并锁定库存 |
+| POST | `/api/v1/zzz-goodser/customer/stock-query` | `customer:read` | 按关键词、系列、角色、套型、类型、状态查询库存、组合包与捆 |
+| POST | `/api/v1/zzz-goodser/customer/order-requests` | `customer:order_request` | 提交订单请求，支持商品、组合包或捆，创建 pending 预留并锁定库存 |
 
 客户接口严格只读，不接受任何直接改库存的字段。订单请求会写入
 `goodser.customer.order_requested` 外盒事件，并尽力通知已注册连接器。
@@ -253,7 +253,7 @@ AND 校验。更新捆时 `main_filter` 省略或传 `null` 表示不修改，�
 
 ## 4. 路由注册实现
 
-在 `module.go` 中，所有 Legacy 端点统一挂载到 `/api/v1/goodser/legacy` 组下，RESTful 端点挂载到 `/api/v1/goodser/` 下：
+在 `module.go` 中，所有 Legacy 端点统一挂载到 `/api/v1/zzz-goodser/legacy` 组下，RESTful 端点挂载到 `/api/v1/zzz-goodser/` 下：
 
 ```go
 func (m *Module) RegisterRoutes(r *gin.RouterGroup) {

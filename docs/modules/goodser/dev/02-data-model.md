@@ -42,6 +42,7 @@
 | original_price | DECIMAL(12,2) | DEFAULT 0 | 原价 |
 | market_price | DECIMAL(12,2) | DEFAULT 0 | 市场价 |
 | expected_price | DECIMAL(12,2) | DEFAULT 0 | 期望价 |
+| cost_price | DECIMAL(12,2) | DEFAULT 0 | 成本价，为 0 时收益统计回退到原价 |
 | remark | TEXT | DEFAULT '' | 备注 |
 | storage_location | VARCHAR(255) | DEFAULT '' | 存放位置 |
 | image_url | VARCHAR(1024) | DEFAULT '' | 主图 URL |

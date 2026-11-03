@@ -613,6 +613,7 @@ type SyncAllResp struct {
 
 type PaginatedReq struct {
 	InventoryID string `json:"inventory_id"`
+	Keyword     string `json:"keyword"`
 	Page        int    `json:"page"`
 	PageSize    int    `json:"page_size"`
 }

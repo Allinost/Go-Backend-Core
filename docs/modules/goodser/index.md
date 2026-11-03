@@ -1,7 +1,7 @@
 # 商品服务模块（goodser）
 
 > 代码位置：`zzz/goodser` ｜ 路由前缀：`/api/v1/zzz-goodser`
-> 建表：`migrations/mysql/008_legacy_modules_schema.sql`（P8 收敛，模块不再 initTables）
+> 建表：`migrations/mysql/008_legacy_modules_schema.sql` 起，后续迁移 `010`（D1 库存/退货）、`011`（集成基座）、`012`（维度字典/组合包）、`013`（捆）、`014`（成本价）。
 
 ## 文档目录（位于 `dev/`）
 

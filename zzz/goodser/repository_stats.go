@@ -136,10 +136,9 @@ func (r *Repository) StatsProfit(ctx context.Context, inventoryID string, since 
 		 LEFT JOIN `+tableProducts+` p ON p.id = m.product_id
 		 WHERE m.inventory_id = ? AND m.created_at >= ? AND m.reason IN (?, ?)
 		 GROUP BY m.product_id, p.name, p.code, p.expected_price, p.market_price, p.cost_price, p.original_price
-		 HAVING SUM(CASE WHEN m.reason = ? THEN -m.reserved_delta ELSE 0 END) > 0`,
+		 HAVING outbound_qty > 0`,
 		StockReasonOutboundConfirm, StockReasonReturnRestock,
-		inventoryID, since, StockReasonOutboundConfirm, StockReasonReturnRestock,
-		StockReasonOutboundConfirm)
+		inventoryID, since, StockReasonOutboundConfirm, StockReasonReturnRestock)
 	if err != nil {
 		return nil, err
 	}

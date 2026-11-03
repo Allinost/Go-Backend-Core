@@ -56,7 +56,7 @@ func RegisterActions(registry *action.Registry, svc *Service) error {
 				if params.PageSize < 1 || params.PageSize > 100 {
 					params.PageSize = 20
 				}
-				items, hasMore, total, err := svc.ListOutboundOrdersPaginated(ctx, params.InventoryID, params.Page, params.PageSize)
+				items, hasMore, total, err := svc.ListOutboundOrdersPaginated(ctx, params.InventoryID, "", params.Page, params.PageSize)
 				if err != nil {
 					return nil, err
 				}

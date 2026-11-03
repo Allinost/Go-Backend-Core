@@ -706,8 +706,8 @@ func (s *Service) ListOutboundOrders(ctx context.Context, inventoryID string) ([
 }
 
 // ListOutboundOrdersPaginated 分页获取出库单列表
-func (s *Service) ListOutboundOrdersPaginated(ctx context.Context, inventoryID string, page, pageSize int) ([]OutboundOrder, bool, int, error) {
-	return s.repo.ListOutboundOrdersPaginated(ctx, inventoryID, pageSize, (page-1)*pageSize)
+func (s *Service) ListOutboundOrdersPaginated(ctx context.Context, inventoryID, keyword string, page, pageSize int) ([]OutboundOrder, bool, int, error) {
+	return s.repo.ListOutboundOrdersPaginated(ctx, inventoryID, strings.TrimSpace(keyword), pageSize, (page-1)*pageSize)
 }
 
 // CreateOutboundOrder 创建出库单或预留单。
