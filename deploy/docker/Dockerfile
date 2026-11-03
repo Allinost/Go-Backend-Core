@@ -35,6 +35,8 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 WORKDIR /app
 COPY --from=builder /build/server .
 COPY config.yaml .
+# 运行期迁移接口需要读取 migrations/ 目录
+COPY migrations ./migrations
 
 ENV SHOPCHECKER_DATA_DIR=/data/shopchecker
 
