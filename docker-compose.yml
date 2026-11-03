@@ -5,42 +5,49 @@ services:
       context: .
       dockerfile: deploy/docker/Dockerfile
     ports:
-      - "80:29090"      # 业务 API（Nginx 对外暴露）
+      - "80:29090"      # 业务 API（Nginx/1Panel 反代对外）
       - "29092:29092"   # 调试/监控/运维（仅内网）
     env_file:
       - .env
     environment:
       - TZ=Asia/Shanghai
-      - CHROME_REMOTE_URL=ws://chrome:29091
+      # 与下方 chrome-browser 服务名、容器端口保持一致
+      - CHROME_REMOTE_URL=ws://chrome-browser:3000
     depends_on:
-      chrome:
+      chrome-browser:
         condition: service_healthy
     restart: unless-stopped
+    # 网络别名：n8n / OpenClaw / LangBot 通过 http://gobackendcore:29090 访问
     networks:
-      - 1panel-network
+      1panel-network:
+        aliases:
+          - gobackendcore
 
-  chrome:
+  chrome-browser:
     image: browserless/chrome:1.61.1-chrome-stable
-    ports:
-      - "29091:29091"
+    container_name: chrome-browser
+    restart: unless-stopped
+    # Chrome 共享内存，防止复杂页面崩溃；服务器内存小时可降到 2g
+    shm_size: "8gb"
     environment:
       - TZ=Asia/Shanghai
+      # Browserless 对外宣告的 CDP 地址（容器内访问用容器名 + 端口）
+      - EXTERNAL=ws://chrome-browser:3000
       - CONNECTION_TIMEOUT=600000
       - MAX_CONCURRENT_SESSIONS=1
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
-    tmpfs:
-      - /dev/shm:size=256m
+    ports:
+      # 仅调试需要；不需要宿主机直连时可删除
+      - "${CHROME_HOST_PORT:-3000}:3000"
     healthcheck:
-      test: ["CMD", "node", "/home/browserless/healthcheck.js"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/json/version',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
-      retries: 3
-    restart: unless-stopped
+      retries: 5
+      start_period: 20s
     networks:
-      - 1panel-network
+      1panel-network:
+        aliases:
+          - chrome
 
 networks:
   1panel-network:

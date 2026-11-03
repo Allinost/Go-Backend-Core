@@ -114,6 +114,30 @@ docker compose up -d app
 
 > 说明：`docker-compose.yml` 同时保留 `image` 与 `build`。`pull` 使用镜像，`build` 使用本地源码，二者按命令选择。
 
+### 采集浏览器（chrome-browser）
+
+`docker-compose.yml` 内置 `chrome-browser`（browserless/chrome），供 shopchecker / login3rd 的浏览器采集使用：
+
+- 容器内地址：`ws://chrome-browser:3000`（compose 已通过 `CHROME_REMOTE_URL` 注入）
+- 宿主机调试端口：`${CHROME_HOST_PORT:-3000}:3000`
+- `shm_size: 8gb`，服务器内存较小时可调低到 `2g`
+- 健康检查：`/json/version`，通过后才启动 app
+
+## 1Panel 网络与外部工具
+
+生产环境 `gobackendcore` 与 n8n / OpenClaw / LangBot 同处 `1panel-network`，容器之间使用「容器名 + 容器端口」访问；开发环境通过 EasyTier 入口 `et.hailong.site` + 宿主机发布端口访问。
+
+| 服务 | 1panel-network 内 | 开发（EasyTier） |
+|---|---|---|
+| gobackendcore | `http://gobackendcore:29090` | `https://et.hailong.site:29090` |
+| n8n | `http://n8n:5678` | `https://et.hailong.site:5678` |
+| OpenClaw | `http://openclaw:18789` | `https://et.hailong.site:18789` |
+| LangBot | `http://langbot:5300` | `https://et.hailong.site:5300` |
+
+> 开发端口以 1Panel 实际映射或反向代理为准。后端对外地址由 `server.public_base_url` 控制（默认 `https://et.hailong.site:29090`），第三方登录回调与远程登录链接都会使用该值；若线上只发布 80/443，改这一个配置即可。
+
+接入步骤、API Key 作用域、Webhook 验签、验收与排障见 [modules/integration/connectivity.md](modules/integration/connectivity.md)。
+
 ## 环境管理
 
 | 环境 | 配置 | 数据库 |

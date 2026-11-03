@@ -139,7 +139,7 @@ type Provider interface {
 1. 模块路由未挂 JWT 中间件，依赖网络层隔离（调试端口仅内网）
 2. `wsUpgrader.CheckOrigin` 恒返回 `true`（`handler.go:19-21`）
 3. 远程会话 token 仅 8 位 uuid（`remote.go:134`），有效期 5 分钟
-4. `session_check.go:110` 硬编码 webhook 回调 host `https://et.hailong.site:29090`
+4. Webhook 回调 host 从 `server.public_base_url` 读取，未配置时回落 `https://et.hailong.site:29090`
 5. 生产环境务必配置 `crypto.master_key_hex`（否则使用零密钥）
 
 ---
@@ -148,8 +148,9 @@ type Provider interface {
 
 | 配置 | 定义 | 用途 |
 |------|------|------|
+| `server.public_base_url` | `internal/config/config.go` | 对外访问地址，用于远程登录链接与 webhook 回调 |
 | `crypto.master_key_hex` | `internal/config/config.go:40-44` | 登录 3rd 加密主密钥 |
-| `net.chrome_remote_url` | `config.go:46-50`（示例 `ws://chrome:29091`） | 远程浏览器地址，空则回落本地 Chrome |
+| `net.chrome_remote_url` | 环境变量 `CHROME_REMOTE_URL`（示例 `ws://chrome-browser:3000`） | 远程浏览器地址，空则回落本地 Chrome |
 | `scheduler.*` | `config.yaml:89-94` | 间接影响 24h 会话检查任务 |
 
 > `config.yaml` 的 `auth:` 段仅含 `jwt_secret`/`jwt_expire`，与本模块无关；`crypto`/`net` 段需经环境变量 `APP_*` 或 Docker Secret 注入。
@@ -162,5 +163,5 @@ type Provider interface {
 2. `Close()` 中 `m.sch` 从未赋值，实际为空操作（会话检查已改由 centralized scheduler 驱动，建议清理死代码与旧 `SessionChecker`）
 3. DDL 内联在 `module.go`，未纳入 `migrations/` 版本化
 4. `session_data` 明文存储 Cookie，建议评估加密或限制 DB 访问
-5. `getHost()` 硬编码外部地址，应改为从配置读取
+5. `getHost()` 已改为读取 `server.public_base_url`；未配置时仍回落旧地址，部署时建议显式设置
 6. 单实例假设（远程会话存内存 map），多实例部署需外置会话存储
