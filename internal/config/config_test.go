@@ -114,6 +114,49 @@ func TestLoad_EnvOverride(t *testing.T) {
 	assert.Equal(t, "env-secret", cfg.Auth.JWTSecret)
 }
 
+func TestLoad_PublicBaseURLAndChromeEnv(t *testing.T) {
+	resetForTest()
+	content := `
+server:
+  port: 29090
+  mode: test
+  public_base_url: ""
+log:
+  level: info
+  format: json
+  output: stdout
+database:
+  mysql:
+    main:
+      host: localhost
+      port: 3306
+      user: root
+      password: ""
+      dbname: test
+redis:
+  main:
+    addr: localhost:6379
+    password: ""
+    db: 0
+auth:
+  jwt_secret: ""
+  jwt_expire: 24h
+config:
+  watch: false
+`
+	path := "test_env_public_config.yaml"
+	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	defer os.Remove(path)
+
+	t.Setenv("APP_SERVER_PUBLIC_BASE_URL", "https://api.example.com:29090")
+	t.Setenv("CHROME_REMOTE_URL", "ws://browser:3000")
+
+	cfg, err := Load(path)
+	require.NoError(t, err)
+	assert.Equal(t, "https://api.example.com:29090", cfg.Server.PublicBaseURL)
+	assert.Equal(t, "ws://browser:3000", cfg.Net.ChromeRemoteURL)
+}
+
 func TestRegisterReloader(t *testing.T) {
 	resetForTest()
 	RegisterReloader(&testReloader{fn: func(cfg *Config) error {

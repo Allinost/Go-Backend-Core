@@ -312,6 +312,8 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("解析配置失败: %w", err)
 	}
 
+	applyEnvFallbacks(&cfg)
+
 	if err := Validate(&cfg); err != nil {
 		return nil, fmt.Errorf("配置校验失败: %w", err)
 	}
@@ -332,11 +334,20 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
+func applyEnvFallbacks(cfg *Config) {
+	// CHROME_REMOTE_URL 是采集器/Compose 使用的兼容变量，不在 config.yaml 中；
+	// 回填到 Net 配置，便于设置页展示与运行时应用。
+	if cfg.Net.ChromeRemoteURL == "" {
+		cfg.Net.ChromeRemoteURL = strings.TrimSpace(os.Getenv("CHROME_REMOTE_URL"))
+	}
+}
+
 func reloadConfig() error {
 	var newCfg Config
 	if err := v.Unmarshal(&newCfg); err != nil {
 		return fmt.Errorf("解析新配置失败: %w", err)
 	}
+	applyEnvFallbacks(&newCfg)
 	if err := Validate(&newCfg); err != nil {
 		return fmt.Errorf("新配置校验失败: %w", err)
 	}

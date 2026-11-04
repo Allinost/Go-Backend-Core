@@ -131,7 +131,7 @@ func recordAudit(c *gin.Context, action, resource, detail string) {
 // @Produce      json
 // @Param        page      query  int     false  "页码，默认 1"
 // @Param        page_size query  int     false  "每页数量，默认 20，最大 100"
-// @Param        type      query  string  false  "项目类型 base/template/backend_module/frontend_module"
+// @Param        type      query  string  false  "项目类型 base/template/backend_module/frontend_module/frontend_base/container_project；前端类型可为纯前端"
 // @Param        status    query  string  false  "状态 active/archived"
 // @Param        keyword   query  string  false  "关键词，匹配名称/唯一键/简介"
 // @Param        deleted   query  bool    false  "是否查询已删除（默认否）"

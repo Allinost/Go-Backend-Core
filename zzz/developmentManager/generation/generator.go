@@ -69,6 +69,23 @@ type AIWriter interface {
 	Write(ctx context.Context, system, prompt string) (string, error)
 }
 
+// 前端项目类型：这类项目可以完全独立于后端运行（纯前端项目）
+const (
+	ProjectTypeTemplate       = "template"
+	ProjectTypeFrontendBase   = "frontend_base"
+	ProjectTypeFrontendModule = "frontend_module"
+)
+
+// IsFrontendProjectType 判断项目是否按前端项目生成（模板/前端基座/前端模块）
+func IsFrontendProjectType(projectType string) bool {
+	switch projectType {
+	case ProjectTypeTemplate, ProjectTypeFrontendBase, ProjectTypeFrontendModule:
+		return true
+	default:
+		return false
+	}
+}
+
 // BaseDir 项目产物根目录
 func BaseDir(projectKey string) string {
 	return "docs/projects/" + projectKey
@@ -94,7 +111,7 @@ func GenerateTemplate(in Input) Output {
 	case KindCode:
 		dir = fmt.Sprintf("%s/%s-%d", dir, in.Requirement.Code, in.GenerationID)
 		return Output{
-			Files:      codeFiles(in, dir),
+			Files:      codeFilesFor(in, dir),
 			EngineUsed: EngineTemplate,
 			OutputRef:  dir + "/",
 		}
@@ -120,7 +137,11 @@ func BuildAIPrompt(in Input) (system, prompt string) {
 	system = "你是资深软件工程师，输出中文 Markdown，结构清晰、可直接落地，不要输出与任务无关的寒暄。"
 	switch in.Kind {
 	case KindCode:
-		system += " 代码类任务请输出 Go 代码骨架（含 package、类型、方法签名与 TODO 注释），并用 Markdown 代码块包裹。"
+		if IsFrontendProjectType(in.Project.Type) {
+			system += " 代码类任务请输出 Vue 3 + TypeScript 代码骨架（使用 <script setup lang=\"ts\">），不依赖后端，可使用本地 mock 数据。"
+		} else {
+			system += " 代码类任务请输出 Go 代码骨架（含 package、类型、方法签名与 TODO 注释），并用 Markdown 代码块包裹。"
+		}
 	case KindDoc:
 		system += " 文档类任务请输出面向使用者的说明文档。"
 	default:
@@ -145,7 +166,7 @@ func WrapAIContent(in Input, content string) Output {
 
 	if in.Kind == KindCode {
 		dir = fmt.Sprintf("%s/%s-%d", dir, in.Requirement.Code, in.GenerationID)
-		files := codeFiles(in, dir)
+		files := codeFilesFor(in, dir)
 		readme := fmt.Sprintf("# %s %s（AI 生成草案）\n\n> 引擎：ai ｜ 需求：%s ｜ 请人工审查后再合入。\n\n%s\n",
 			in.Requirement.Code, in.Requirement.Title, in.Requirement.Code, content)
 		files[0].Content = readme
@@ -169,6 +190,9 @@ func emptyAsPlaceholder(s string) string {
 }
 
 func renderPlan(in Input) string {
+	if IsFrontendProjectType(in.Project.Type) {
+		return renderFrontendPlan(in)
+	}
 	return fmt.Sprintf(`# %s 需求方案：%s
 
 > 项目：%s ｜ 类型：%s ｜ 优先级：%s ｜ 负责人：%s ｜ 引擎：template
@@ -271,6 +295,177 @@ curl -X POST 'http://localhost:29092/api/v1/<module>/<resource>' \
 | 数据为空 | 确认筛选条件与数据是否已创建 |
 `, in.Requirement.Code, in.Requirement.Title, in.Project.Name, in.Requirement.Type,
 		in.Requirement.Priority, emptyAsPlaceholder(in.Requirement.Content))
+}
+
+func renderFrontendPlan(in Input) string {
+	return fmt.Sprintf(`# %s 需求方案：%s
+
+> 项目：%s ｜ 类型：%s ｜ 优先级：%s ｜ 负责人：%s ｜ 引擎：template
+>
+> 本项目按前端项目生成，不要求绑定后端模块；纯前端项目可直接使用本地 mock 数据。
+
+## 1. 背景与目标
+
+%s
+
+## 2. 范围
+
+- 本期范围：页面、组件、状态管理与交互验收
+- 不在本期范围：需求未明确提及的扩展能力
+- 后端依赖：可选；没有后端时使用本地 mock 或静态数据
+
+## 3. 页面与路由
+
+| 页面 | 路由 | 说明 |
+|---|---|---|
+| 列表页 | /<module> | 查询、筛选与分页（待细化） |
+| 详情页 | /<module>/:id | 查看与编辑（待细化） |
+
+## 4. 组件与状态
+
+- 组件拆分：页面容器 → 业务组件 → 基础组件
+- 状态管理：页面内状态优先，跨页面共享再引入 store
+- 数据来源：本地 mock（默认）或可选的 HTTP API
+- 无后端模式：不引入后端鉴权/接口依赖，保证静态部署可运行
+
+## 5. 兼容与可访问性
+
+- 响应式：桌面/移动端断点验证
+- 可访问性：键盘操作、焦点状态、语义化标签
+- 浏览器：最近两个大版本
+
+## 6. 风险与应对
+
+| 风险 | 应对 |
+|---|---|
+| 需求理解偏差 | 开发前与需求方核对验收标准 |
+| 后端接口未就绪 | 使用 mock 数据并行开发 |
+| 纯前端部署缺少接口 | 保留 mock 开关，静态资源可直接部署 |
+
+## 7. 验收标准
+
+- [ ] 页面与交互可走通
+- [ ] 纯前端模式无需后端即可启动和演示
+- [ ] 关键组件有单元测试或交互验证
+- [ ] 文档与代码同提交
+
+## 8. 任务拆解
+
+1. 页面与路由骨架
+2. 组件与状态管理
+3. mock 数据与可选 API 适配
+4. 样式与响应式
+5. 测试、文档与发布说明
+`, in.Requirement.Code, in.Requirement.Title, in.Project.Name, in.Project.Type,
+		in.Requirement.Priority, in.Requirement.Owner, emptyAsPlaceholder(in.Requirement.Content))
+}
+
+func codeFilesFor(in Input, dir string) []File {
+	if IsFrontendProjectType(in.Project.Type) {
+		return frontendCodeFiles(in, dir)
+	}
+	return codeFiles(in, dir)
+}
+
+// frontendCodeFiles 生成纯前端代码草案：Vue 3 + TypeScript，默认使用本地 mock，
+// 不引入任何后端模块或鉴权依赖。
+func frontendCodeFiles(in Input, dir string) []File {
+	ident := exportedIdent(in.Requirement.Code)
+	readme := fmt.Sprintf(`# %s %s（前端代码草案）
+
+> 项目：%s ｜ 类型：%s ｜ 优先级：%s ｜ 引擎：template
+>
+> 本项目按纯前端项目生成，不要求后端模块；默认使用本地 mock 数据。
+
+## 文件
+
+- `+"`types.ts`"+`：页面数据类型
+- `+"`api.ts`"+`：数据访问层（默认 mock，可替换为真实 API）
+- `+"`PageView.vue`"+`：Vue 3 + TypeScript 页面骨架
+
+## 合入步骤
+
+1. 复制到目标前端工程（如 `+"`src/views/<module>`"+`）
+2. 按项目规范补齐路由、菜单与权限
+3. 需要后端时再补 `+"`binds_backend_module`"+` 关联与真实 API
+4. 补充组件测试并运行 `+"`npm run build`"+`
+`, in.Requirement.Code, in.Requirement.Title, in.Project.Name, in.Project.Type,
+		in.Requirement.Priority)
+
+	types := fmt.Sprintf(`export interface %[1]sItem {
+  id: string
+  title: string
+  description?: string
+  status?: string
+}
+
+export interface %[1]sQuery {
+  keyword?: string
+}
+`, ident)
+
+	api := fmt.Sprintf(`import type { %[1]sItem, %[1]sQuery } from './types'
+
+// 纯前端项目默认使用 mock 数据；需要接后端时替换为 fetch/axios。
+const mock%[1]s: %[1]sItem[] = [
+  { id: '1', title: '%[2]s 示例数据', status: 'active' },
+]
+
+export async function list%[1]s(query: %[1]sQuery = {}): Promise<%[1]sItem[]> {
+  const keyword = (query.keyword || '').trim().toLowerCase()
+  return mock%[1]s.filter((item) => !keyword || item.title.toLowerCase().includes(keyword))
+}
+`, ident, in.Requirement.Title)
+
+	page := fmt.Sprintf(`<template>
+  <section class="%[3]s-page">
+    <header class="%[3]s-page__header">
+      <h2>%[2]s</h2>
+      <input v-model="keyword" placeholder="搜索" />
+    </header>
+    <ul class="%[3]s-page__list">
+      <li v-for="item in items" :key="item.id">{{ item.title }}</li>
+    </ul>
+    <p v-if="!loading && !items.length">暂无数据</p>
+  </section>
+</template>
+
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { list%[1]s } from './api'
+import type { %[1]sItem } from './types'
+
+const keyword = ref('')
+const items = ref<%[1]sItem[]>([])
+const loading = ref(false)
+
+async function load() {
+  loading.value = true
+  try {
+    items.value = await list%[1]s({ keyword: keyword.value })
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(load)
+</script>
+`, ident, in.Requirement.Title, lowerIdent(in.Requirement.Code))
+
+	return []File{
+		{RelPath: dir + "/README.md", Content: readme},
+		{RelPath: dir + "/types.ts", Content: types},
+		{RelPath: dir + "/api.ts", Content: api},
+		{RelPath: dir + "/PageView.vue", Content: page},
+	}
+}
+
+func lowerIdent(code string) string {
+	ident := exportedIdent(code)
+	if ident == "" {
+		return "generated"
+	}
+	return strings.ToLower(ident[:1]) + ident[1:]
 }
 
 func codeFiles(in Input, dir string) []File {

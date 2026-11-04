@@ -14,8 +14,8 @@ services:
       - ./data:/app/data
     environment:
       - TZ=Asia/Shanghai
-      # 与下方 chrome-browser 服务名、容器端口保持一致
-      - CHROME_REMOTE_URL=ws://chrome-browser:3000
+      # 与下方 chrome-browser 服务名、容器端口保持一致；可在 .env 覆盖
+      - CHROME_REMOTE_URL=${CHROME_REMOTE_URL:-ws://chrome-browser:3000}
     depends_on:
       chrome-browser:
         condition: service_healthy

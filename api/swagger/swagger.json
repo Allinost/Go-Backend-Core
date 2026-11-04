@@ -3202,7 +3202,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "项目类型 base/template/backend_module/frontend_module",
+                        "description": "项目类型 base/template/backend_module/frontend_module/frontend_base/container_project；前端类型可为纯前端",
                         "name": "type",
                         "in": "query"
                     },
@@ -9829,6 +9829,90 @@
                 }
             }
         },
+        "/settings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "获取应用设置与依赖状态",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_modules_settings.View"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "更新应用设置",
+                "parameters": [
+                    {
+                        "description": "应用设置",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_modules_settings.Data"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/internal_modules_settings.View"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/shopchecker/dashboard": {
             "get": {
                 "description": "返回全局统计数据：监控商品总数、已启用数、今日检查次数、今日通知次数、最近降价列表",
@@ -10866,6 +10950,193 @@
                                     }
                                 }
                             ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/bundle-pools": {
+            "get": {
+                "tags": [
+                    "zzz-goodser"
+                ],
+                "summary": "捆物池列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "库存目录 ID",
+                        "name": "inventory_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "active/inactive",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/zzz_goodser.BundlePool"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "zzz-goodser"
+                ],
+                "summary": "创建捆物池",
+                "parameters": [
+                    {
+                        "description": "捆物池内容",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_goodser.CreateBundlePoolReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.BundlePool"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/zzz-goodser/bundle-pools/{pid}": {
+            "get": {
+                "tags": [
+                    "zzz-goodser"
+                ],
+                "summary": "捆物池详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "捆物池 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.BundlePool"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "zzz-goodser"
+                ],
+                "summary": "更新捆物池",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "捆物池 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新字段",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zzz_goodser.UpdateBundlePoolReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zzz_goodser.BundlePool"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "zzz-goodser"
+                ],
+                "summary": "删除捆物池",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "捆物池 ID",
+                        "name": "pid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
                         }
                     }
                 }
@@ -17373,193 +17644,6 @@
                     }
                 }
             }
-        },
-        "/zzz-goodser/bundle-pools": {
-            "get": {
-                "tags": [
-                    "zzz-goodser"
-                ],
-                "summary": "捆物池列表",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "库存目录 ID",
-                        "name": "inventory_id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "active/inactive",
-                        "name": "status",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/zzz_goodser.BundlePool"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            },
-            "post": {
-                "tags": [
-                    "zzz-goodser"
-                ],
-                "summary": "创建捆物池",
-                "parameters": [
-                    {
-                        "description": "捆物池内容",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/zzz_goodser.CreateBundlePoolReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/zzz_goodser.BundlePool"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/zzz-goodser/bundle-pools/{pid}": {
-            "get": {
-                "tags": [
-                    "zzz-goodser"
-                ],
-                "summary": "捆物池详情",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "捆物池 ID",
-                        "name": "pid",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/zzz_goodser.BundlePool"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            },
-            "put": {
-                "tags": [
-                    "zzz-goodser"
-                ],
-                "summary": "更新捆物池",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "捆物池 ID",
-                        "name": "pid",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "更新字段",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/zzz_goodser.UpdateBundlePoolReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/zzz_goodser.BundlePool"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "tags": [
-                    "zzz-goodser"
-                ],
-                "summary": "删除捆物池",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "捆物池 ID",
-                        "name": "pid",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
@@ -18414,6 +18498,89 @@
                 },
                 "remark": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_modules_settings.Data": {
+            "type": "object",
+            "properties": {
+                "browser_url": {
+                    "type": "string"
+                },
+                "frontend_api_base_url": {
+                    "type": "string"
+                },
+                "frontend_title": {
+                    "type": "string"
+                },
+                "langbot_url": {
+                    "type": "string"
+                },
+                "n8n_url": {
+                    "type": "string"
+                },
+                "openclaw_url": {
+                    "type": "string"
+                },
+                "public_base_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_modules_settings.Meta": {
+            "type": "object",
+            "properties": {
+                "chrome_remote_url": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "persisted": {
+                    "type": "boolean"
+                },
+                "read_only_keys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "server_name": {
+                    "type": "string"
+                },
+                "settings_file": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_modules_settings.StatusItem": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_modules_settings.View": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "$ref": "#/definitions/internal_modules_settings.Meta"
+                },
+                "settings": {
+                    "$ref": "#/definitions/internal_modules_settings.Data"
+                },
+                "status": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_modules_settings.StatusItem"
+                    }
                 }
             }
         },
@@ -21161,6 +21328,90 @@
                 }
             }
         },
+        "zzz_goodser.BundlePool": {
+            "type": "object",
+            "properties": {
+                "_id": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.BundlePoolItem"
+                    }
+                },
+                "min_amount": {
+                    "type": "number"
+                },
+                "min_item_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.BundlePoolItem": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "integer"
+                },
+                "default_quantity": {
+                    "type": "integer"
+                },
+                "expected_price": {
+                    "type": "number"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "product_code": {
+                    "type": "string"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "reserved_quantity": {
+                    "type": "integer"
+                },
+                "total_quantity": {
+                    "type": "integer"
+                }
+            }
+        },
+        "zzz_goodser.BundlePoolItemReq": {
+            "type": "object",
+            "properties": {
+                "default_quantity": {
+                    "type": "integer"
+                },
+                "product_id": {
+                    "type": "string"
+                }
+            }
+        },
         "zzz_goodser.BundlePreviewReq": {
             "type": "object",
             "properties": {
@@ -21372,6 +21623,26 @@
                 }
             }
         },
+        "zzz_goodser.ComboBundleSelection": {
+            "type": "object",
+            "properties": {
+                "bundle_id": {
+                    "type": "string"
+                },
+                "main_product_id": {
+                    "type": "string"
+                },
+                "main_quantity": {
+                    "type": "integer"
+                },
+                "sub_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.BundleOrderSubItem"
+                    }
+                }
+            }
+        },
         "zzz_goodser.ComboItem": {
             "type": "object",
             "properties": {
@@ -21425,6 +21696,38 @@
             "type": "object",
             "properties": {
                 "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "zzz_goodser.CreateBundlePoolReq": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "inventory_id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.BundlePoolItemReq"
+                    }
+                },
+                "min_amount": {
+                    "type": "number"
+                },
+                "min_item_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -23054,6 +23357,38 @@
                 }
             }
         },
+        "zzz_goodser.UpdateBundlePoolReq": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zzz_goodser.BundlePoolItemReq"
+                    }
+                },
+                "min_amount": {
+                    "type": "number"
+                },
+                "min_item_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "zzz_goodser.UpdateBundleReq": {
             "type": "object",
             "properties": {
@@ -24475,7 +24810,7 @@
                     }
                 },
                 "updated": {
-                    "description": "更新的币对 CNY->USD",
+                    "description": "更新的币对 CNY-\u003eUSD",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -26336,174 +26671,6 @@
                 },
                 "url": {
                     "type": "string"
-                }
-            }
-        },
-        "zzz_goodser.BundlePool": {
-            "type": "object",
-            "properties": {
-                "_id": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/zzz_goodser.BundlePoolItem"
-                    }
-                },
-                "min_amount": {
-                    "type": "number"
-                },
-                "min_item_count": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "zzz_goodser.BundlePoolItem": {
-            "type": "object",
-            "properties": {
-                "available": {
-                    "type": "integer"
-                },
-                "default_quantity": {
-                    "type": "integer"
-                },
-                "expected_price": {
-                    "type": "number"
-                },
-                "image_url": {
-                    "type": "string"
-                },
-                "product_code": {
-                    "type": "string"
-                },
-                "product_id": {
-                    "type": "string"
-                },
-                "product_name": {
-                    "type": "string"
-                },
-                "reserved_quantity": {
-                    "type": "integer"
-                },
-                "total_quantity": {
-                    "type": "integer"
-                }
-            }
-        },
-        "zzz_goodser.BundlePoolItemReq": {
-            "type": "object",
-            "properties": {
-                "default_quantity": {
-                    "type": "integer"
-                },
-                "product_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "zzz_goodser.CreateBundlePoolReq": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "inventory_id": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/zzz_goodser.BundlePoolItemReq"
-                    }
-                },
-                "min_amount": {
-                    "type": "number"
-                },
-                "min_item_count": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "zzz_goodser.UpdateBundlePoolReq": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/zzz_goodser.BundlePoolItemReq"
-                    }
-                },
-                "min_amount": {
-                    "type": "number"
-                },
-                "min_item_count": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "zzz_goodser.ComboBundleSelection": {
-            "type": "object",
-            "properties": {
-                "bundle_id": {
-                    "type": "string"
-                },
-                "main_product_id": {
-                    "type": "string"
-                },
-                "main_quantity": {
-                    "type": "integer"
-                },
-                "sub_items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/zzz_goodser.BundleOrderSubItem"
-                    }
                 }
             }
         }

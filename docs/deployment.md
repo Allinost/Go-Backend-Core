@@ -81,12 +81,33 @@ ghcr.io/allinost/go-backend-core:sha-<commit>
 
 镜像为 `linux/amd64`，构建阶段会生成 Swagger 并编译静态二进制。
 
+### 将 GHCR 包设为 public（推荐）
+
+GHCR 包默认私有；公开后服务器无需登录即可拉取，也不会占用私有 Packages 配额。组织包设置入口：
+
+`Organization settings → Packages → 选择 go-backend-core / go-frontend-core → Package settings → Danger Zone → Change visibility → Public`
+
+或用带 `write:packages` 的 PAT 一键设置：
+
+```bash
+GH_TOKEN=ghp_xxx ./scripts/ghcr-public.sh go-backend-core go-frontend-core
+```
+
+等价 API：
+
+```bash
+curl -X PATCH \
+  -H "Authorization: Bearer $GHCR_PAT" \
+  -H "Accept: application/vnd.github+json" \
+  https://api.github.com/orgs/Allinost/packages/container/go-backend-core \
+  -d '{"visibility":"public"}'
+```
+
+前端包同理，把包名换成 `go-frontend-core`。公开前确认镜像内没有真实密码/密钥（本仓库 `config.yaml` 只保留空值或示例域名，真实值在 `.env`）。
+
 ### 服务器拉取最新镜像
 
 ```bash
-# 私有包首次登录（PAT 需要 read:packages；公开包可跳过）
-echo "$GHCR_PAT" | docker login ghcr.io -u <github-username> --password-stdin
-
 cd /path/to/Go-Backend-Core
 # .env 中 APP_IMAGE_TAG=latest 或指定版本
 docker compose pull app
@@ -99,6 +120,8 @@ docker image prune -f
 ```bash
 docker pull ghcr.io/allinost/go-backend-core:latest
 ```
+
+> 若包仍是 private，先执行 `echo "$GHCR_PAT" | docker login ghcr.io -u <github-username> --password-stdin`（PAT 需要 `read:packages`）。
 
 固定版本发布建议把 `.env` 的 `APP_IMAGE_TAG` 改为具体标签（如 `v1.0.0`），避免服务器无意跟随 `latest`。
 
@@ -124,10 +147,9 @@ ghcr.io/allinost/go-frontend-core:latest
 ghcr.io/allinost/go-frontend-core:sha-<commit>
 ```
 
-服务器拉取（GHCR 包默认私有，需要 `read:packages` 的 PAT；设为公开后可跳过登录）：
+服务器拉取（包设为 public 后无需登录；仍是 private 时用 `read:packages` 的 PAT 登录）：
 
 ```bash
-echo "$GHCR_PAT" | docker login ghcr.io -u <github-username> --password-stdin
 docker pull ghcr.io/allinost/go-frontend-core:latest
 docker run -d --name go-frontend-core \
   --restart unless-stopped \
@@ -141,11 +163,26 @@ docker run -d --name go-frontend-core \
 - 若后端服务名不是 `gobackendcore`，需修改 `deploy/nginx.conf` 后重新构建镜像。
 - 前端 API 地址也可在页面「设置 → 前端设置」中改为公网后端地址。
 
+### 构建配置与隐私
+
+- 仓库内 `config.yaml` 只保留空值 / 示例域名（`example.com`），真实域名、账号、密码、密钥全部放 `.env`。
+- 后端 `.env` 常用项：
+  - `APP_SERVER_PUBLIC_BASE_URL`：对外访问地址（回调/远程登录）
+  - `CHROME_REMOTE_URL`：Browser 地址（compose 默认 `ws://chrome-browser:3000`）
+  - `APP_DATABASE_*` / `APP_REDIS_*` / `APP_AUTH_JWT_SECRET` / `APP_CRYPTO_MASTER_KEY_HEX`
+- 前端 `.env` 常用项：
+  - `VITE_API_BASE_URL`：默认后端 API 地址
+  - `VITE_APP_TITLE`：默认站点标题
+  - `VITE_INTRANET_HOST` / `VITE_EASYTIER_HOST`：服务导航内网 / EasyTier 域名
+  - 镜像构建时通过 Docker build args 注入；CI 从仓库 Variables 读取，未配置则使用代码兜底（`/api/v1` / `Go Admin` / 当前域名）
+- `.env` 已在 `.gitignore` 中；Docker 构建上下文也已排除，不会打进镜像。
+- 管理端「设置」弹窗修改的是非敏感展示配置（浏览器 localStorage / 后端 `data/settings.json`）；连接与密钥仍以 `.env` 为准。
+
 ### 应用设置持久化
 
 - 设置文件：`data/settings.json`（0600，原子写入，可由 `APP_SETTINGS_FILE` 覆盖）
 - Compose 已挂载 `./data:/app/data`，容器重建后设置保留
-- 页面顶部「设置」→「后端设置」可修改公开地址/前端默认值/外部工具地址；数据库、Redis、JWT 等仍需改 `.env` 后重启
+- 页面顶部「设置」→「前端设置」可修改 API 地址/站点标题/内网与 EasyTier 域名；「后端设置」可修改公开地址/Browser/外部工具地址；数据库、Redis、JWT 等仍需改 `.env` 后重启
 
 ### 采集浏览器（chrome-browser）
 
@@ -158,16 +195,16 @@ docker run -d --name go-frontend-core \
 
 ## 1Panel 网络与外部工具
 
-生产环境 `gobackendcore` 与 n8n / OpenClaw / LangBot 同处 `1panel-network`，容器之间使用「容器名 + 容器端口」访问；开发环境通过 EasyTier 入口 `et.hailong.site` + 宿主机发布端口访问。
+生产环境 `gobackendcore` 与 n8n / OpenClaw / LangBot 同处 `1panel-network`，容器之间使用「容器名 + 容器端口」访问；开发环境通过 EasyTier 入口 `et.example.com` + 宿主机发布端口访问。
 
 | 服务 | 1panel-network 内 | 开发（EasyTier） |
 |---|---|---|
-| gobackendcore | `http://gobackendcore:29090` | `https://et.hailong.site:29090` |
-| n8n | `http://n8n:5678` | `https://et.hailong.site:5678` |
-| OpenClaw | `http://openclaw:18789` | `https://et.hailong.site:18789` |
-| LangBot | `http://langbot:5300` | `https://et.hailong.site:5300` |
+| gobackendcore | `http://gobackendcore:29090` | `https://et.example.com:29090` |
+| n8n | `http://n8n:5678` | `https://et.example.com:5678` |
+| OpenClaw | `http://openclaw:18789` | `https://et.example.com:18789` |
+| LangBot | `http://langbot:5300` | `https://et.example.com:5300` |
 
-> 开发端口以 1Panel 实际映射或反向代理为准。后端对外地址由 `server.public_base_url` 控制（默认 `https://et.hailong.site:29090`），第三方登录回调与远程登录链接都会使用该值；若线上只发布 80/443，改这一个配置即可。
+> 开发端口以 1Panel 实际映射或反向代理为准。后端对外地址由 `.env` 的 `APP_SERVER_PUBLIC_BASE_URL` 控制（`config.yaml` 中保持为空），第三方登录回调与远程登录链接都会使用该值；若线上只发布 80/443，改这一个环境变量即可。
 
 接入步骤、API Key 作用域、Webhook 验签、验收与排障见 [modules/integration/connectivity.md](modules/integration/connectivity.md)。
 

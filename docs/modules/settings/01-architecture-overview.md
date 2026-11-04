@@ -37,4 +37,5 @@ internal/modules/settings/
 | 公开访问地址 | 是（config + login3rd） |
 | 前端标题/API 地址 | 保存到后端，供参考；前端实际值以 localStorage 为准 |
 | n8n / OpenClaw / LangBot 地址 | 保存后展示/供前端读取，不主动发起连接 |
-| DB/Redis/JWT/Chrome | 否，仍需 `.env` + 重启 |
+| Browser 地址 | 是（config + `CHROME_REMOTE_URL`）；已在运行的采集器重启后端后完全生效 |
+| DB/Redis/JWT | 否，仍需 `.env` + 重启 |

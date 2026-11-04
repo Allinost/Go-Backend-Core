@@ -139,7 +139,7 @@ type Provider interface {
 1. 模块路由未挂 JWT 中间件，依赖网络层隔离（调试端口仅内网）
 2. `wsUpgrader.CheckOrigin` 恒返回 `true`（`handler.go:19-21`）
 3. 远程会话 token 仅 8 位 uuid（`remote.go:134`），有效期 5 分钟
-4. Webhook 回调 host 从 `server.public_base_url` 读取，未配置时回落 `https://et.hailong.site:29090`
+4. Webhook 回调 host 从 `server.public_base_url` / `.env` 的 `APP_SERVER_PUBLIC_BASE_URL` 读取；未配置时远程登录链接为相对路径，生产环境必须配置
 5. 生产环境务必配置 `crypto.master_key_hex`（否则使用零密钥）
 
 ---

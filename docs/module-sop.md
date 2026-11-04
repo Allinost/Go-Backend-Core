@@ -69,7 +69,7 @@
 ## 8. 环境约定
 
 - 命令行统一 Git Bash；复杂命令写入 `.sh` 脚本执行
-- 本机联调：`export EASY_TIER_NAS_URL=et.hailong.site`（仅当前 Windows 设备）
+- 本机联调：`export EASY_TIER_NAS_URL=et.example.com`（仅当前 Windows 设备）
 - 迁移应用：`POST /api/v1/migrate/schema/migrate`
 - 前端：Go-Frontend-Core `npm run dev`（3000，代理 `/api` → 29090）
 

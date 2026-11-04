@@ -9,7 +9,7 @@
 | 方法 | 路径 | 权限 | 说明 |
 |---|---|---|---|
 | GET | `/projects` | dm.project:read | 列表。query：`page`、`page_size`（缺省 20，最大 100）、`type`、`status`、`keyword`（匹配名称/唯一键/简介）、`deleted`（默认只查未删除） |
-| POST | `/projects` | dm.project:create | 新建。body：`project_key`（必填，`^[a-z0-9][a-z0-9-]{1,63}$`）、`name`（必填，2-128 字符）、`type`（必填，六选一：base/template/backend_module/frontend_module/frontend_base/container_project）、`description`、`repo_url`、`repo_path`、`default_branch`（缺省 main）、`tech_stack`（字符串数组）、`status`（缺省 active） |
+| POST | `/projects` | dm.project:create | 新建。body：`project_key`（必填，`^[a-z0-9][a-z0-9-]{1,63}$`）、`name`（必填，2-128 字符）、`type`（必填，六选一：base/template/backend_module/frontend_module/frontend_base/container_project；前端类型可独立存在，不要求绑定后端）、`description`、`repo_url`、`repo_path`、`default_branch`（缺省 main）、`tech_stack`（字符串数组）、`status`（缺省 active） |
 | GET | `/projects/:id` | dm.project:read | 详情（含已删除项，`deleted` 字段区分） |
 | PUT | `/projects/:id` | dm.project:update | 全量更新（body 同创建；唯一键未变时跳过查重） |
 | DELETE | `/projects/:id` | dm.project:delete | 软删除 + 事务级联标记关联与资产。query：`force=1` 时忽略被依赖保护 |
@@ -133,6 +133,7 @@
 - **引擎**：`template` 为默认主线；`ai` 在未配置 Provider 或调用失败时**自动降级 template**，`engine_used` 记录实际引擎；`manual` 生成骨架供人工填充。
 - **auto_commit 双保险**：请求体 `auto_commit=true` **且** 当前用户拥有 `dm.generation:autocommit` 才执行（否则 403）；仅 `kind=code` 生效（否则 46502）。
 - **分支安全**：自动提交只在当前分支（非 main/master）上提交本次产物路径；产物已生成但提交失败时任务仍为 success，失败原因见 `error`。
+- **前端项目生成**：项目类型为 `template` / `frontend_base` / `frontend_module` 时，`kind=code` 输出 Vue 3 + TypeScript 草案（`PageView.vue`、`api.ts`、`types.ts`），默认使用本地 mock，不要求 `binds_backend_module` 关联；纯前端项目可完全脱离后端运行。
 - **产物**：方案/文档为 Markdown 文件，代码为草案目录（README + Go 骨架），均位于 `docs/projects/<项目 key>/`。
 - 任务同步执行，返回即包含 `status`（success/failed）与 `output_ref`；失败可重试。
 

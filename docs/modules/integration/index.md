@@ -245,7 +245,7 @@ integration:
 ## 9. 网络与部署
 
 - **生产**：`gobackendcore` 与 n8n / OpenClaw / LangBot 同处 `1panel-network`，容器之间使用「容器名 + 容器端口」，例如 `http://gobackendcore:29090`。
-- **开发**：三者通过 EasyTier 入口 `et.hailong.site` + 宿主机发布端口访问，例如 `https://et.hailong.site:29090`。
+- **开发**：三者通过 EasyTier 入口 `et.example.com` + 宿主机发布端口访问，例如 `https://et.example.com:29090`。
 - **OpenClaw / LangBot**：通过 `/api/v1/integration/mcp` 调用动作，详见 [mcp.md](mcp.md)。
 - 网络互通不替代鉴权：外部工具仍使用 `X-API-Key`，Webhook 仍校验 HMAC。
 - 完整地址表、1Panel 接入步骤、n8n / OpenClaw / LangBot 配置与验收清单见 [connectivity.md](connectivity.md)。

@@ -2,7 +2,7 @@
 
 > 适用版本：P2（外盒分发器 + 连接器配置管理）
 > 认证：外部工具统一使用 `X-API-Key`，不要使用控制台 JWT。
-> 网络：生产容器内用 `http://gobackendcore:29090`，开发 EasyTier 用 `https://et.hailong.site:29090`；完整拓扑见 [connectivity.md](connectivity.md)。
+> 网络：生产容器内用 `http://gobackendcore:29090`，开发 EasyTier 用 `https://et.example.com:29090`；完整拓扑见 [connectivity.md](connectivity.md)。
 
 本文命令中的 `$BACKEND_URL` 按环境替换：
 
@@ -11,7 +11,7 @@
 export BACKEND_URL=http://gobackendcore:29090
 
 # 开发机（EasyTier）
-export BACKEND_URL=https://et.hailong.site:29090
+export BACKEND_URL=https://et.example.com:29090
 
 # 本机直连
 export BACKEND_URL=http://localhost:29090

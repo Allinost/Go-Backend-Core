@@ -7,15 +7,16 @@ server:
   port: 29090                  # 业务 API 监听端口（Nginx 对外暴露）
   debug_port: 29092            # 调试/监控/运维端口（仅内网，含 Swagger UI + s0）
   mode: debug                  # Gin 运行模式：debug | release | test
-  public_base_url: "https://et.hailong.site:29090"  # 对外访问地址（第三方登录回调、远程登录链接）
+  # 对外访问地址（第三方登录回调、远程登录链接）
+  # 真实地址放 .env: APP_SERVER_PUBLIC_BASE_URL，仓库内保持为空
+  public_base_url: ""
 
   swagger:                     # Swagger UI 配置
     backend_addr: "localhost:29090"   # Swagger Try it out 调用的后端地址，可自行修改
-    presets:                              # 环境预设，可在 Swagger UI 页面下拉切换
-      生产环境-EasyTier: "et.hailong.site"
-      生产环境: "api.hailong.site:8408"
+    presets:                              # 环境预设示例；真实域名请放本地配置或 .env
       本地环境: "localhost:29090"
-      测试环境: "nas.hailong.site"
+      测试环境: "test.example.com:29090"
+      生产环境: "api.example.com:29090"
 
 log:
   level: info                  # 日志级别：debug | info | warn | error | fatal

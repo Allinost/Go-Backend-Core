@@ -4,6 +4,8 @@
 
 对"项目开发"全生命周期做可视化管理的**台账型业务模块**：项目（基座/模板/模块）登记与关联、部署资产、数据表字典、需求与生成流程。它自身也是受管对象（`developmentmanager` 项目关联 `go-backend-core` 基座）。
 
+前端模板、前端基座、前端模块可以**不绑定任何后端项目**，即纯前端项目；项目关联不是创建前端项目的必填项，生成引擎会按项目类型输出 Vue/TS 或 Go 骨架。
+
 ## 分层架构
 
 ```
@@ -46,6 +48,6 @@ zzz/developmentManager/
 - **P2（已完成）**：部署资产（container/resource_alloc/volume_mapping/access_point/whitelist×2/backup）。
 - **P3（已完成）**：数据字典（表/字段 + `information_schema` 扫描导入）。
 - **P4（已完成）**：需求管理（CRUD + 状态机 + 版本快照）。
-- **P5（已完成）**：生成流程（plan/code/doc，模板主线 + AI 可选降级 + 受限自动提交）。
+- **P5（已完成）**：生成流程（plan/code/doc，模板主线 + AI 可选降级 + 受限自动提交）；代码生成按项目类型分流（后端 Go / 前端 Vue+TS+mock）。
 - **P6（已完成）**：前端模块（Go-Frontend-Core，Web），列表页 + 六 Tab 详情页。
 - 后续：P7 收尾（发布说明/全量测试）→ P8 历史模块迁移。

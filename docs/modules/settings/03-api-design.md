@@ -15,7 +15,7 @@ GET /api/v1/settings
   "code": 0,
   "data": {
     "settings": {
-      "public_base_url": "https://et.hailong.site:29090",
+      "public_base_url": "https://et.example.com:29090",
       "frontend_title": "go-backend-core",
       "frontend_api_base_url": "/api/v1",
       "browser_url": "ws://chrome-browser:3000",
@@ -51,7 +51,7 @@ Content-Type: application/json
 
 ```json
 {
-  "public_base_url": "https://et.hailong.site:29090",
+  "public_base_url": "https://et.example.com:29090",
   "frontend_title": "go-backend-core",
   "frontend_api_base_url": "/api/v1",
   "browser_url": "ws://chrome-browser:3000",
@@ -76,4 +76,4 @@ Content-Type: application/json
 
 ## 4. 注意
 
-该接口不修改 `.env`；数据库/Redis/JWT/Chrome 等连接类配置修改后仍需重启后端。
+该接口不修改 `.env`；数据库/Redis/JWT 等连接类配置修改后仍需重启后端。`browser_url` 保存后立即写入运行时配置与环境变量，已在运行的采集器重启后端后完全生效。

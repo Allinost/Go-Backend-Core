@@ -1,7 +1,7 @@
 # n8n / OpenClaw / LangBot 对接与网络拓扑
 
 > 适用场景：`gobackendcore` 与 n8n、OpenClaw、LangBot 都接入 `1panel-network`。
-> 开发环境：三者与后端通过 EasyTier 入口 `et.hailong.site` 访问。
+> 开发环境：三者与后端通过 EasyTier 入口 `et.example.com` 访问。
 > 相关文档：[集成基座](index.md)｜[接入示例](examples.md)｜[MCP 端点](mcp.md)
 
 ## 1. 结论先行
@@ -22,7 +22,7 @@
 1. 三者都不直连 MySQL/Redis，也不复用 Web 控制台 JWT。
 2. 业务调用统一走动作网关：`POST /api/v1/integration/actions/{action}`。
 3. 外部工具只拿 `X-API-Key`，按作用域最小授权。
-4. 生产容器之间用 **容器名 / 服务名 + 容器端口**；开发机用 **`et.hailong.site` + 宿主机发布端口**。
+4. 生产容器之间用 **容器名 / 服务名 + 容器端口**；开发机用 **`et.example.com` + 宿主机发布端口**。
 5. 网络互通不等于可信：内部网络仍要校验 API Key，Webhook 仍要校验 HMAC。
 
 ## 2. 调用方向与拓扑
@@ -59,7 +59,7 @@
 开发环境：
 
 ```text
-开发机 ──EasyTier──► et.hailong.site
+开发机 ──EasyTier──► et.example.com
                      ├── :29090  gobackendcore
                      ├── :5678   n8n
                      ├── :18789  openclaw
@@ -72,14 +72,14 @@
 
 | 服务 | 生产（1panel-network 内） | 开发（EasyTier） | 说明 |
 |---|---|---|---|
-| 后端 API | `http://gobackendcore:29090` | `https://et.hailong.site:29090` | 业务 API / actions |
+| 后端 API | `http://gobackendcore:29090` | `https://et.example.com:29090` | 业务 API / actions |
 | 后端调试 | `http://gobackendcore:29092` | 不建议暴露 | Swagger / 运维接口 |
-| n8n | `http://n8n:5678` | `https://et.hailong.site:5678` | UI 与 Webhook 同端口 |
-| OpenClaw Gateway | `http://openclaw:18789` | `https://et.hailong.site:18789` | WS + HTTP 同端口 |
-| LangBot | `http://langbot:5300` | `https://et.hailong.site:5300` | HTTP API + WebUI |
+| n8n | `http://n8n:5678` | `https://et.example.com:5678` | UI 与 Webhook 同端口 |
+| OpenClaw Gateway | `http://openclaw:18789` | `https://et.example.com:18789` | WS + HTTP 同端口 |
+| LangBot | `http://langbot:5300` | `https://et.example.com:5300` | HTTP API + WebUI |
 | LangBot OneBot | `langbot:2280-2290` | 按映射 | 仅 IM 平台反连，后端不用 |
 
-开发环境若 TLS 不通，先改用 `http://et.hailong.site:<端口>`；以实际证书和反代配置为准。`docs/login3rd` 中后端回调使用 `https://et.hailong.site:29090`，说明该入口通常有 TLS 终结。
+开发环境若 TLS 不通，先改用 `http://et.example.com:<端口>`；以实际证书和反代配置为准。`docs/login3rd` 中后端回调使用 `https://et.example.com:29090`，说明该入口通常有 TLS 终结。
 
 ### 3.1 先确认容器名和端口
 
@@ -175,19 +175,19 @@ docker exec n8n sh -lc \
 
 ### 4.4 开发环境 EasyTier
 
-1. 开发机先连上 EasyTier，确认 `et.hailong.site` 可解析、可访问。
-2. 本机后端 `.env` 继续使用 `EASY_TIER_NAS_URL=et.hailong.site`（MySQL/Redis 等基础设施）。
+1. 开发机先连上 EasyTier，确认 `et.example.com` 可解析、可访问。
+2. 本机后端 `.env` 继续使用 `EASY_TIER_NAS_URL=et.example.com`（MySQL/Redis 等基础设施）。
 3. 开发机访问 n8n/OpenClaw/LangBot 时，用 **宿主机发布端口**：
    ```bash
-   curl -I http://et.hailong.site:5678
-   curl -I http://et.hailong.site:5300
-   curl -I http://et.hailong.site:18789
+   curl -I http://et.example.com:5678
+   curl -I http://et.example.com:5300
+   curl -I http://et.example.com:18789
    ```
 4. 开发机上的后端要作为被调方时，三者统一填：
    ```text
-   https://et.hailong.site:29090
+   https://et.example.com:29090
    ```
-5. 如果 EasyTier 没有提供 DNS，可把 `et.hailong.site` 写入 hosts，或直接使用 EasyTier 虚拟 IP。
+5. 如果 EasyTier 没有提供 DNS，可把 `et.example.com` 写入 hosts，或直接使用 EasyTier 虚拟 IP。
 6. 只监听 `127.0.0.1` 的服务，EasyTier 侧访问不到；需要监听 `0.0.0.0` 并做好防火墙限制。
 
 ## 5. 认证与作用域
@@ -260,7 +260,7 @@ curl -s -X POST "$BACKEND_URL/api/v1/auth/api-keys" \
 开发环境把 URL 换成：
 
 ```text
-https://et.hailong.site:29090/api/v1/integration/actions/goodser.stock.query
+https://et.example.com:29090/api/v1/integration/actions/goodser.stock.query
 ```
 
 统一响应：
@@ -306,7 +306,7 @@ http://n8n:5678/webhook/goodser-events
 开发 URL：
 
 ```text
-https://et.hailong.site:5678/webhook/goodser-events
+https://et.example.com:5678/webhook/goodser-events
 ```
 
 > `webhook-test` 地址只监听一次，联调完成后必须激活工作流并使用 `/webhook/` 生产地址，否则连接器会一直失败重试。
@@ -401,7 +401,7 @@ curl -s -X POST "$BACKEND_URL/api/v1/integration/connectors" \
 开发环境把 `url` 改为：
 
 ```text
-https://et.hailong.site:5678/webhook/goodser-events
+https://et.example.com:5678/webhook/goodser-events
 ```
 
 创建后：

@@ -82,4 +82,4 @@
    - 约定：写中文文件一律用编辑器工具或 heredoc（`cat > file <<'EOF'`）；禁止用 `Set-Content`/`Out-File` 改写含中文的源码与文档。
    - 注意：从 PowerShell 调用 bash 时，`-lc` 的参数用**单引号**包裹，避免 `$?`、`$变量` 被 PowerShell 提前展开（双引号下会得到 `True`/空值而不是脚本结果）。
    - 复杂命令（含管道、正则、内嵌引号、中文）**写入临时 `.sh` 脚本后执行 `bash script.sh`**，避免 PowerShell 与 bash 双层引号/转义差异导致命令被拆断。
-   - **本机联调启动（仅适用于当前这台 Windows 设备，即 iMac 上的 Windows 环境）**：后端需先 `export EASY_TIER_NAS_URL=et.hailong.site` 再 `go run ./cmd/server`（`.env` 中 MySQL/Redis 地址引用该变量）；前端在 Go-Frontend-Core 执行 `npm run dev`（3000，Vite 代理 `/api` → `localhost:29090`）。其他设备/环境需按各自 `.env` 与网络条件调整，不可照搬该地址。
+   - **本机联调启动（仅适用于当前这台 Windows 设备，即 iMac 上的 Windows 环境）**：后端需先 `export EASY_TIER_NAS_URL=et.example.com` 再 `go run ./cmd/server`（`.env` 中 MySQL/Redis 地址引用该变量）；前端在 Go-Frontend-Core 执行 `npm run dev`（3000，Vite 代理 `/api` → `localhost:29090`）。其他设备/环境需按各自 `.env` 与网络条件调整，不可照搬该地址。

@@ -564,6 +564,60 @@ definitions:
       remark:
         type: string
     type: object
+  internal_modules_settings.Data:
+    properties:
+      browser_url:
+        type: string
+      frontend_api_base_url:
+        type: string
+      frontend_title:
+        type: string
+      langbot_url:
+        type: string
+      n8n_url:
+        type: string
+      openclaw_url:
+        type: string
+      public_base_url:
+        type: string
+    type: object
+  internal_modules_settings.Meta:
+    properties:
+      chrome_remote_url:
+        type: string
+      mode:
+        type: string
+      persisted:
+        type: boolean
+      read_only_keys:
+        items:
+          type: string
+        type: array
+      server_name:
+        type: string
+      settings_file:
+        type: string
+      version:
+        type: string
+    type: object
+  internal_modules_settings.StatusItem:
+    properties:
+      name:
+        type: string
+      status:
+        type: string
+    type: object
+  internal_modules_settings.View:
+    properties:
+      meta:
+        $ref: '#/definitions/internal_modules_settings.Meta'
+      settings:
+        $ref: '#/definitions/internal_modules_settings.Data'
+      status:
+        items:
+          $ref: '#/definitions/internal_modules_settings.StatusItem'
+        type: array
+    type: object
   internal_modules_webhook.BatchDeleteDeliveryLogsReq:
     properties:
       ids:
@@ -2230,6 +2284,8 @@ definitions:
     properties:
       _id:
         type: string
+      availability:
+        type: integer
       code:
         type: string
       created_at:
@@ -2261,6 +2317,10 @@ definitions:
       min_sub_quantity:
         type: integer
       name:
+        type: string
+      pool:
+        $ref: '#/definitions/zzz_goodser.BundlePool'
+      pool_id:
         type: string
       price_mode:
         type: string
@@ -2356,6 +2416,10 @@ definitions:
         type: number
       min_sub_quantity:
         type: integer
+      pool_id:
+        type: string
+      pool_name:
+        type: string
       price_mode:
         type: string
       quantity:
@@ -2375,6 +2439,61 @@ definitions:
         type: string
       quantity:
         type: integer
+    type: object
+  zzz_goodser.BundlePool:
+    properties:
+      _id:
+        type: string
+      code:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      inventory_id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/zzz_goodser.BundlePoolItem'
+        type: array
+      min_amount:
+        type: number
+      min_item_count:
+        type: integer
+      name:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  zzz_goodser.BundlePoolItem:
+    properties:
+      available:
+        type: integer
+      default_quantity:
+        type: integer
+      expected_price:
+        type: number
+      image_url:
+        type: string
+      product_code:
+        type: string
+      product_id:
+        type: string
+      product_name:
+        type: string
+      reserved_quantity:
+        type: integer
+      total_quantity:
+        type: integer
+    type: object
+  zzz_goodser.BundlePoolItemReq:
+    properties:
+      default_quantity:
+        type: integer
+      product_id:
+        type: string
     type: object
   zzz_goodser.BundlePreviewReq:
     properties:
@@ -2514,11 +2633,30 @@ definitions:
       updated_at:
         type: string
     type: object
+  zzz_goodser.ComboBundleSelection:
+    properties:
+      bundle_id:
+        type: string
+      main_product_id:
+        type: string
+      main_quantity:
+        type: integer
+      sub_items:
+        items:
+          $ref: '#/definitions/zzz_goodser.BundleOrderSubItem'
+        type: array
+    type: object
   zzz_goodser.ComboItem:
     properties:
       available:
         type: integer
+      bundle_id:
+        type: string
+      bundle_name:
+        type: string
       image_url:
+        type: string
+      item_type:
         type: string
       product_code:
         type: string
@@ -2531,6 +2669,10 @@ definitions:
     type: object
   zzz_goodser.ComboItemReq:
     properties:
+      bundle_id:
+        type: string
+      item_type:
+        type: string
       product_id:
         type: string
       quantity:
@@ -2539,6 +2681,27 @@ definitions:
   zzz_goodser.ConfirmOutboundReq:
     properties:
       id:
+        type: string
+    type: object
+  zzz_goodser.CreateBundlePoolReq:
+    properties:
+      code:
+        type: string
+      description:
+        type: string
+      inventory_id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/zzz_goodser.BundlePoolItemReq'
+        type: array
+      min_amount:
+        type: number
+      min_item_count:
+        type: integer
+      name:
+        type: string
+      status:
         type: string
     type: object
   zzz_goodser.CreateBundleReq:
@@ -2568,6 +2731,8 @@ definitions:
       min_sub_quantity:
         type: integer
       name:
+        type: string
+      pool_id:
         type: string
       price_mode:
         type: string
@@ -2637,6 +2802,8 @@ definitions:
     properties:
       name:
         type: string
+      sort_order:
+        type: integer
     type: object
   zzz_goodser.CreateOutboundReq:
     properties:
@@ -2644,6 +2811,10 @@ definitions:
         allOf:
         - $ref: '#/definitions/zzz_goodser.BundleOrderSelection'
         description: Bundle 传值时由服务端校验并展开主商品与副区商品，Items 应留空
+      combo_bundles:
+        items:
+          $ref: '#/definitions/zzz_goodser.ComboBundleSelection'
+        type: array
       combo_id:
         type: string
       combo_quantity:
@@ -2741,6 +2912,8 @@ definitions:
     type: object
   zzz_goodser.CustomerBundleView:
     properties:
+      availability:
+        type: integer
       bundle_id:
         type: string
       code:
@@ -2769,6 +2942,8 @@ definitions:
         type: integer
       name:
         type: string
+      pool:
+        $ref: '#/definitions/zzz_goodser.BundlePool'
       price_mode:
         type: string
       sub_products:
@@ -2810,6 +2985,10 @@ definitions:
     properties:
       bundle:
         $ref: '#/definitions/zzz_goodser.BundleOrderSelection'
+      combo_bundles:
+        items:
+          $ref: '#/definitions/zzz_goodser.ComboBundleSelection'
+        type: array
       combo_id:
         type: string
       combo_quantity:
@@ -3593,6 +3772,27 @@ definitions:
       name:
         type: string
     type: object
+  zzz_goodser.UpdateBundlePoolReq:
+    properties:
+      code:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/zzz_goodser.BundlePoolItemReq'
+        type: array
+      min_amount:
+        type: number
+      min_item_count:
+        type: integer
+      name:
+        type: string
+      status:
+        type: string
+    type: object
   zzz_goodser.UpdateBundleReq:
     properties:
       code:
@@ -3620,6 +3820,8 @@ definitions:
       min_sub_quantity:
         type: integer
       name:
+        type: string
+      pool_id:
         type: string
       price_mode:
         type: string
@@ -3691,6 +3893,8 @@ definitions:
         type: string
       name:
         type: string
+      sort_order:
+        type: integer
     type: object
   zzz_goodser.UpdateProductReq:
     properties:
@@ -7767,7 +7971,7 @@ paths:
         in: query
         name: page_size
         type: integer
-      - description: 项目类型 base/template/backend_module/frontend_module
+      - description: 项目类型 base/template/backend_module/frontend_module/frontend_base/container_project；前端类型可为纯前端
         in: query
         name: type
         type: string
@@ -11784,6 +11988,52 @@ paths:
       summary: 更新服务类型
       tags:
       - servicenav
+  /settings:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_settings.View'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 获取应用设置与依赖状态
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 应用设置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_modules_settings.Data'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/internal_modules_settings.View'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: 更新应用设置
+      tags:
+      - settings
   /shopchecker/dashboard:
     get:
       consumes:
@@ -12424,6 +12674,116 @@ paths:
       summary: 全局统计概览
       tags:
       - webhook
+  /zzz-goodser/bundle-pools:
+    get:
+      parameters:
+      - description: 库存目录 ID
+        in: query
+        name: inventory_id
+        required: true
+        type: string
+      - description: active/inactive
+        in: query
+        name: status
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/zzz_goodser.BundlePool'
+                  type: array
+              type: object
+      summary: 捆物池列表
+      tags:
+      - zzz-goodser
+    post:
+      parameters:
+      - description: 捆物池内容
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_goodser.CreateBundlePoolReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_goodser.BundlePool'
+              type: object
+      summary: 创建捆物池
+      tags:
+      - zzz-goodser
+  /zzz-goodser/bundle-pools/{pid}:
+    delete:
+      parameters:
+      - description: 捆物池 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      summary: 删除捆物池
+      tags:
+      - zzz-goodser
+    get:
+      parameters:
+      - description: 捆物池 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_goodser.BundlePool'
+              type: object
+      summary: 捆物池详情
+      tags:
+      - zzz-goodser
+    put:
+      parameters:
+      - description: 捆物池 ID
+        in: path
+        name: pid
+        required: true
+        type: string
+      - description: 更新字段
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/zzz_goodser.UpdateBundlePoolReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/zzz_goodser.BundlePool'
+              type: object
+      summary: 更新捆物池
+      tags:
+      - zzz-goodser
   /zzz-goodser/bundles/{bid}:
     delete:
       parameters:

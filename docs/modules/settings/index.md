@@ -7,8 +7,8 @@
 
 最小化启动后的配置成本：
 
-- 前端可在页面内切换后端 API 地址、站点标题与主题，无需重新构建；
-- 管理员可在页面内配置公开访问地址、前端默认参数、n8n / OpenClaw / LangBot 地址；
+- 前端可在页面内切换后端 API 地址、站点标题、内网/EasyTier 域名与主题，无需重新构建；
+- 管理员可在页面内配置公开访问地址、前端默认参数、Browser 地址、n8n / OpenClaw / LangBot 地址；
 - 展示 MySQL / Redis / PostgreSQL / RustFS 健康状态；
 - 密码、JWT、数据库连接等敏感项仍由 `.env` 管理，只读展示，不在页面落库。
 
@@ -25,6 +25,6 @@
 
 1. **文件存储**：设置持久化到 `data/settings.json`（0600，原子写入），不新增数据库表。
 2. **管理员限定**：接口使用 `RequirePermission(rbac, "*", "*")`，仅 admin 可读写。
-3. **敏感项只读**：数据库/Redis/JWT/Chrome 等仍需 `.env`，修改后重启；接口只返回健康状态与脱敏元信息。
-4. **运行时应用**：保存 `public_base_url` 后立即更新 `config.Server.PublicBaseURL` 并调用 `login3rd.SetPublicBaseURL`。
-5. **前端地址本地优先**：API 地址保存在浏览器 localStorage，修改后刷新生效；不依赖后端即可切换环境。
+3. **敏感项只读**：数据库/Redis/JWT 等仍需 `.env`，修改后重启；接口只返回健康状态与脱敏元信息。`browser_url` 可在线保存，未保存时回退 `CHROME_REMOTE_URL`。
+4. **运行时应用**：保存 `public_base_url` 后立即更新 `config.Server.PublicBaseURL` 并调用 `login3rd.SetPublicBaseURL`；保存 `browser_url` 后同步更新运行时配置与环境变量。
+5. **前端地址本地优先**：API 地址、站点标题、内网/EasyTier 域名保存在浏览器 localStorage；默认值来自构建时 `VITE_*` 环境变量，不依赖后端即可切换环境。

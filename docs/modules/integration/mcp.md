@@ -10,7 +10,7 @@
 | 项目 | 值 |
 |---|---|
 | URL（1panel-network） | `http://gobackendcore:29090/api/v1/integration/mcp` |
-| URL（EasyTier 开发） | `https://et.hailong.site:29090/api/v1/integration/mcp` |
+| URL（EasyTier 开发） | `https://et.example.com:29090/api/v1/integration/mcp` |
 | Method | `POST`（JSON-RPC）；`DELETE` 结束会话；`GET` 不提供 SSE |
 | 认证 | `X-API-Key: gbk_xxx` 或 `Authorization: Bearer gbk_xxx` |
 | 协议版本 | `2025-06-18` / `2025-03-26`（Streamable HTTP） |
@@ -42,7 +42,7 @@ MCP 客户端推荐用 Header 传 Key；不支持自定义 Header 的客户端�
 }
 ```
 
-开发环境把 `url` 换成 `https://et.hailong.site:29090/api/v1/integration/mcp`。
+开发环境把 `url` 换成 `https://et.example.com:29090/api/v1/integration/mcp`。
 
 ### 2.2 LangBot
 
@@ -246,7 +246,7 @@ docker exec n8n sh -lc "wget -qO- \
   http://gobackendcore:29090/api/v1/integration/mcp"
 ```
 
-开发机可直接用 `curl`，地址换成 `https://et.hailong.site:29090/api/v1/integration/mcp`。
+开发机可直接用 `curl`，地址换成 `https://et.example.com:29090/api/v1/integration/mcp`。
 
 ## 7. 当前限制
 

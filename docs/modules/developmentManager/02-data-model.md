@@ -33,7 +33,7 @@
 | id | bigint PK | 主键 |
 | project_key | varchar(64) UK | 项目唯一键（目录/接口引用用，如 `go-backend-core`；格式：小写字母/数字/中划线，2-64 位） |
 | name | varchar(128) | 项目名称（2-128 字符） |
-| type | varchar(32) | 项目类型：`base` / `template` / `backend_module` / `frontend_module` / `frontend_base` / `container_project` |
+| type | varchar(32) | 项目类型：`base`（后端基座）/ `template`（前端模板）/ `backend_module`（后端模块）/ `frontend_module`（前端模块，可为纯前端）/ `frontend_base`（前端基座）/ `container_project`（容器项目）。前端类型不要求存在后端关联 |
 | description | text | 项目简介 |
 | repo_url | varchar(255) | 代码仓库地址（可空） |
 | repo_path | varchar(255) | 仓库本地路径（可空，相对仓库根目录） |
@@ -50,7 +50,7 @@
 | 字段 | 含义 |
 |---|---|
 | id, from_project_id, to_project_id | 关联两端（均为 project.id） |
-| relation_type | `uses_base`（模块→基座）/ `uses_template`（前端→模板）/ `binds_backend_module`（前端→后端模块）/ `related`（其他） |
+| relation_type | `uses_base`（模块→基座）/ `uses_template`（前端→模板）/ `binds_backend_module`（前端→后端模块，**可选**）/ `related`（其他）。前端项目没有任何后端关联时即为纯前端项目 |
 | note | 关联说明 |
 | deleted / deleted_at | 软删除标记（删除任一端项目时事务内同步置位） |
 | created_by / created_at / updated_at | 审计字段 |
@@ -143,7 +143,9 @@ draft ──> reviewing ──> approved ──> planned ──> developing ─�
 
 - 方案：`docs/projects/<项目key>/plans/<需求编号>-plan-<任务ID>.md`
 - 文档：`docs/projects/<项目key>/docs/<需求编号>-doc-<任务ID>.md`
-- 代码草案：`docs/projects/<项目key>/code-drafts/<需求编号>-<任务ID>/`（README + handler/service 骨架，**不直接落主干**）
+- 代码草案：`docs/projects/<项目key>/code-drafts/<需求编号>-<任务ID>/`（**不直接落主干**）
+  - 后端项目：README + handler/service Go 骨架
+  - 前端项目（`template` / `frontend_base` / `frontend_module`）：README + `types.ts` + `api.ts`（默认 mock）+ `PageView.vue`，不依赖后端模块
 - 写文件前校验相对路径，拒绝绝对路径与 `..` 穿越；自动提交仅提交本次产物的路径。
 
 ## P6 规划（前端）

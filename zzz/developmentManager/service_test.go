@@ -92,6 +92,29 @@ func TestStatusForCode(t *testing.T) {
 	}
 }
 
+func TestValidateFrontendProjectTypes(t *testing.T) {
+	for _, typ := range []string{
+		ProjectTypeTemplate,
+		ProjectTypeFrontendBase,
+		ProjectTypeFrontendModule,
+	} {
+		req := validReq()
+		req.ProjectKey = "pure-frontend"
+		req.Name = "纯前端项目"
+		req.Type = typ
+		p, err := validateProjectReq(req, "tester", time.Now())
+		if err != nil {
+			t.Errorf("前端类型 %s 应允许创建：%v", typ, err)
+			continue
+		}
+		if p.Type != typ {
+			t.Errorf("项目类型应保留 %s，实际 %s", typ, p.Type)
+		}
+		// 纯前端项目不要求创建 uses_base / binds_backend_module 关联，
+		// 关联由用户在需要时按需添加。
+	}
+}
+
 func TestValidCollections(t *testing.T) {
 	if len(ValidProjectTypes) != 6 {
 		t.Errorf("项目类型应为 6 种（含 frontend_base / container_project），实际 %d", len(ValidProjectTypes))

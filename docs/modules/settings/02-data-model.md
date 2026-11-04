@@ -10,7 +10,7 @@
 
 ```json
 {
-  "public_base_url": "https://et.hailong.site:29090",
+  "public_base_url": "https://et.example.com:29090",
   "frontend_title": "go-backend-core",
   "frontend_api_base_url": "/api/v1",
   "browser_url": "ws://chrome-browser:3000",
@@ -30,4 +30,4 @@
 
 ## 不落库的内容
 
-密码、JWT Secret、数据库 DSN、Redis 密码、Chrome 地址等敏感/连接类配置不写入设置文件，仍由 `.env`/Docker Secret 管理。
+数据库密码、JWT Secret、数据库 DSN、Redis 密码、对象存储密钥等敏感配置不写入设置文件，仍由 `.env`/Docker Secret 管理。`browser_url` 不是密钥，允许在线保存；未保存时默认取 `.env` / `CHROME_REMOTE_URL`。

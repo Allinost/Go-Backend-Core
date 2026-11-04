@@ -71,6 +71,66 @@ func TestGenerateTemplateCode(t *testing.T) {
 	}
 }
 
+func TestGenerateTemplateFrontendCode(t *testing.T) {
+	in := sampleInput(KindCode)
+	in.Project = ProjectInfo{Key: "pure-frontend", Name: "Pure Frontend", Type: ProjectTypeFrontendModule, RepoPath: "../pure-frontend"}
+
+	out := GenerateTemplate(in)
+	if len(out.Files) != 4 {
+		t.Fatalf("前端代码草案应为 4 个文件，实际 %d", len(out.Files))
+	}
+	dir := "docs/projects/pure-frontend/code-drafts/RQM-0001-7"
+	if out.OutputRef != dir+"/" {
+		t.Errorf("前端代码产物目录异常：%s", out.OutputRef)
+	}
+	var page string
+	for _, f := range out.Files {
+		if !strings.HasPrefix(f.RelPath, dir+"/") {
+			t.Errorf("文件 %s 不在产物目录下", f.RelPath)
+		}
+		if strings.HasSuffix(f.RelPath, ".go") || strings.HasSuffix(f.RelPath, ".go.txt") {
+			t.Errorf("前端项目不应生成 Go 文件：%s", f.RelPath)
+		}
+		if strings.HasSuffix(f.RelPath, "PageView.vue") {
+			page = f.Content
+		}
+	}
+	if !strings.Contains(page, `<script setup lang="ts">`) {
+		t.Error("前端页面应使用 Vue 3 script setup")
+	}
+	if strings.Contains(page, "gin.") || strings.Contains(page, "go-backend-core") {
+		t.Error("纯前端页面不应依赖后端模块")
+	}
+}
+
+func TestFrontendPlanDoesNotRequireBackend(t *testing.T) {
+	in := sampleInput(KindPlan)
+	in.Project = ProjectInfo{Key: "pure-frontend", Name: "Pure Frontend", Type: ProjectTypeFrontendBase, RepoPath: "../pure-frontend"}
+
+	out := GenerateTemplate(in)
+	content := out.Files[0].Content
+	for _, part := range []string{"纯前端", "本地 mock", "不要求绑定后端模块"} {
+		if !strings.Contains(content, part) {
+			t.Errorf("前端方案缺少 %q", part)
+		}
+	}
+	if strings.Contains(content, "handler → service → repository") {
+		t.Error("前端方案不应包含后端分层模板")
+	}
+}
+
+func TestBuildAIPromptFrontendCode(t *testing.T) {
+	in := sampleInput(KindCode)
+	in.Project = ProjectInfo{Key: "pure-frontend", Name: "Pure Frontend", Type: ProjectTypeFrontendModule, RepoPath: "../pure-frontend"}
+	system, _ := BuildAIPrompt(in)
+	if !strings.Contains(system, "Vue 3") || !strings.Contains(system, "TypeScript") {
+		t.Errorf("前端 AI prompt 应要求 Vue/TypeScript：%s", system)
+	}
+	if strings.Contains(system, "Go 代码") {
+		t.Errorf("前端 AI prompt 不应要求 Go 代码：%s", system)
+	}
+}
+
 func TestBuildAIPrompt(t *testing.T) {
 	system, prompt := BuildAIPrompt(sampleInput(KindPlan))
 	if !strings.Contains(system, "Markdown") {

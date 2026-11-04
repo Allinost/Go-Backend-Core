@@ -25,7 +25,7 @@ var seedProjects = []seedProjectEntry{
 	{Key: "nkui", Name: "NKUI", Type: ProjectTypeTemplate, RepoPath: "../NKUI",
 		Description: "前端模板（Web/移动/小程序多端）", TechStack: []string{"Vue3", "NKUI"}},
 	{Key: "go-frontend-core", Name: "Go-Frontend-Core", Type: ProjectTypeFrontendBase, RepoPath: "../Go-Frontend-Core",
-		Description: "前端核心工程（NKUI 之上的基座），关联 NKUI 模板与 Go-Backend-Core 后端",
+		Description: "前端核心工程（NKUI 之上的基座）；可选关联后端，纯前端项目不绑定后端",
 		TechStack:   []string{"Vue3", "TypeScript", "Vite"}},
 	{Key: "local-compose", Name: "本地容器栈", Type: ProjectTypeContainer, RepoPath: "docker-compose.yml",
 		Description: "docker-compose 部署栈（app + browserless chrome），容器管理页统一维护",

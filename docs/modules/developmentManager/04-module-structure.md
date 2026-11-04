@@ -35,7 +35,7 @@
 | `generation_service.go` | P5 任务编排：快照、引擎选择与 AI 降级、产物落盘、可选自动提交、重试 |
 | `generation_handler.go` | P5 HTTP 处理器（4 条路由）+ `autocommit` 二次权限校验 + swag 注解 |
 | `generation_test.go` | P5 枚举、错误码、快照解析单测 |
-| `generation/` | 生成引擎子包：`generator.go`（模板生成 + AI 提示词/包装）、`writer.go`（安全落盘 + 受限自动提交）、`generator_test.go` |
+| `generation/` | 生成引擎子包：`generator.go`（模板生成 + 前后端分流 + AI 提示词/包装）、`writer.go`（安全落盘 + 受限自动提交）、`generator_test.go` |
 | `service_test.go` | 校验逻辑、错误码→状态映射、枚举集合数量 |
 | `permissions_test.go` | 权限命名规范/数量（28）/去重；seed 数据一致性（关联两端与资产归属均已登记、类型合法） |
 
@@ -88,7 +88,9 @@ Go-Frontend-Core/src/
 - `dm.project:restore` 权限点已播种，但项目恢复接口（`undelete`）规划在收尾阶段实现，暂未提供。
 - 部署资产的列表接口不分页（单项目内条目量级小），接入点支持按暴露范围/网络区域筛选；如需分页在 P7 统一补齐。
 - AI 生成器默认未注入（`Module.SetAIWriter` / `Service.SetAIWriter` 可接入 `services/ai.Manager`），此时 `engine=ai` 自动降级 `template`；接入后无需改任务流程。
-- 生成产物写入进程工作目录（`docs/projects/<项目 key>/`），部署时需保证服务对仓库目录有写权限。
+- 生成产物写入进程工作目录（`docs/projects/<项目 key>/`），部署时需保证服务对仓库目录有写权限；纯前端项目同样适用。
 - 自动提交依赖本机 `git`，且只允许在非 main/master 分支提交；建议在开发/受控环境使用。
-- 项目类型已扩展为 5 类（2026-10-30 用户确认新增 `frontend_base` 前端基座），`go-frontend-core` 登记为此类型。
+- 项目类型共 6 类：`base` / `template` / `backend_module` / `frontend_module` / `frontend_base` / `container_project`。
+- 前端类型（`template` / `frontend_base` / `frontend_module`）允许**不绑定后端**，即纯前端项目；`binds_backend_module` 只在需要联调后端时添加。
+- 生成引擎按项目类型分流：后端项目输出 Go 骨架，前端项目输出 Vue 3 + TypeScript + mock 数据骨架，不引入后端依赖。
 - 历史模块 `initTables` 已在 P8 收敛到 `migrations/mysql/008_legacy_modules_schema.sql`（30 张表），`009` 统一 `zzz_` 前缀并登记数据字典；`auth` 等 GORM `AutoMigrate` 基座模块尚未改造。

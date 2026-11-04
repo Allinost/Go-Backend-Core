@@ -2,6 +2,16 @@ package login3rd
 
 import "testing"
 
+func TestPublicBaseURLDefaultEmpty(t *testing.T) {
+	original := publicBaseURL
+	defer func() { publicBaseURL = original }()
+
+	publicBaseURL = ""
+	if got := getHost(); got != "" {
+		t.Fatalf("仓库内不应保留默认部署地址，实际 %q", got)
+	}
+}
+
 func TestSetPublicBaseURL(t *testing.T) {
 	original := publicBaseURL
 	defer func() { publicBaseURL = original }()

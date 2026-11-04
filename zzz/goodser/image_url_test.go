@@ -15,13 +15,13 @@ func TestNormalizeImageURL(t *testing.T) {
 		{"external untouched", ptr("https://picsum.photos/200/200?random=1"), "https://picsum.photos/200/200?random=1"},
 		{
 			"signed storage url stripped",
-			ptr("https://rfs.hailong.site/go-backend-core/goodser/images/a.jpg?X-Amz-Signature=abc"),
-			"https://rfs.hailong.site/go-backend-core/goodser/images/a.jpg",
+			ptr("https://storage.example.com/go-backend-core/goodser/images/a.jpg?X-Amz-Signature=abc"),
+			"https://storage.example.com/go-backend-core/goodser/images/a.jpg",
 		},
 		{
 			"plain storage url kept",
-			ptr("https://rfs.hailong.site/go-backend-core/goodser/images/a.jpg"),
-			"https://rfs.hailong.site/go-backend-core/goodser/images/a.jpg",
+			ptr("https://storage.example.com/go-backend-core/goodser/images/a.jpg"),
+			"https://storage.example.com/go-backend-core/goodser/images/a.jpg",
 		},
 	}
 

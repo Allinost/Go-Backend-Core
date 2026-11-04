@@ -22,12 +22,12 @@ internal/modules/settings/
 | `src/components/SettingsDialog.vue` | 顶部「设置」弹窗（前端/后端两页签） |
 | `src/components/AdminHeader.vue` | 设置入口（用户名左侧） |
 | `src/api/settings.ts` | GET/PUT 封装 |
-| `src/utils/appSettings.ts` | API 地址/站点标题的 localStorage 读写与归一化 |
-| `src/api/request.ts` | axios baseURL 改为动态读取（默认 `/api/v1`） |
+| `src/utils/appSettings.ts` | API 地址/站点标题/内网/EasyTier 域名的 localStorage 读写与归一化，默认值取 `VITE_*` |
+| `src/api/request.ts` | axios baseURL 改为动态读取（默认取 `VITE_API_BASE_URL` 或 `/api/v1`） |
 
 ## 已知限制
 
-- 敏感配置（数据库、Redis、JWT、Chrome）不能在线修改，避免运行时重建连接池；需改 `.env` 后重启。
+- 敏感配置（数据库、Redis、JWT）不能在线修改，避免运行时重建连接池；需改 `.env` 后重启。`browser_url` 可在线保存，但已在运行的采集器需重启后端后完全生效。
 - 外部工具地址目前用于展示/参考，不代替 `integration` 连接器的实际配置。
 - 设置文件为单实例本地文件；多副本部署需改为共享存储或数据库。
-- 前端 API 地址修改后必须刷新页面（axios 实例在启动时创建）。
+- 前端 API 地址修改后必须刷新页面（axios 实例在启动时创建）；站点标题/域名修改即时生效。

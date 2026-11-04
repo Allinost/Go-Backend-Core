@@ -8,8 +8,8 @@ import (
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 )
 
-// publicBaseURL 由配置注入，未配置时保留原有部署地址作为兜底。
-var publicBaseURL = "https://et.hailong.site:29090"
+// publicBaseURL 由配置/设置注入；仓库内不保留真实部署地址。
+var publicBaseURL = ""
 
 // SetPublicBaseURL 设置对外访问地址，供第三方登录回调和远程登录链接使用。
 func SetPublicBaseURL(raw string) {
