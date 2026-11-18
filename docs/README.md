@@ -52,9 +52,14 @@
 
 | 目录 | 内容 |
 |------|------|
+| [plans/](plans/) | 规划文档（V2 项目开发管理、V3 PostgreSQL 化、goodser 迭代等） |
+| [projects/](projects/) | 按项目归档的路线图与任务台账（V3 见 [projects/go-backend-core/v3/](projects/go-backend-core/v3/)） |
 | [release/](release/) | 发布记录（P0~P17 里程碑清单） |
 | [weekly/](weekly/) | 周报与迭代总结 |
 | [docs-page/](docs-page/) | Jekyll 导航站点（仅导航，正文已指向本文档） |
+
+> **V3 入口**：[V3 PostgreSQL 化规划](plans/V3-postgres-refactor-2026-11-18.md) · [V3 路线图与任务台账](projects/go-backend-core/v3/README.md) · [V3 SOP](projects/go-backend-core/v3/SOP.md)
+> V3.0 目标 **2026-12-15 核心上线**：新机器 PG-only；配置中心、多主机台账、公网反代/HTTPS；业务模块暂留 V2，后续逐步迁移。
 
 ---
 
