@@ -1583,7 +1583,7 @@ P0 → P1 → P2 → P3 → P4 → P6 → P8 → P9
 |---|---|---|---|
 | V3.1 | 多主机完整运维 + 数据库迁移/备份（主机间、冷备份） | 低 | 容器迁移到新机器 |
 | V3.2 | 外部服务：Ollama/Embedding/Browser/n8n/OpenClaw/LangBot/MCP/TTS | 低 | V3.1 稳定 |
-| V3.3 | goodser 迁移 | 中 | V3.0 稳定 |
+| V3.3 | goodser 迁移（含目标识别 / 相似商品检查） | 中 | V3.0 稳定 |
 | V3.4 | ia 迁移 | 中 | V3.3 稳定 |
 | V3.5 | login3rd 迁移 | 中 | V3.4 稳定 |
 | V3.6 | shopchecker 迁移 | 中 | V3.5 稳定 |
