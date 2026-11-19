@@ -440,41 +440,63 @@ V3.0 的范围比“全量重构”小得多，风险也更可控：只改基座
 | L2 | 备份机，维护时启动 V3 + PG/Redis | 与 L1 内网；对云/公网暴露 |
 | ACloud | 云服务器，RustFS 固定在此 | 与 L1/L2 走公网 |
 
-**维护流程：**
+**服务归属（决定是否随维护切换）：**
 
-1. **开始维护**（L1 上点击，需勾选“L1→L2 已同步”）
-   - 停止 L1 V3 写入/服务；
-   - 在 L2 启动 V3，`APP_PROFILE=backup`，连接 L2 的 PG/Redis；
-   - 记录维护状态、操作人、时间、同步确认。
+| 归属 | 服务 | 维护时 |
+|---|---|---|
+| L1 | V3 主入口、PostgreSQL、Redis、L1 上的 Browser/外部工具 | **切到 L2** |
+| L2 | 维护期间的 V3、PostgreSQL、Redis | 维护时启用 |
+| ACloud | RustFS、n8n、OpenClaw、LangBot、MCP、TTS 等云端能力 | **固定不切** |
+
+> 判断规则：URL/连接指向 **L1** 的，维护时切到 L2；指向 **ACloud** 的保持不变。
+
+**三种维护模式：**
+
+| 模式 | 流程 | 反向同步 | 适用 |
+|---|---|---|---|
+| `shutdown` 停机 | 直接停止 L1，不启用 L2 | 不需要 | 短维护、可接受停机 |
+| `migrate_return` 迁移并迁回 | L1→L2 同步确认 → L2 运行 → L2→L1 反向同步确认 → 回 L1 | **必须** | 计划维护、最终回 L1 |
+| `migrate_no_return` 迁移不迁回 | L1→L2 同步确认 → L2 长期运行，L1 停用/重建 | 不需要 | L1 退役/迁移到 L2 |
+
+**流程：**
+
+1. **开始维护**（L1 上点击）
+   - 选择模式；
+   - `migrate_*` 需勾选“L1→L2 已同步”；
+   - `shutdown` 直接停止 L1，不进 L2；
+   - 记录模式、操作人、时间、同步确认。
 2. **维护期间**
-   - 所有 L1 服务切到 L2；RustFS 仍在 ACloud，不切换；
+   - `migrate_*`：在 L2 启动 V3（`APP_PROFILE=backup`），连接 L2 的 PG/Redis；
+   - L1 绑定的 URL 切到 L2；ACloud 固定 URL 不变；
    - 云服务器访问 L2 走公网。
-3. **结束维护**（在 L2 上点击）
-   - 若确实切过 L2：先完成 **L2→L1 反向同步** 并勾选确认；
-   - 停止 L2 V3，启动 L1 V3（`APP_PROFILE=host`）；
-   - 记录结束状态。
-   - 若未切 L2：直接结束维护，不做反向同步。
+3. **结束维护**
+   - `shutdown`：直接结束，启动 L1；
+   - `migrate_return`：先完成 **L2→L1 反向同步** 并确认，再停 L2、启动 L1（`APP_PROFILE=host`）；
+   - `migrate_no_return`：不反向同步，L2 继续作为主；L1 保持停用/进入退役流程。
 
 **状态机：**
 
 ```
 normal(L1)
-  └─ start(sync_confirmed) → maintenance_l2
-        └─ end(switched_to_l2, sync_back_confirmed) → normal(L1)
-        └─ end(switched_to_l2=false) → normal(L1)
+  ├─ start(shutdown) → shutdown
+  │     └─ end() → normal(L1)
+  ├─ start(migrate_return, sync_confirmed) → maintenance_l2
+  │     └─ end(sync_back_confirmed) → normal(L1)
+  └─ start(migrate_no_return, sync_confirmed) → maintenance_l2_permanent
+        └─ end() → normal(L2)  // L1 退役
 ```
 
 **API（规划）：**
 
 ```
 GET  /api/v1/ops/maintenance
-POST /api/v1/ops/maintenance/start   {sync_confirmed, note}
-POST /api/v1/ops/maintenance/end     {switched_to_l2, sync_back_confirmed, note}
+POST /api/v1/ops/maintenance/start   {mode: shutdown|migrate_return|migrate_no_return, sync_confirmed, note}
+POST /api/v1/ops/maintenance/end     {sync_back_confirmed, note}
 ```
 
 - 权限：`ops.maintenance.read/start/end`（管理员）。
 - 状态持久化：`zzz_ops_maintenance`（P2 建表）+ 审计。
-- 前端：系统维护页，显示当前节点、活动目标、同步确认、反向同步、启动/结束按钮。
+- 前端：系统维护页，显示模式、当前节点、活动目标、同步确认、反向同步、URL 归属提示。
 - **不自动启动 L2 进程**：由运维在 L2 启动 V3；系统负责状态、校验、审计与提示。
 - **不做运行中热切连接**：L1/L2 各自由自己的 V3 进程连接本机服务。
 

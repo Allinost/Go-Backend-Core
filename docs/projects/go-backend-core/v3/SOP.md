@@ -504,12 +504,14 @@ make swagger
 ### 10.10 L1/L2 手动维护（V3.0）
 
 - **默认 `database.failover_mode=manual`**：不做连接失败自动切库，避免脑裂。
-- 开始维护：人工完成 L1→L2 同步并勾选确认；停止 L1 V3，在 L2 启动 V3（`APP_PROFILE=backup`）。
-- 维护期间：L1 服务（PG/Redis 等）切到 L2；**RustFS 固定在 ACloud，不切换**。
-- 结束维护：
-  - 未切 L2：直接结束；
-  - 切过 L2：先完成 L2→L1 反向同步并勾选确认，再停 L2、启动 L1（`APP_PROFILE=host`）。
-- 状态/操作审计：维护状态表 + 操作人/时间/同步确认；权限 `ops.maintenance.read/start/end`。
+- **URL 归属**：指向 L1 的（V3 主入口/PG/Redis/L1 工具）随维护切换；指向 ACloud 的（RustFS/n8n/OpenClaw/LangBot/MCP/TTS）**固定不变**。
+- **三种模式**：
+  - `shutdown` 停机：直接停 L1，不启用 L2；结束直接回 L1。
+  - `migrate_return` 迁移并迁回：L1→L2 同步确认 → L2 运行 → L2→L1 反向同步确认 → 回 L1。
+  - `migrate_no_return` 迁移不迁回：L1→L2 同步确认 → L2 长期运行；L1 停用/退役，不做反向同步。
+- 开始维护：`migrate_*` 需勾选“L1→L2 已同步”；停止 L1 V3，在 L2 启动 V3（`APP_PROFILE=backup`）。
+- 结束维护：按模式处理；`migrate_return` 必须反向同步确认。
+- 状态/操作审计：维护状态表 + 模式/操作人/时间/同步确认；权限 `ops.maintenance.read/start/end`。
 - 不做运行中热切连接；L1/L2 各自 V3 进程连接本机服务。
 
 ---
