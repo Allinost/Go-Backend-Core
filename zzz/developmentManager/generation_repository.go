@@ -47,21 +47,21 @@ func (r *Repository) CreateGeneration(ctx context.Context, g *Generation) (*Gene
 	if len(g.InputSnapshot) > 0 {
 		snapshot = string(g.InputSnapshot)
 	}
-	res, err := r.db.ExecContext(ctx,
+	var id int64
+	err := r.queryRow(ctx,
 		"INSERT INTO "+tableGeneration+
 			" (requirement_id, project_id, kind, engine, auto_commit, status, input_snapshot, operator)"+
-			" VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		g.RequirementID, g.ProjectID, g.Kind, g.Engine, g.AutoCommit, g.Status, snapshot, g.Operator)
+			" VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+		g.RequirementID, g.ProjectID, g.Kind, g.Engine, g.AutoCommit, g.Status, snapshot, g.Operator).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	return r.GetGeneration(ctx, id)
 }
 
 // GetGeneration 按 ID 查询生成任务
 func (r *Repository) GetGeneration(ctx context.Context, id int64) (*Generation, error) {
-	g, err := scanGeneration(r.db.QueryRowContext(ctx,
+	g, err := scanGeneration(r.queryRow(ctx,
 		"SELECT "+generationColumns+" FROM "+tableGeneration+" WHERE id = ?", id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -74,7 +74,7 @@ func (r *Repository) GetGeneration(ctx context.Context, id int64) (*Generation, 
 
 // ListGenerationsByRequirement 查询需求下的生成任务（最新在前）
 func (r *Repository) ListGenerationsByRequirement(ctx context.Context, requirementID int64) ([]Generation, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.query(ctx,
 		"SELECT "+generationColumns+" FROM "+tableGeneration+
 			" WHERE requirement_id = ? ORDER BY id DESC", requirementID)
 	if err != nil {
@@ -99,7 +99,7 @@ func (r *Repository) UpdateGeneration(ctx context.Context, g *Generation) error 
 		b, _ := json.Marshal(g.Files)
 		files = string(b)
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.exec(ctx,
 		"UPDATE "+tableGeneration+" SET engine_used=?, committed=?, branch=?, commit_hash=?, status=?, "+
 			"output_ref=?, files=?, error=?, started_at=?, finished_at=? WHERE id=?",
 		g.EngineUsed, g.Committed, g.Branch, g.CommitHash, g.Status, g.OutputRef, files, g.Error,

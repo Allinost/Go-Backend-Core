@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/Allinost/go-backend-core/internal/pkg/dbutil"
 )
 
 const (
@@ -54,9 +56,9 @@ func (r *Repository) ListRequirements(ctx context.Context, projectID int64, req 
 	conditions := []string{"r.project_id = ?"}
 	args := []any{projectID}
 	if req.Deleted == nil || !*req.Deleted {
-		conditions = append(conditions, "r.deleted = 0")
+		conditions = append(conditions, "r.deleted = false")
 	} else {
-		conditions = append(conditions, "r.deleted = 1")
+		conditions = append(conditions, "r.deleted = true")
 	}
 	if req.Status != "" {
 		conditions = append(conditions, "r.status = ?")
@@ -71,21 +73,21 @@ func (r *Repository) ListRequirements(ctx context.Context, projectID int64, req 
 		args = append(args, req.Priority)
 	}
 	if req.Keyword != "" {
-		conditions = append(conditions, "(r.title LIKE ? OR r.code LIKE ? OR r.content LIKE ?)")
+		conditions = append(conditions, "(r.title ILIKE ? OR r.code ILIKE ? OR r.content ILIKE ?)")
 		like := "%" + req.Keyword + "%"
 		args = append(args, like, like, like)
 	}
 	where := strings.Join(conditions, " AND ")
 
 	var total int
-	if err := r.db.QueryRowContext(ctx,
+	if err := r.queryRow(ctx,
 		"SELECT COUNT(*) FROM "+tableRequirement+" r WHERE "+where, args...).Scan(&total); err != nil {
 		return nil, false, 0, err
 	}
 
 	query := "SELECT " + requirementColumns + " FROM " + tableRequirement + " r WHERE " + where +
 		" ORDER BY r.id DESC LIMIT ? OFFSET ?"
-	rows, err := r.db.QueryContext(ctx, query, append(args, req.PageSize+1, req.Offset())...)
+	rows, err := r.query(ctx, query, append(args, req.PageSize+1, req.Offset())...)
 	if err != nil {
 		return nil, false, 0, err
 	}
@@ -112,7 +114,7 @@ func (r *Repository) ListRequirements(ctx context.Context, projectID int64, req 
 
 // GetRequirement 按 ID 查询需求（含已删除）
 func (r *Repository) GetRequirement(ctx context.Context, id int64) (*Requirement, error) {
-	item, err := scanRequirement(r.db.QueryRowContext(ctx,
+	item, err := scanRequirement(r.queryRow(ctx,
 		"SELECT "+requirementColumns+" FROM "+tableRequirement+" r WHERE r.id = ?", id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -126,7 +128,7 @@ func (r *Repository) GetRequirement(ctx context.Context, id int64) (*Requirement
 // NextRequirementNo 项目内下一个需求序号（解析 RQM-xxxx 的数字部分）
 func (r *Repository) NextRequirementNo(ctx context.Context, projectID int64) (int, error) {
 	var maxNo int
-	err := r.db.QueryRowContext(ctx,
+	err := r.queryRow(ctx,
 		"SELECT COALESCE(MAX(CAST(SUBSTRING(code, 5) AS UNSIGNED)), 0) FROM "+tableRequirement+
 			" WHERE project_id = ?", projectID).Scan(&maxNo)
 	if err != nil {
@@ -154,9 +156,8 @@ func nextVersionNo(ctx context.Context, exec txQueryExecer, requirementID int64)
 
 func insertRequirementVersion(ctx context.Context, exec txQueryExecer, req *Requirement, versionNo int,
 	status, changeNote, operator string) error {
-	_, err := exec.ExecContext(ctx,
-		"INSERT INTO "+tableRequirementVersion+
-			" (requirement_id, version_no, title, content, status, change_note, operator) VALUES (?, ?, ?, ?, ?, ?, ?)",
+	_, err := exec.ExecContext(ctx, dbutil.Rebind("INSERT INTO "+tableRequirementVersion+
+		" (requirement_id, version_no, title, content, status, change_note, operator) VALUES (?, ?, ?, ?, ?, ?, ?)"),
 		req.ID, versionNo, req.Title, req.Content, status, changeNote, operator)
 	return err
 }
@@ -169,16 +170,16 @@ func (r *Repository) CreateRequirementTx(ctx context.Context, req *Requirement, 
 	}
 	defer tx.Rollback()
 
-	res, err := tx.ExecContext(ctx,
+	var id int64
+	err = queryRowTx(ctx, tx,
 		"INSERT INTO "+tableRequirement+
 			" (project_id, code, title, content, type, priority, status, source, owner, created_by, updated_by)"+
-			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
 		req.ProjectID, req.Code, req.Title, req.Content, req.Type, req.Priority, req.Status, req.Source,
-		req.Owner, req.CreatedBy, req.UpdatedBy)
+		req.Owner, req.CreatedBy, req.UpdatedBy).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	req.ID = id
 	if err := insertRequirementVersion(ctx, tx, req, 1, req.Status, changeNote, req.CreatedBy); err != nil {
 		return nil, err
@@ -197,9 +198,9 @@ func (r *Repository) UpdateRequirementTx(ctx context.Context, req *Requirement, 
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx,
+	if _, err := execTx(ctx, tx,
 		"UPDATE "+tableRequirement+" SET title=?, content=?, type=?, priority=?, status=?, source=?, "+
-			"owner=?, updated_by=? WHERE id=? AND deleted=0",
+			"owner=?, updated_by=? WHERE id=? AND deleted=false",
 		req.Title, req.Content, req.Type, req.Priority, status, req.Source, req.Owner, operator, req.ID); err != nil {
 		return nil, err
 	}
@@ -224,8 +225,8 @@ func (r *Repository) SoftDeleteRequirementTx(ctx context.Context, req *Requireme
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx,
-		"UPDATE "+tableRequirement+" SET deleted=1, deleted_at=?, updated_by=? WHERE id=? AND deleted=0",
+	if _, err := execTx(ctx, tx,
+		"UPDATE "+tableRequirement+" SET deleted=true, deleted_at=?, updated_by=? WHERE id=? AND deleted=false",
 		now, operator, req.ID); err != nil {
 		return err
 	}
@@ -242,7 +243,7 @@ func (r *Repository) SoftDeleteRequirementTx(ctx context.Context, req *Requireme
 // RequirementTitleExists 判断项目下是否已存在同标题需求（含已删除，尊重人工删除）
 func (r *Repository) RequirementTitleExists(ctx context.Context, projectID int64, title string) (bool, error) {
 	var n int
-	err := r.db.QueryRowContext(ctx,
+	err := r.queryRow(ctx,
 		"SELECT COUNT(*) FROM "+tableRequirement+" WHERE project_id = ? AND title = ?",
 		projectID, title).Scan(&n)
 	return n > 0, err
@@ -250,7 +251,7 @@ func (r *Repository) RequirementTitleExists(ctx context.Context, projectID int64
 
 // ListRequirementVersions 查询需求版本历史（最新在前）
 func (r *Repository) ListRequirementVersions(ctx context.Context, requirementID int64) ([]RequirementVersion, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.query(ctx,
 		"SELECT "+requirementVersionColumns+" FROM "+tableRequirementVersion+
 			" WHERE requirement_id = ? ORDER BY version_no DESC", requirementID)
 	if err != nil {

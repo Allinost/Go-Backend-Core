@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"strings"
 	"time"
 )
 
@@ -175,10 +174,10 @@ func scanBackup(row rowScanner) (*Backup, error) {
 func (r *Repository) ListContainers(ctx context.Context, projectID int64, includeDeleted bool) ([]Container, error) {
 	query := "SELECT " + containerColumns + " FROM " + tableContainer + " WHERE project_id = ?"
 	if !includeDeleted {
-		query += " AND deleted = 0"
+		query += " AND deleted = false"
 	}
 	query += " ORDER BY id ASC"
-	rows, err := r.db.QueryContext(ctx, query, projectID)
+	rows, err := r.query(ctx, query, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +195,7 @@ func (r *Repository) ListContainers(ctx context.Context, projectID int64, includ
 
 // GetContainer 按 ID 查询容器（含已删除，由 deleted 字段区分）
 func (r *Repository) GetContainer(ctx context.Context, id int64) (*Container, error) {
-	c, err := scanContainer(r.db.QueryRowContext(ctx,
+	c, err := scanContainer(r.queryRow(ctx,
 		"SELECT "+containerColumns+" FROM "+tableContainer+" WHERE id = ?", id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -209,8 +208,8 @@ func (r *Repository) GetContainer(ctx context.Context, id int64) (*Container, er
 
 // GetContainerByName 查询项目内未删除的同名容器
 func (r *Repository) GetContainerByName(ctx context.Context, projectID int64, name string) (*Container, error) {
-	c, err := scanContainer(r.db.QueryRowContext(ctx,
-		"SELECT "+containerColumns+" FROM "+tableContainer+" WHERE project_id = ? AND container_name = ? AND deleted = 0",
+	c, err := scanContainer(r.queryRow(ctx,
+		"SELECT "+containerColumns+" FROM "+tableContainer+" WHERE project_id = ? AND container_name = ? AND deleted = false",
 		projectID, name))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -228,16 +227,16 @@ func (r *Repository) CreateContainer(ctx context.Context, c *Container) (*Contai
 		b, _ := json.Marshal(c.EnvNotes)
 		env = string(b)
 	}
-	res, err := r.db.ExecContext(ctx,
+	var id int64
+	err := r.queryRow(ctx,
 		"INSERT INTO "+tableContainer+
 			" (project_id, container_name, image, compose_ref, replicas, network_mode, env_notes, status_note, created_by, updated_by)"+
-			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
 		c.ProjectID, c.ContainerName, c.Image, c.ComposeRef, c.Replicas, c.NetworkMode, env, c.StatusNote,
-		c.CreatedBy, c.UpdatedBy)
+		c.CreatedBy, c.UpdatedBy).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	return r.GetContainer(ctx, id)
 }
 
@@ -248,9 +247,9 @@ func (r *Repository) UpdateContainer(ctx context.Context, c *Container) (*Contai
 		b, _ := json.Marshal(c.EnvNotes)
 		env = string(b)
 	}
-	if _, err := r.db.ExecContext(ctx,
+	if _, err := r.exec(ctx,
 		"UPDATE "+tableContainer+" SET container_name=?, image=?, compose_ref=?, replicas=?, network_mode=?, "+
-			"env_notes=?, status_note=?, updated_by=? WHERE id=? AND deleted=0",
+			"env_notes=?, status_note=?, updated_by=? WHERE id=? AND deleted=false",
 		c.ContainerName, c.Image, c.ComposeRef, c.Replicas, c.NetworkMode, env, c.StatusNote, c.UpdatedBy, c.ID); err != nil {
 		return nil, err
 	}
@@ -265,16 +264,16 @@ func (r *Repository) DeleteContainerTx(ctx context.Context, containerID int64, n
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx,
-		"UPDATE "+tableContainer+" SET deleted=1, deleted_at=? WHERE id=? AND deleted=0", now, containerID); err != nil {
+	if _, err := execTx(ctx, tx,
+		"UPDATE "+tableContainer+" SET deleted=true, deleted_at=? WHERE id=? AND deleted=false", now, containerID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx,
-		"UPDATE "+tableVolumeMapping+" SET deleted=1, deleted_at=? WHERE container_id=? AND deleted=0", now, containerID); err != nil {
+	if _, err := execTx(ctx, tx,
+		"UPDATE "+tableVolumeMapping+" SET deleted=true, deleted_at=? WHERE container_id=? AND deleted=false", now, containerID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx,
-		"UPDATE "+tableAccessPoint+" SET deleted=1, deleted_at=? WHERE container_id=? AND deleted=0", now, containerID); err != nil {
+	if _, err := execTx(ctx, tx,
+		"UPDATE "+tableAccessPoint+" SET deleted=true, deleted_at=? WHERE container_id=? AND deleted=false", now, containerID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -282,9 +281,9 @@ func (r *Repository) DeleteContainerTx(ctx context.Context, containerID int64, n
 
 // WhitelistGroupsOfContainer 查询引用了该容器的白名单组名（用于删除前提示）
 func (r *Repository) WhitelistGroupsOfContainer(ctx context.Context, containerID int64) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.query(ctx,
 		"SELECT w.name FROM "+tableWhitelistMember+" m JOIN "+tableWhitelist+" w ON w.id = m.whitelist_id "+
-			"WHERE m.container_id = ? AND w.deleted = 0 ORDER BY w.name", containerID)
+			"WHERE m.container_id = ? AND w.deleted = false ORDER BY w.name", containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +303,7 @@ func (r *Repository) WhitelistGroupsOfContainer(ctx context.Context, containerID
 
 // GetResourceAlloc 查询容器资源分配
 func (r *Repository) GetResourceAlloc(ctx context.Context, containerID int64) (*ResourceAlloc, error) {
-	a, err := scanResourceAlloc(r.db.QueryRowContext(ctx,
+	a, err := scanResourceAlloc(r.queryRow(ctx,
 		"SELECT "+resourceColumns+" FROM "+tableResourceAlloc+" WHERE container_id = ?", containerID))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -317,13 +316,13 @@ func (r *Repository) GetResourceAlloc(ctx context.Context, containerID int64) (*
 
 // UpsertResourceAlloc 写入容器资源分配（1:1，存在则更新）
 func (r *Repository) UpsertResourceAlloc(ctx context.Context, a *ResourceAlloc) (*ResourceAlloc, error) {
-	if _, err := r.db.ExecContext(ctx,
+	if _, err := r.exec(ctx,
 		"INSERT INTO "+tableResourceAlloc+
 			" (container_id, cpu_limit, cpu_shares, mem_limit, mem_reservation, gpu_note, storage_quota, notes)"+
 			" VALUES (?, ?, ?, ?, ?, ?, ?, ?)"+
-			" ON DUPLICATE KEY UPDATE cpu_limit=VALUES(cpu_limit), cpu_shares=VALUES(cpu_shares),"+
-			" mem_limit=VALUES(mem_limit), mem_reservation=VALUES(mem_reservation), gpu_note=VALUES(gpu_note),"+
-			" storage_quota=VALUES(storage_quota), notes=VALUES(notes)",
+			" ON CONFLICT (container_id) DO UPDATE SET cpu_limit=EXCLUDED.cpu_limit, cpu_shares=EXCLUDED.cpu_shares,"+
+			" mem_limit=EXCLUDED.mem_limit, mem_reservation=EXCLUDED.mem_reservation, gpu_note=EXCLUDED.gpu_note,"+
+			" storage_quota=EXCLUDED.storage_quota, notes=EXCLUDED.notes, updated_at=now()",
 		a.ContainerID, a.CPULimit, a.CPUShares, a.MemLimit, a.MemReservation, a.GPUNote, a.StorageQuota, a.Notes); err != nil {
 		return nil, err
 	}
@@ -336,10 +335,10 @@ func (r *Repository) UpsertResourceAlloc(ctx context.Context, a *ResourceAlloc) 
 func (r *Repository) ListVolumes(ctx context.Context, containerID int64, includeDeleted bool) ([]VolumeMapping, error) {
 	query := "SELECT " + volumeColumns + " FROM " + tableVolumeMapping + " WHERE container_id = ?"
 	if !includeDeleted {
-		query += " AND deleted = 0"
+		query += " AND deleted = false"
 	}
 	query += " ORDER BY id ASC"
-	rows, err := r.db.QueryContext(ctx, query, containerID)
+	rows, err := r.query(ctx, query, containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -357,7 +356,7 @@ func (r *Repository) ListVolumes(ctx context.Context, containerID int64, include
 
 // GetVolume 按 ID 查询卷映射
 func (r *Repository) GetVolume(ctx context.Context, id int64) (*VolumeMapping, error) {
-	v, err := scanVolume(r.db.QueryRowContext(ctx,
+	v, err := scanVolume(r.queryRow(ctx,
 		"SELECT "+volumeColumns+" FROM "+tableVolumeMapping+" WHERE id = ?", id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -370,22 +369,22 @@ func (r *Repository) GetVolume(ctx context.Context, id int64) (*VolumeMapping, e
 
 // CreateVolume 新建卷映射
 func (r *Repository) CreateVolume(ctx context.Context, v *VolumeMapping) (*VolumeMapping, error) {
-	res, err := r.db.ExecContext(ctx,
+	var id int64
+	err := r.queryRow(ctx,
 		"INSERT INTO "+tableVolumeMapping+
-			" (container_id, host_path, container_path, mode, purpose, in_backup) VALUES (?, ?, ?, ?, ?, ?)",
-		v.ContainerID, v.HostPath, v.ContainerPath, v.Mode, v.Purpose, v.InBackup)
+			" (container_id, host_path, container_path, mode, purpose, in_backup) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
+		v.ContainerID, v.HostPath, v.ContainerPath, v.Mode, v.Purpose, v.InBackup).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	return r.GetVolume(ctx, id)
 }
 
 // UpdateVolume 更新卷映射
 func (r *Repository) UpdateVolume(ctx context.Context, v *VolumeMapping) (*VolumeMapping, error) {
-	if _, err := r.db.ExecContext(ctx,
+	if _, err := r.exec(ctx,
 		"UPDATE "+tableVolumeMapping+" SET host_path=?, container_path=?, mode=?, purpose=?, in_backup=? "+
-			"WHERE id=? AND deleted=0",
+			"WHERE id=? AND deleted=false",
 		v.HostPath, v.ContainerPath, v.Mode, v.Purpose, v.InBackup, v.ID); err != nil {
 		return nil, err
 	}
@@ -394,8 +393,8 @@ func (r *Repository) UpdateVolume(ctx context.Context, v *VolumeMapping) (*Volum
 
 // SoftDeleteVolume 软删除卷映射
 func (r *Repository) SoftDeleteVolume(ctx context.Context, id int64, now time.Time) error {
-	_, err := r.db.ExecContext(ctx,
-		"UPDATE "+tableVolumeMapping+" SET deleted=1, deleted_at=? WHERE id=? AND deleted=0", now, id)
+	_, err := r.exec(ctx,
+		"UPDATE "+tableVolumeMapping+" SET deleted=true, deleted_at=? WHERE id=? AND deleted=false", now, id)
 	return err
 }
 
@@ -407,7 +406,7 @@ func (r *Repository) ListAccessPoints(ctx context.Context, projectID int64, req 
 		"LEFT JOIN " + tableWhitelist + " wl ON wl.id = a.whitelist_id WHERE a.project_id = ?"
 	args := []any{projectID}
 	if !req.IncludeDeleted() {
-		query += " AND a.deleted = 0"
+		query += " AND a.deleted = false"
 	}
 	if req.Exposure != "" {
 		query += " AND a.exposure = ?"
@@ -418,7 +417,7 @@ func (r *Repository) ListAccessPoints(ctx context.Context, projectID int64, req 
 		args = append(args, req.Zone)
 	}
 	query += " ORDER BY a.listen_port ASC, a.id ASC"
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := r.query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +437,7 @@ func (r *Repository) ListAccessPoints(ctx context.Context, projectID int64, req 
 func (r *Repository) GetAccessPoint(ctx context.Context, id int64) (*AccessPoint, error) {
 	query := "SELECT " + accessPointColumns + ", wl.name FROM " + tableAccessPoint + " a " +
 		"LEFT JOIN " + tableWhitelist + " wl ON wl.id = a.whitelist_id WHERE a.id = ?"
-	a, err := scanAccessPoint(r.db.QueryRowContext(ctx, query, id))
+	a, err := scanAccessPoint(r.queryRow(ctx, query, id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, NewDevelopmentManagerError(ErrAccessPointNotFound)
@@ -450,26 +449,26 @@ func (r *Repository) GetAccessPoint(ctx context.Context, id int64) (*AccessPoint
 
 // CreateAccessPoint 新建接入点
 func (r *Repository) CreateAccessPoint(ctx context.Context, a *AccessPoint) (*AccessPoint, error) {
-	res, err := r.db.ExecContext(ctx,
+	var id int64
+	err := r.queryRow(ctx,
 		"INSERT INTO "+tableAccessPoint+
 			" (project_id, container_id, listen_port, host_port, protocol, purpose, exposure, proxy_type, domain, upstream_url, tls, network_zone, url, reachable, notes, whitelist_id, created_by, updated_by)"+
-			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
 		a.ProjectID, a.ContainerID, a.ListenPort, a.HostPort, a.Protocol, a.Purpose, a.Exposure,
 		a.ProxyType, a.Domain, a.UpstreamURL, a.TLS, a.NetworkZone, a.URL, a.Reachable, a.Notes,
-		a.WhitelistID, a.CreatedBy, a.UpdatedBy)
+		a.WhitelistID, a.CreatedBy, a.UpdatedBy).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	return r.GetAccessPoint(ctx, id)
 }
 
 // UpdateAccessPoint 全量更新接入点
 func (r *Repository) UpdateAccessPoint(ctx context.Context, a *AccessPoint) (*AccessPoint, error) {
-	if _, err := r.db.ExecContext(ctx,
+	if _, err := r.exec(ctx,
 		"UPDATE "+tableAccessPoint+" SET container_id=?, listen_port=?, host_port=?, protocol=?, purpose=?, "+
 			"exposure=?, proxy_type=?, domain=?, upstream_url=?, tls=?, network_zone=?, url=?, reachable=?, "+
-			"notes=?, whitelist_id=?, updated_by=? WHERE id=? AND deleted=0",
+			"notes=?, whitelist_id=?, updated_by=? WHERE id=? AND deleted=false",
 		a.ContainerID, a.ListenPort, a.HostPort, a.Protocol, a.Purpose, a.Exposure, a.ProxyType,
 		a.Domain, a.UpstreamURL, a.TLS, a.NetworkZone, a.URL, a.Reachable, a.Notes, a.WhitelistID,
 		a.UpdatedBy, a.ID); err != nil {
@@ -480,8 +479,8 @@ func (r *Repository) UpdateAccessPoint(ctx context.Context, a *AccessPoint) (*Ac
 
 // SoftDeleteAccessPoint 软删除接入点
 func (r *Repository) SoftDeleteAccessPoint(ctx context.Context, id int64, now time.Time) error {
-	_, err := r.db.ExecContext(ctx,
-		"UPDATE "+tableAccessPoint+" SET deleted=1, deleted_at=? WHERE id=? AND deleted=0", now, id)
+	_, err := r.exec(ctx,
+		"UPDATE "+tableAccessPoint+" SET deleted=true, deleted_at=? WHERE id=? AND deleted=false", now, id)
 	return err
 }
 
@@ -491,10 +490,10 @@ func (r *Repository) SoftDeleteAccessPoint(ctx context.Context, id int64, now ti
 func (r *Repository) ListWhitelists(ctx context.Context, projectID int64, includeDeleted bool) ([]Whitelist, error) {
 	query := "SELECT " + whitelistColumns + " FROM " + tableWhitelist + " w WHERE w.project_id = ?"
 	if !includeDeleted {
-		query += " AND w.deleted = 0"
+		query += " AND w.deleted = false"
 	}
 	query += " ORDER BY w.id ASC"
-	rows, err := r.db.QueryContext(ctx, query, projectID)
+	rows, err := r.query(ctx, query, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +511,7 @@ func (r *Repository) ListWhitelists(ctx context.Context, projectID int64, includ
 
 // GetWhitelist 按 ID 查询白名单组
 func (r *Repository) GetWhitelist(ctx context.Context, id int64) (*Whitelist, error) {
-	w, err := scanWhitelist(r.db.QueryRowContext(ctx,
+	w, err := scanWhitelist(r.queryRow(ctx,
 		"SELECT "+whitelistColumns+" FROM "+tableWhitelist+" w WHERE w.id = ?", id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -525,8 +524,8 @@ func (r *Repository) GetWhitelist(ctx context.Context, id int64) (*Whitelist, er
 
 // GetWhitelistByName 查询项目内未删除的同名白名单组
 func (r *Repository) GetWhitelistByName(ctx context.Context, projectID int64, name string) (*Whitelist, error) {
-	w, err := scanWhitelist(r.db.QueryRowContext(ctx,
-		"SELECT "+whitelistColumns+" FROM "+tableWhitelist+" w WHERE w.project_id = ? AND w.name = ? AND w.deleted = 0",
+	w, err := scanWhitelist(r.queryRow(ctx,
+		"SELECT "+whitelistColumns+" FROM "+tableWhitelist+" w WHERE w.project_id = ? AND w.name = ? AND w.deleted = false",
 		projectID, name))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -539,20 +538,20 @@ func (r *Repository) GetWhitelistByName(ctx context.Context, projectID int64, na
 
 // CreateWhitelist 新建白名单组
 func (r *Repository) CreateWhitelist(ctx context.Context, w *Whitelist) (*Whitelist, error) {
-	res, err := r.db.ExecContext(ctx,
-		"INSERT INTO "+tableWhitelist+" (project_id, name, note, created_by, updated_by) VALUES (?, ?, ?, ?, ?)",
-		w.ProjectID, w.Name, w.Note, w.CreatedBy, w.UpdatedBy)
+	var id int64
+	err := r.queryRow(ctx,
+		"INSERT INTO "+tableWhitelist+" (project_id, name, note, created_by, updated_by) VALUES (?, ?, ?, ?, ?) RETURNING id",
+		w.ProjectID, w.Name, w.Note, w.CreatedBy, w.UpdatedBy).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	return r.GetWhitelist(ctx, id)
 }
 
 // UpdateWhitelist 更新白名单组
 func (r *Repository) UpdateWhitelist(ctx context.Context, w *Whitelist) (*Whitelist, error) {
-	if _, err := r.db.ExecContext(ctx,
-		"UPDATE "+tableWhitelist+" SET name=?, note=?, updated_by=? WHERE id=? AND deleted=0",
+	if _, err := r.exec(ctx,
+		"UPDATE "+tableWhitelist+" SET name=?, note=?, updated_by=? WHERE id=? AND deleted=false",
 		w.Name, w.Note, w.UpdatedBy, w.ID); err != nil {
 		return nil, err
 	}
@@ -567,12 +566,12 @@ func (r *Repository) DeleteWhitelistTx(ctx context.Context, whitelistID int64, n
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx,
+	if _, err := execTx(ctx, tx,
 		"DELETE FROM "+tableWhitelistMember+" WHERE whitelist_id = ?", whitelistID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx,
-		"UPDATE "+tableWhitelist+" SET deleted=1, deleted_at=? WHERE id=? AND deleted=0", now, whitelistID); err != nil {
+	if _, err := execTx(ctx, tx,
+		"UPDATE "+tableWhitelist+" SET deleted=true, deleted_at=? WHERE id=? AND deleted=false", now, whitelistID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -581,8 +580,8 @@ func (r *Repository) DeleteWhitelistTx(ctx context.Context, whitelistID int64, n
 // CountAccessPointRefs 统计引用该白名单组的未删除接入点数
 func (r *Repository) CountAccessPointRefs(ctx context.Context, whitelistID int64) (int, error) {
 	var n int
-	err := r.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM "+tableAccessPoint+" WHERE whitelist_id = ? AND deleted = 0", whitelistID).Scan(&n)
+	err := r.queryRow(ctx,
+		"SELECT COUNT(*) FROM "+tableAccessPoint+" WHERE whitelist_id = ? AND deleted = false", whitelistID).Scan(&n)
 	return n, err
 }
 
@@ -590,7 +589,7 @@ func (r *Repository) CountAccessPointRefs(ctx context.Context, whitelistID int64
 func (r *Repository) ListWhitelistMembers(ctx context.Context, whitelistID int64) ([]WhitelistMember, error) {
 	query := "SELECT " + memberColumns + " FROM " + tableWhitelistMember + " m " +
 		"LEFT JOIN " + tableContainer + " c ON c.id = m.container_id WHERE m.whitelist_id = ? ORDER BY m.id ASC"
-	rows, err := r.db.QueryContext(ctx, query, whitelistID)
+	rows, err := r.query(ctx, query, whitelistID)
 	if err != nil {
 		return nil, err
 	}
@@ -610,7 +609,7 @@ func (r *Repository) ListWhitelistMembers(ctx context.Context, whitelistID int64
 func (r *Repository) GetWhitelistMember(ctx context.Context, id int64) (*WhitelistMember, error) {
 	query := "SELECT " + memberColumns + " FROM " + tableWhitelistMember + " m " +
 		"LEFT JOIN " + tableContainer + " c ON c.id = m.container_id WHERE m.id = ?"
-	m, err := scanWhitelistMember(r.db.QueryRowContext(ctx, query, id))
+	m, err := scanWhitelistMember(r.queryRow(ctx, query, id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, NewDevelopmentManagerError(ErrWhitelistMemberNotFound)
@@ -623,7 +622,7 @@ func (r *Repository) GetWhitelistMember(ctx context.Context, id int64) (*Whiteli
 // WhitelistMemberExists 判断组内是否已有该容器
 func (r *Repository) WhitelistMemberExists(ctx context.Context, whitelistID, containerID int64) (bool, error) {
 	var n int
-	err := r.db.QueryRowContext(ctx,
+	err := r.queryRow(ctx,
 		"SELECT COUNT(*) FROM "+tableWhitelistMember+" WHERE whitelist_id=? AND container_id=?",
 		whitelistID, containerID).Scan(&n)
 	return n > 0, err
@@ -631,22 +630,22 @@ func (r *Repository) WhitelistMemberExists(ctx context.Context, whitelistID, con
 
 // CreateWhitelistMember 添加白名单成员
 func (r *Repository) CreateWhitelistMember(ctx context.Context, m *WhitelistMember) (*WhitelistMember, error) {
-	res, err := r.db.ExecContext(ctx,
-		"INSERT INTO "+tableWhitelistMember+" (whitelist_id, container_id, note) VALUES (?, ?, ?)",
-		m.WhitelistID, m.ContainerID, m.Note)
+	var id int64
+	err := r.queryRow(ctx,
+		"INSERT INTO "+tableWhitelistMember+" (whitelist_id, container_id, note) VALUES (?, ?, ?) RETURNING id",
+		m.WhitelistID, m.ContainerID, m.Note).Scan(&id)
 	if err != nil {
-		if strings.Contains(err.Error(), "Duplicate entry") {
+		if isDuplicateKey(err) {
 			return nil, NewDevelopmentManagerError(ErrContainerInWhitelist)
 		}
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	return r.GetWhitelistMember(ctx, id)
 }
 
 // DeleteWhitelistMember 删除白名单成员（硬删除）
 func (r *Repository) DeleteWhitelistMember(ctx context.Context, id int64) error {
-	if _, err := r.db.ExecContext(ctx,
+	if _, err := r.exec(ctx,
 		"DELETE FROM "+tableWhitelistMember+" WHERE id = ?", id); err != nil {
 		return err
 	}
@@ -657,7 +656,7 @@ func (r *Repository) DeleteWhitelistMember(ctx context.Context, id int64) error 
 
 // ListBackups 查询项目备份记录
 func (r *Repository) ListBackups(ctx context.Context, projectID int64) ([]Backup, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.query(ctx,
 		"SELECT "+backupColumns+" FROM "+tableBackup+" WHERE project_id = ? ORDER BY id DESC", projectID)
 	if err != nil {
 		return nil, err
@@ -676,7 +675,7 @@ func (r *Repository) ListBackups(ctx context.Context, projectID int64) ([]Backup
 
 // GetBackup 按 ID 查询备份记录
 func (r *Repository) GetBackup(ctx context.Context, id int64) (*Backup, error) {
-	b, err := scanBackup(r.db.QueryRowContext(ctx,
+	b, err := scanBackup(r.queryRow(ctx,
 		"SELECT "+backupColumns+" FROM "+tableBackup+" WHERE id = ?", id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -689,22 +688,22 @@ func (r *Repository) GetBackup(ctx context.Context, id int64) (*Backup, error) {
 
 // CreateBackup 新建备份记录
 func (r *Repository) CreateBackup(ctx context.Context, b *Backup) (*Backup, error) {
-	res, err := r.db.ExecContext(ctx,
+	var id int64
+	err := r.queryRow(ctx,
 		"INSERT INTO "+tableBackup+
 			" (project_id, container_id, volume_id, backup_type, strategy_cron, destination, retention_days, restore_note, enabled)"+
-			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
 		b.ProjectID, b.ContainerID, b.VolumeID, b.BackupType, b.StrategyCron, b.Destination,
-		b.RetentionDays, b.RestoreNote, b.Enabled)
+		b.RetentionDays, b.RestoreNote, b.Enabled).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	return r.GetBackup(ctx, id)
 }
 
 // UpdateBackup 更新备份记录（含最近执行结果）
 func (r *Repository) UpdateBackup(ctx context.Context, b *Backup) (*Backup, error) {
-	if _, err := r.db.ExecContext(ctx,
+	if _, err := r.exec(ctx,
 		"UPDATE "+tableBackup+" SET container_id=?, volume_id=?, backup_type=?, strategy_cron=?, destination=?, "+
 			"retention_days=?, last_run_at=?, last_status=?, last_error=?, restore_note=?, enabled=? WHERE id=?",
 		b.ContainerID, b.VolumeID, b.BackupType, b.StrategyCron, b.Destination, b.RetentionDays,
@@ -716,7 +715,7 @@ func (r *Repository) UpdateBackup(ctx context.Context, b *Backup) (*Backup, erro
 
 // DeleteBackup 删除备份记录（硬删除）
 func (r *Repository) DeleteBackup(ctx context.Context, id int64) error {
-	if _, err := r.db.ExecContext(ctx, "DELETE FROM "+tableBackup+" WHERE id = ?", id); err != nil {
+	if _, err := r.exec(ctx, "DELETE FROM "+tableBackup+" WHERE id = ?", id); err != nil {
 		return err
 	}
 	return nil

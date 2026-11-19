@@ -146,7 +146,7 @@ func (r *PMRepository) ListMilestones(ctx context.Context, projectID int64, req 
 	}
 	if req.Keyword != "" {
 		like := "%" + req.Keyword + "%"
-		conditions = append(conditions, "(version ILIKE ? OR name ILIKE ? OR COALESCE(goal,'') ILIKE ?)")
+		conditions = append(conditions, "(version IILIKE ? OR name IILIKE ? OR COALESCE(goal,'') IILIKE ?)")
 		args = append(args, like, like, like)
 	}
 	where := strings.Join(conditions, " AND ")
@@ -310,7 +310,7 @@ func (r *PMRepository) ListTasks(ctx context.Context, projectID int64, req *List
 	}
 	if req.Keyword != "" {
 		like := "%" + req.Keyword + "%"
-		conditions = append(conditions, "(code ILIKE ? OR title ILIKE ? OR COALESCE(description,'') ILIKE ?)")
+		conditions = append(conditions, "(code IILIKE ? OR title IILIKE ? OR COALESCE(description,'') IILIKE ?)")
 		args = append(args, like, like, like)
 	}
 	where := strings.Join(conditions, " AND ")

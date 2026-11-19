@@ -113,7 +113,7 @@
 | V3-P3-01 | codemod：SQL 字符串 `?`→`$n`，处理引号/注释/运算符 + 测试 | refactor | P0 | 1.5 | P2-04 | doing | 暂采用 `dbutil.Rebind` 运行期转换，全量 codemod 待补 |
 | V3-P3-02 | 通用查询 helper：动态 IN、JSONB、ILIKE、分页、Quote | refactor | P0 | 0.5 | P3-01 | done | `internal/pkg/dbutil` 已落地并测试 |
 | V3-P3-03 | 基座模块 SQL：webhook/servicenav/integration/outbox/ops | refactor | P0 | 2.0 | P3-01 | done | PG CRUD/JSONB/ILIKE 已实测 |
-| V3-P3-04 | developmentManager 仓库：`DATABASE()`/info_schema/upsert/分页 | refactor | P0 | 1.5 | P3-01 | todo | 字典扫描可用 |
+| V3-P3-04 | developmentManager 仓库：`DATABASE()`/info_schema/upsert/分页 | refactor | P0 | 1.5 | P3-01 | done | 台账/部署/字典/需求/生成全切 PG；字典扫描与 upsert 已实测 |
 | V3-P3-05 | Store 改造：auth/scheduler/audit/feature/fileref/migrate | refactor | P0 | 1.5 | P3-01 | doing | auth/scheduler/fileref 已切 PG；audit/feature/migrate 待做 |
 | V3-P3-06 | 方言清零门禁 + golden SQL 测试 + 全仓 grep | test | P0 | 1.0 | P3-03..05 | todo | 门禁计数为 0 |
 

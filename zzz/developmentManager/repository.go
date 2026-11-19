@@ -7,6 +7,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/Allinost/go-backend-core/internal/pkg/dbutil"
 )
 
 const (
@@ -32,6 +34,34 @@ type Repository struct {
 // NewRepository 创建 Repository
 func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
+}
+
+func (r *Repository) query(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return r.db.QueryContext(ctx, dbutil.Rebind(query), args...)
+}
+
+func (r *Repository) queryRow(ctx context.Context, query string, args ...any) *sql.Row {
+	return r.db.QueryRowContext(ctx, dbutil.Rebind(query), args...)
+}
+
+func (r *Repository) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return r.db.ExecContext(ctx, dbutil.Rebind(query), args...)
+}
+
+func isDuplicateKey(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := strings.ToLower(err.Error())
+	return strings.Contains(s, "duplicate key") || strings.Contains(s, "duplicate entry")
+}
+
+func execTx(ctx context.Context, tx *sql.Tx, query string, args ...any) (sql.Result, error) {
+	return execTx(ctx, tx, dbutil.Rebind(query), args...)
+}
+
+func queryRowTx(ctx context.Context, tx *sql.Tx, query string, args ...any) *sql.Row {
+	return tx.QueryRowContext(ctx, dbutil.Rebind(query), args...)
 }
 
 type rowScanner interface {
@@ -96,9 +126,9 @@ func (r *Repository) ListProjects(ctx context.Context, req *ListProjectsReq) ([]
 	conditions = append(conditions, "1=1")
 
 	if req.Deleted == nil || !*req.Deleted {
-		conditions = append(conditions, "deleted = 0")
+		conditions = append(conditions, "deleted = false")
 	} else {
-		conditions = append(conditions, "deleted = 1")
+		conditions = append(conditions, "deleted = true")
 	}
 	if req.Type != "" {
 		conditions = append(conditions, "type = ?")
@@ -109,21 +139,21 @@ func (r *Repository) ListProjects(ctx context.Context, req *ListProjectsReq) ([]
 		args = append(args, req.Status)
 	}
 	if req.Keyword != "" {
-		conditions = append(conditions, "(name LIKE ? OR project_key LIKE ? OR description LIKE ?)")
+		conditions = append(conditions, "(name ILIKE ? OR project_key ILIKE ? OR description ILIKE ?)")
 		like := "%" + req.Keyword + "%"
 		args = append(args, like, like, like)
 	}
 	where := strings.Join(conditions, " AND ")
 
 	var total int
-	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+tableProject+" WHERE "+where, args...).Scan(&total); err != nil {
+	if err := r.queryRow(ctx, "SELECT COUNT(*) FROM "+tableProject+" WHERE "+where, args...).Scan(&total); err != nil {
 		return nil, false, 0, err
 	}
 
 	limit := req.PageSize + 1
 	query := "SELECT " + projectColumns + " FROM " + tableProject + " WHERE " + where +
 		" ORDER BY id DESC LIMIT ? OFFSET ?"
-	rows, err := r.db.QueryContext(ctx, query, append(args, limit, req.Offset())...)
+	rows, err := r.query(ctx, query, append(args, limit, req.Offset())...)
 	if err != nil {
 		return nil, false, 0, err
 	}
@@ -150,7 +180,7 @@ func (r *Repository) ListProjects(ctx context.Context, req *ListProjectsReq) ([]
 
 // GetProject 按 ID 查询项目（含已删除，由 deleted 字段区分）
 func (r *Repository) GetProject(ctx context.Context, id int64) (*Project, error) {
-	p, err := scanProject(r.db.QueryRowContext(ctx,
+	p, err := scanProject(r.queryRow(ctx,
 		"SELECT "+projectColumns+" FROM "+tableProject+" WHERE id = ?", id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -163,7 +193,7 @@ func (r *Repository) GetProject(ctx context.Context, id int64) (*Project, error)
 
 // GetProjectByKey 按唯一键查询项目（含已删除）
 func (r *Repository) GetProjectByKey(ctx context.Context, key string) (*Project, error) {
-	p, err := scanProject(r.db.QueryRowContext(ctx,
+	p, err := scanProject(r.queryRow(ctx,
 		"SELECT "+projectColumns+" FROM "+tableProject+" WHERE project_key = ?", key))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -185,19 +215,19 @@ func (r *Repository) CreateProject(ctx context.Context, p *Project) (*Project, e
 	if status == "" {
 		status = ProjectStatusActive
 	}
-	res, err := r.db.ExecContext(ctx,
+	var id int64
+	err := r.queryRow(ctx,
 		"INSERT INTO "+tableProject+
 			" (project_key, name, type, description, repo_url, repo_path, default_branch, tech_stack, status, created_by, updated_by)"+
-			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
 		p.ProjectKey, p.Name, p.Type, p.Description, p.RepoURL, p.RepoPath, p.DefaultBranch,
-		techStack, status, p.CreatedBy, p.UpdatedBy)
+		techStack, status, p.CreatedBy, p.UpdatedBy).Scan(&id)
 	if err != nil {
-		if strings.Contains(err.Error(), "Duplicate entry") {
+		if isDuplicateKey(err) {
 			return nil, NewDevelopmentManagerError(ErrDuplicateProjectKey)
 		}
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	return r.GetProject(ctx, id)
 }
 
@@ -208,14 +238,14 @@ func (r *Repository) UpdateProject(ctx context.Context, p *Project) (*Project, e
 		b, _ := json.Marshal(p.TechStack)
 		techStack = string(b)
 	}
-	res, err := r.db.ExecContext(ctx,
+	res, err := r.exec(ctx,
 		"UPDATE "+tableProject+
 			" SET project_key=?, name=?, type=?, description=?, repo_url=?, repo_path=?, default_branch=?, "+
-			"tech_stack=?, status=?, updated_by=? WHERE id=? AND deleted=0",
+			"tech_stack=?, status=?, updated_by=? WHERE id=? AND deleted=false",
 		p.ProjectKey, p.Name, p.Type, p.Description, p.RepoURL, p.RepoPath, p.DefaultBranch,
 		techStack, p.Status, p.UpdatedBy, p.ID)
 	if err != nil {
-		if strings.Contains(err.Error(), "Duplicate entry") {
+		if isDuplicateKey(err) {
 			return nil, NewDevelopmentManagerError(ErrDuplicateProjectKey)
 		}
 		return nil, err
@@ -239,8 +269,8 @@ func (r *Repository) ListDependents(ctx context.Context, projectID int64) ([]Pro
 		"FROM " + tableRelation + " r " +
 		"LEFT JOIN " + tableProject + " fp ON fp.id = r.from_project_id " +
 		"LEFT JOIN " + tableProject + " tp ON tp.id = r.to_project_id " +
-		"WHERE r.to_project_id = ? AND r.deleted = 0 ORDER BY r.id DESC"
-	rows, err := r.db.QueryContext(ctx, query, projectID)
+		"WHERE r.to_project_id = ? AND r.deleted = false ORDER BY r.id DESC"
+	rows, err := r.query(ctx, query, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -264,8 +294,8 @@ func (r *Repository) DeleteProjectTx(ctx context.Context, projectID int64, now t
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx,
-		"UPDATE "+tableProject+" SET deleted=1, deleted_at=? WHERE id=? AND deleted=0", now, projectID); err != nil {
+	if _, err := execTx(ctx, tx,
+		"UPDATE "+tableProject+" SET deleted=true, deleted_at=? WHERE id=? AND deleted=false", now, projectID); err != nil {
 		return err
 	}
 	if err := r.CascadeDeleteRelations(ctx, tx, projectID, now); err != nil {
@@ -280,7 +310,7 @@ func (r *Repository) DeleteProjectTx(ctx context.Context, projectID int64, now t
 // CascadeDeleteRelations 删除项目时级联标记其发出与收到的关联为已删除
 func (r *Repository) CascadeDeleteRelations(ctx context.Context, exec execer, projectID int64, now time.Time) error {
 	_, err := exec.ExecContext(ctx,
-		"UPDATE "+tableRelation+" SET deleted=1, deleted_at=? WHERE deleted=0 AND (from_project_id=? OR to_project_id=?)",
+		"UPDATE "+tableRelation+" SET deleted=true, deleted_at=? WHERE deleted=false AND (from_project_id=? OR to_project_id=?)",
 		now, projectID, projectID)
 	return err
 }
@@ -288,7 +318,7 @@ func (r *Repository) CascadeDeleteRelations(ctx context.Context, exec execer, pr
 // CascadeDeleteAssets 删除项目时级联标记其资产索引为已删除
 func (r *Repository) CascadeDeleteAssets(ctx context.Context, exec execer, projectID int64, now time.Time) error {
 	_, err := exec.ExecContext(ctx,
-		"UPDATE "+tableAsset+" SET deleted=1, deleted_at=? WHERE deleted=0 AND project_id=?",
+		"UPDATE "+tableAsset+" SET deleted=true, deleted_at=? WHERE deleted=false AND project_id=?",
 		now, projectID)
 	return err
 }
@@ -309,9 +339,9 @@ func (r *Repository) ListRelations(ctx context.Context, projectID int64, req *Li
 	args = append(args, projectID, projectID)
 
 	if req.Deleted == nil || !*req.Deleted {
-		conditions = append(conditions, "r.deleted = 0")
+		conditions = append(conditions, "r.deleted = false")
 	} else {
-		conditions = append(conditions, "r.deleted = 1")
+		conditions = append(conditions, "r.deleted = true")
 	}
 	if req.Type != "" {
 		conditions = append(conditions, "r.relation_type = ?")
@@ -321,7 +351,7 @@ func (r *Repository) ListRelations(ctx context.Context, projectID int64, req *Li
 
 	var total int
 	countQuery := "SELECT COUNT(*) FROM " + tableRelation + " r WHERE " + where
-	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := r.queryRow(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, false, 0, err
 	}
 
@@ -333,7 +363,7 @@ func (r *Repository) ListRelations(ctx context.Context, projectID int64, req *Li
 		"r.deleted_at, r.created_by, r.created_at, r.updated_at, fp.project_key, fp.name, tp.project_key, tp.name "
 
 	query := selectCols + base + " ORDER BY r.id DESC LIMIT ? OFFSET ?"
-	rows, err := r.db.QueryContext(ctx, query, append(args, req.PageSize+1, req.Offset())...)
+	rows, err := r.query(ctx, query, append(args, req.PageSize+1, req.Offset())...)
 	if err != nil {
 		return nil, false, 0, err
 	}
@@ -367,7 +397,7 @@ func (r *Repository) GetRelation(ctx context.Context, id int64) (*ProjectRelatio
 		"LEFT JOIN " + tableProject + " fp ON fp.id = r.from_project_id " +
 		"LEFT JOIN " + tableProject + " tp ON tp.id = r.to_project_id " +
 		"WHERE r.id = ?"
-	rel, err := scanRelation(r.db.QueryRowContext(ctx, query, id))
+	rel, err := scanRelation(r.queryRow(ctx, query, id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, NewDevelopmentManagerError(ErrRelationNotFound)
@@ -380,32 +410,32 @@ func (r *Repository) GetRelation(ctx context.Context, id int64) (*ProjectRelatio
 // RelationExists 判断同两端同类型的未删除关联是否已存在
 func (r *Repository) RelationExists(ctx context.Context, fromID, toID int64, relType string) (bool, error) {
 	var n int
-	err := r.db.QueryRowContext(ctx,
+	err := r.queryRow(ctx,
 		"SELECT COUNT(*) FROM "+tableRelation+
-			" WHERE from_project_id=? AND to_project_id=? AND relation_type=? AND deleted=0",
+			" WHERE from_project_id=? AND to_project_id=? AND relation_type=? AND deleted=false",
 		fromID, toID, relType).Scan(&n)
 	return n > 0, err
 }
 
 // CreateRelation 新建关联
 func (r *Repository) CreateRelation(ctx context.Context, rel *ProjectRelation) (*ProjectRelation, error) {
-	res, err := r.db.ExecContext(ctx,
-		"INSERT INTO "+tableRelation+" (from_project_id, to_project_id, relation_type, note, created_by) VALUES (?, ?, ?, ?, ?)",
-		rel.FromProjectID, rel.ToProjectID, rel.RelationType, rel.Note, rel.CreatedBy)
+	var id int64
+	err := r.queryRow(ctx,
+		"INSERT INTO "+tableRelation+" (from_project_id, to_project_id, relation_type, note, created_by) VALUES (?, ?, ?, ?, ?) RETURNING id",
+		rel.FromProjectID, rel.ToProjectID, rel.RelationType, rel.Note, rel.CreatedBy).Scan(&id)
 	if err != nil {
-		if strings.Contains(err.Error(), "Duplicate entry") {
+		if isDuplicateKey(err) {
 			return nil, NewDevelopmentManagerError(ErrDuplicateProjectKey)
 		}
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	return r.GetRelation(ctx, id)
 }
 
 // SoftDeleteRelation 软删除关联
 func (r *Repository) SoftDeleteRelation(ctx context.Context, id int64, now time.Time) error {
-	res, err := r.db.ExecContext(ctx,
-		"UPDATE "+tableRelation+" SET deleted=1, deleted_at=? WHERE id=? AND deleted=0", now, id)
+	res, err := r.exec(ctx,
+		"UPDATE "+tableRelation+" SET deleted=true, deleted_at=? WHERE id=? AND deleted=false", now, id)
 	if err != nil {
 		return err
 	}
@@ -429,9 +459,9 @@ func (r *Repository) ListAssets(ctx context.Context, projectID int64, req *ListA
 	conditions = append(conditions, "project_id = ?")
 	args = append(args, projectID)
 	if req.Deleted == nil || !*req.Deleted {
-		conditions = append(conditions, "deleted = 0")
+		conditions = append(conditions, "deleted = false")
 	} else {
-		conditions = append(conditions, "deleted = 1")
+		conditions = append(conditions, "deleted = true")
 	}
 	if req.Category != "" {
 		conditions = append(conditions, "category = ?")
@@ -440,13 +470,13 @@ func (r *Repository) ListAssets(ctx context.Context, projectID int64, req *ListA
 	where := strings.Join(conditions, " AND ")
 
 	var total int
-	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+tableAsset+" WHERE "+where, args...).Scan(&total); err != nil {
+	if err := r.queryRow(ctx, "SELECT COUNT(*) FROM "+tableAsset+" WHERE "+where, args...).Scan(&total); err != nil {
 		return nil, false, 0, err
 	}
 
 	query := "SELECT " + assetColumns + " FROM " + tableAsset + " WHERE " + where +
 		" ORDER BY id DESC LIMIT ? OFFSET ?"
-	rows, err := r.db.QueryContext(ctx, query, append(args, req.PageSize+1, req.Offset())...)
+	rows, err := r.query(ctx, query, append(args, req.PageSize+1, req.Offset())...)
 	if err != nil {
 		return nil, false, 0, err
 	}
@@ -473,9 +503,9 @@ func (r *Repository) ListAssets(ctx context.Context, projectID int64, req *ListA
 
 // ListDirectoryAssets 查询项目下目录型资产（format=dir）
 func (r *Repository) ListDirectoryAssets(ctx context.Context, projectID int64) ([]ProjectAsset, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.query(ctx,
 		"SELECT "+assetColumns+" FROM "+tableAsset+
-			" WHERE project_id = ? AND deleted = 0 AND format = 'dir' ORDER BY id ASC", projectID)
+			" WHERE project_id = ? AND deleted = false AND format = 'dir' ORDER BY id ASC", projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +523,7 @@ func (r *Repository) ListDirectoryAssets(ctx context.Context, projectID int64) (
 
 // GetAsset 查询单条资产索引
 func (r *Repository) GetAsset(ctx context.Context, id int64) (*ProjectAsset, error) {
-	a, err := scanAsset(r.db.QueryRowContext(ctx,
+	a, err := scanAsset(r.queryRow(ctx,
 		"SELECT "+assetColumns+" FROM "+tableAsset+" WHERE id = ?", id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -507,29 +537,29 @@ func (r *Repository) GetAsset(ctx context.Context, id int64) (*ProjectAsset, err
 // AssetExists 判断同项目同 URI 的未删除资产是否已存在（seed 幂等用）
 func (r *Repository) AssetExists(ctx context.Context, projectID int64, uri string) (bool, error) {
 	var n int
-	err := r.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM "+tableAsset+" WHERE project_id=? AND uri=? AND deleted=0",
+	err := r.queryRow(ctx,
+		"SELECT COUNT(*) FROM "+tableAsset+" WHERE project_id=? AND uri=? AND deleted=false",
 		projectID, uri).Scan(&n)
 	return n > 0, err
 }
 
 // CreateAsset 新建资产索引
 func (r *Repository) CreateAsset(ctx context.Context, a *ProjectAsset) (*ProjectAsset, error) {
-	res, err := r.db.ExecContext(ctx,
+	var id int64
+	err := r.queryRow(ctx,
 		"INSERT INTO "+tableAsset+
-			" (project_id, category, title, uri, format, version, size, checksum, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		a.ProjectID, a.Category, a.Title, a.URI, a.Format, a.Version, a.Size, a.Checksum, a.Note)
+			" (project_id, category, title, uri, format, version, size, checksum, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+		a.ProjectID, a.Category, a.Title, a.URI, a.Format, a.Version, a.Size, a.Checksum, a.Note).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	return r.GetAsset(ctx, id)
 }
 
 // SoftDeleteAsset 软删除资产索引
 func (r *Repository) SoftDeleteAsset(ctx context.Context, id int64, now time.Time) error {
-	res, err := r.db.ExecContext(ctx,
-		"UPDATE "+tableAsset+" SET deleted=1, deleted_at=? WHERE id=? AND deleted=0", now, id)
+	res, err := r.exec(ctx,
+		"UPDATE "+tableAsset+" SET deleted=true, deleted_at=? WHERE id=? AND deleted=false", now, id)
 	if err != nil {
 		return err
 	}
@@ -551,8 +581,8 @@ func (r *Repository) Stats(ctx context.Context) (*StatsResp, error) {
 		ProjectsByStatus: map[string]int{},
 	}
 
-	rows, err := r.db.QueryContext(ctx,
-		"SELECT type, status, COUNT(*) FROM "+tableProject+" WHERE deleted=0 GROUP BY type, status")
+	rows, err := r.query(ctx,
+		"SELECT type, status, COUNT(*) FROM "+tableProject+" WHERE deleted=false GROUP BY type, status")
 	if err != nil {
 		return nil, err
 	}
@@ -571,16 +601,16 @@ func (r *Repository) Stats(ctx context.Context) (*StatsResp, error) {
 		return nil, err
 	}
 
-	if err := r.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM "+tableProject+" WHERE deleted=1").Scan(&resp.ProjectsDeleted); err != nil {
+	if err := r.queryRow(ctx,
+		"SELECT COUNT(*) FROM "+tableProject+" WHERE deleted=true").Scan(&resp.ProjectsDeleted); err != nil {
 		return nil, err
 	}
-	if err := r.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM "+tableRelation+" WHERE deleted=0").Scan(&resp.RelationsActive); err != nil {
+	if err := r.queryRow(ctx,
+		"SELECT COUNT(*) FROM "+tableRelation+" WHERE deleted=false").Scan(&resp.RelationsActive); err != nil {
 		return nil, err
 	}
-	if err := r.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM "+tableAsset+" WHERE deleted=0").Scan(&resp.AssetsTotal); err != nil {
+	if err := r.queryRow(ctx,
+		"SELECT COUNT(*) FROM "+tableAsset+" WHERE deleted=false").Scan(&resp.AssetsTotal); err != nil {
 		return nil, err
 	}
 	return resp, nil

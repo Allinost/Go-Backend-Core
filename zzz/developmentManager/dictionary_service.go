@@ -31,7 +31,7 @@ func (s *Service) GetTable(ctx context.Context, id int64) (*DBTable, error) {
 func (s *Service) normalizeTableReq(ctx context.Context, req *CreateTableReq) (*DBTable, error) {
 	dbType := strings.TrimSpace(req.DBType)
 	if dbType == "" {
-		dbType = DBTypeMySQL
+		dbType = DBTypePostgres
 	}
 	if !ValidDBTypes[dbType] {
 		return nil, NewDevelopmentManagerError(ErrInvalidDBType)
@@ -211,7 +211,7 @@ func (s *Service) ScanImportColumns(ctx context.Context, tableID int64) (*ScanIm
 	if err != nil {
 		return nil, err
 	}
-	if t.DBType != DBTypeMySQL {
+	if t.DBType != DBTypeMySQL && t.DBType != DBTypePostgres {
 		return nil, NewDevelopmentManagerError(ErrScanUnsupported)
 	}
 	schema := t.TableSchema

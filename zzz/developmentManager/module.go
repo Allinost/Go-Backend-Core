@@ -36,11 +36,11 @@ func (m *Module) Name() string {
 func (m *Module) Init(cfg *config.Config) error {
 	m.cfg = cfg
 
-	pool := database.DB.MySQL["main"]
-	if pool == nil {
-		return fmt.Errorf("developmentmanager: MySQL 连接不可用")
+	pg := database.DB.Postgres["main"]
+	if pg == nil || pg.SQLDB == nil {
+		return fmt.Errorf("developmentmanager: PostgreSQL 连接不可用")
 	}
-	m.repo = NewRepository(pool.DB)
+	m.repo = NewRepository(pg.SQLDB)
 
 	// 依赖 auth 模块（main.go 注册顺序保证 auth 先于本模块初始化）
 	authMod := modules.Get("auth")
@@ -63,13 +63,9 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.h = NewHandler(m.svc)
 	m.h.SetRBAC(m.rbac)
 
-	// V3 里程碑/任务使用 PostgreSQL；旧台账/需求仍走 MySQL，后续 P3-04 统一迁移。
-	if pg := database.DB.Postgres["main"]; pg != nil && pg.SQLDB != nil {
-		m.pm = NewPMService(NewPMRepository(pg.SQLDB))
-		m.h.SetPM(m.pm)
-	} else {
-		logger.Warn().Msg("developmentmanager: PostgreSQL 不可用，里程碑/任务 API 未启用")
-	}
+	// 里程碑/任务与旧台账统一使用 PostgreSQL。
+	m.pm = NewPMService(NewPMRepository(pg.SQLDB))
+	m.h.SetPM(m.pm)
 
 	// 台账 seed 幂等登记现有项目（迁移未应用时后台重试）
 	go m.seedWithRetry()

@@ -47,7 +47,7 @@ func scanDBColumn(row rowScanner) (*DBColumn, error) {
 // CurrentSchema 当前连接默认库名
 func (r *Repository) CurrentSchema(ctx context.Context) (string, error) {
 	var schema sql.NullString
-	if err := r.db.QueryRowContext(ctx, "SELECT DATABASE()").Scan(&schema); err != nil {
+	if err := r.queryRow(ctx, "SELECT current_schema()").Scan(&schema); err != nil {
 		return "", err
 	}
 	return schema.String, nil
@@ -66,12 +66,12 @@ func (r *Repository) ListTables(ctx context.Context, projectID int64, req *ListT
 		args = append(args, req.Module)
 	}
 	if req.Keyword != "" {
-		query += " AND (t.table_name LIKE ? OR t.purpose LIKE ?)"
+		query += " AND (t.table_name ILIKE ? OR t.purpose ILIKE ?)"
 		like := "%" + req.Keyword + "%"
 		args = append(args, like, like)
 	}
 	query += " ORDER BY t.id ASC"
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := r.query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (r *Repository) ListTables(ctx context.Context, projectID int64, req *ListT
 
 // GetTable 按 ID 查询数据表
 func (r *Repository) GetTable(ctx context.Context, id int64) (*DBTable, error) {
-	t, err := scanDBTable(r.db.QueryRowContext(ctx,
+	t, err := scanDBTable(r.queryRow(ctx,
 		"SELECT "+dbTableColumns+" FROM "+tableDBTable+" t WHERE t.id = ?", id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -102,7 +102,7 @@ func (r *Repository) GetTable(ctx context.Context, id int64) (*DBTable, error) {
 
 // GetTableByName 按项目 + 库 + 表名查询
 func (r *Repository) GetTableByName(ctx context.Context, projectID int64, schema, name string) (*DBTable, error) {
-	t, err := scanDBTable(r.db.QueryRowContext(ctx,
+	t, err := scanDBTable(r.queryRow(ctx,
 		"SELECT "+dbTableColumns+" FROM "+tableDBTable+
 			" t WHERE t.project_id = ? AND t.table_schema = ? AND t.table_name = ?",
 		projectID, schema, name))
@@ -117,30 +117,30 @@ func (r *Repository) GetTableByName(ctx context.Context, projectID int64, schema
 
 // CreateTable 新建数据表登记
 func (r *Repository) CreateTable(ctx context.Context, t *DBTable) (*DBTable, error) {
-	res, err := r.db.ExecContext(ctx,
+	var id int64
+	err := r.queryRow(ctx,
 		"INSERT INTO "+tableDBTable+
 			" (project_id, db_type, table_schema, table_name, purpose, status, module_name, created_note, created_by, updated_by)"+
-			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
 		t.ProjectID, t.DBType, t.TableSchema, t.TableName, t.Purpose, t.Status, t.ModuleName,
-		t.CreatedNote, t.CreatedBy, t.UpdatedBy)
+		t.CreatedNote, t.CreatedBy, t.UpdatedBy).Scan(&id)
 	if err != nil {
-		if strings.Contains(err.Error(), "Duplicate entry") {
+		if isDuplicateKey(err) {
 			return nil, NewDevelopmentManagerError(ErrDuplicateTable)
 		}
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	return r.GetTable(ctx, id)
 }
 
 // UpdateTable 全量更新数据表登记
 func (r *Repository) UpdateTable(ctx context.Context, t *DBTable) (*DBTable, error) {
-	if _, err := r.db.ExecContext(ctx,
+	if _, err := r.exec(ctx,
 		"UPDATE "+tableDBTable+" SET db_type=?, table_schema=?, table_name=?, purpose=?, status=?, "+
 			"module_name=?, created_note=?, updated_by=? WHERE id=?",
 		t.DBType, t.TableSchema, t.TableName, t.Purpose, t.Status, t.ModuleName, t.CreatedNote,
 		t.UpdatedBy, t.ID); err != nil {
-		if strings.Contains(err.Error(), "Duplicate entry") {
+		if isDuplicateKey(err) {
 			return nil, NewDevelopmentManagerError(ErrDuplicateTable)
 		}
 		return nil, err
@@ -156,11 +156,11 @@ func (r *Repository) DeleteTableTx(ctx context.Context, tableID int64) error {
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx,
+	if _, err := execTx(ctx, tx,
 		"DELETE FROM "+tableDBColumn+" WHERE table_id = ?", tableID); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx,
+	if _, err := execTx(ctx, tx,
 		"DELETE FROM "+tableDBTable+" WHERE id = ?", tableID); err != nil {
 		return err
 	}
@@ -169,7 +169,7 @@ func (r *Repository) DeleteTableTx(ctx context.Context, tableID int64) error {
 
 // ListColumns 查询表字段（主键优先，其次登记顺序）
 func (r *Repository) ListColumns(ctx context.Context, tableID int64) ([]DBColumn, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.query(ctx,
 		"SELECT "+dbColumnColumns+" FROM "+tableDBColumn+
 			" WHERE table_id = ? ORDER BY is_pk DESC, id ASC", tableID)
 	if err != nil {
@@ -189,7 +189,7 @@ func (r *Repository) ListColumns(ctx context.Context, tableID int64) ([]DBColumn
 
 // GetColumn 按 ID 查询字段
 func (r *Repository) GetColumn(ctx context.Context, id int64) (*DBColumn, error) {
-	c, err := scanDBColumn(r.db.QueryRowContext(ctx,
+	c, err := scanDBColumn(r.queryRow(ctx,
 		"SELECT "+dbColumnColumns+" FROM "+tableDBColumn+" WHERE id = ?", id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -202,7 +202,7 @@ func (r *Repository) GetColumn(ctx context.Context, id int64) (*DBColumn, error)
 
 // GetColumnByName 按表 + 字段名查询
 func (r *Repository) GetColumnByName(ctx context.Context, tableID int64, name string) (*DBColumn, error) {
-	c, err := scanDBColumn(r.db.QueryRowContext(ctx,
+	c, err := scanDBColumn(r.queryRow(ctx,
 		"SELECT "+dbColumnColumns+" FROM "+tableDBColumn+" WHERE table_id = ? AND column_name = ?",
 		tableID, name))
 	if err != nil {
@@ -216,30 +216,30 @@ func (r *Repository) GetColumnByName(ctx context.Context, tableID int64, name st
 
 // CreateColumn 新建字段
 func (r *Repository) CreateColumn(ctx context.Context, c *DBColumn) (*DBColumn, error) {
-	res, err := r.db.ExecContext(ctx,
+	var id int64
+	err := r.queryRow(ctx,
 		"INSERT INTO "+tableDBColumn+
 			" (table_id, column_name, data_type, nullable, default_value, meaning, example, is_pk, is_index, note)"+
-			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
 		c.TableID, c.ColumnName, c.DataType, c.Nullable, c.DefaultValue, c.Meaning, c.Example,
-		c.IsPK, c.IsIndex, c.Note)
+		c.IsPK, c.IsIndex, c.Note).Scan(&id)
 	if err != nil {
-		if strings.Contains(err.Error(), "Duplicate entry") {
+		if isDuplicateKey(err) {
 			return nil, NewDevelopmentManagerError(ErrDuplicateColumn)
 		}
 		return nil, err
 	}
-	id, _ := res.LastInsertId()
 	return r.GetColumn(ctx, id)
 }
 
 // UpdateColumn 全量更新字段
 func (r *Repository) UpdateColumn(ctx context.Context, c *DBColumn) (*DBColumn, error) {
-	if _, err := r.db.ExecContext(ctx,
+	if _, err := r.exec(ctx,
 		"UPDATE "+tableDBColumn+" SET column_name=?, data_type=?, nullable=?, default_value=?, meaning=?, "+
 			"example=?, is_pk=?, is_index=?, note=? WHERE id=?",
 		c.ColumnName, c.DataType, c.Nullable, c.DefaultValue, c.Meaning, c.Example, c.IsPK,
 		c.IsIndex, c.Note, c.ID); err != nil {
-		if strings.Contains(err.Error(), "Duplicate entry") {
+		if isDuplicateKey(err) {
 			return nil, NewDevelopmentManagerError(ErrDuplicateColumn)
 		}
 		return nil, err
@@ -249,16 +249,30 @@ func (r *Repository) UpdateColumn(ctx context.Context, c *DBColumn) (*DBColumn, 
 
 // DeleteColumn 删除字段（硬删除）
 func (r *Repository) DeleteColumn(ctx context.Context, id int64) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM "+tableDBColumn+" WHERE id = ?", id)
+	_, err := r.exec(ctx, "DELETE FROM "+tableDBColumn+" WHERE id = ?", id)
 	return err
 }
 
-// ScanTableColumns 从 information_schema 扫描指定表的字段
+// ScanTableColumns 从 information_schema/pg_catalog 扫描指定表的字段
 func (r *Repository) ScanTableColumns(ctx context.Context, schema, table string) ([]ScannedColumn, error) {
-	rows, err := r.db.QueryContext(ctx,
-		"SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMN_KEY, COLUMN_COMMENT "+
-			"FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION",
-		schema, table)
+	rows, err := r.query(ctx, `
+		SELECT a.attname,
+		       format_type(a.atttypid, a.atttypmod),
+		       CASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END,
+		       pg_get_expr(ad.adbin, ad.adrelid),
+		       CASE
+		         WHEN EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = a.attrelid AND i.indisprimary AND a.attnum = ANY(i.indkey)) THEN 'PRI'
+		         WHEN EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = a.attrelid AND i.indisunique AND a.attnum = ANY(i.indkey)) THEN 'UNI'
+		         WHEN EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = a.attrelid AND a.attnum = ANY(i.indkey)) THEN 'MUL'
+		         ELSE ''
+		       END,
+		       COALESCE(col_description(a.attrelid, a.attnum), '')
+		FROM pg_attribute a
+		JOIN pg_class c ON c.oid = a.attrelid
+		JOIN pg_namespace n ON n.oid = c.relnamespace
+		LEFT JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
+		WHERE n.nspname = ? AND c.relname = ? AND a.attnum > 0 AND NOT a.attisdropped
+		ORDER BY a.attnum`, schema, table)
 	if err != nil {
 		return nil, err
 	}
@@ -290,17 +304,20 @@ func (r *Repository) ScanTableColumns(ctx context.Context, schema, table string)
 
 // UpsertScannedColumn 扫描导入字段：新字段插入，已有字段更新类型/可空/默认值/主键/索引，但保留人工填写的含义
 func (r *Repository) UpsertScannedColumn(ctx context.Context, tableID int64, c *ScannedColumn) (bool, error) {
-	res, err := r.db.ExecContext(ctx,
+	var inserted bool
+	err := r.queryRow(ctx,
 		"INSERT INTO "+tableDBColumn+
 			" (table_id, column_name, data_type, nullable, default_value, meaning, is_pk, is_index)"+
 			" VALUES (?, ?, ?, ?, ?, ?, ?, ?)"+
-			" ON DUPLICATE KEY UPDATE data_type=VALUES(data_type), nullable=VALUES(nullable),"+
-			" default_value=VALUES(default_value), meaning=IF(meaning = '', VALUES(meaning), meaning),"+
-			" is_pk=VALUES(is_pk), is_index=VALUES(is_index)",
-		tableID, c.Name, c.DataType, c.Nullable, c.DefaultValue, c.Comment, c.IsPK, c.IsIndex)
+			" ON CONFLICT (table_id, column_name) DO UPDATE SET"+
+			" data_type=EXCLUDED.data_type, nullable=EXCLUDED.nullable,"+
+			" default_value=EXCLUDED.default_value,"+
+			" meaning=CASE WHEN zzz_development_manager_db_column.meaning = '' THEN EXCLUDED.meaning ELSE zzz_development_manager_db_column.meaning END,"+
+			" is_pk=EXCLUDED.is_pk, is_index=EXCLUDED.is_index, updated_at=now()"+
+			" RETURNING (xmax = 0)",
+		tableID, c.Name, c.DataType, c.Nullable, c.DefaultValue, c.Comment, c.IsPK, c.IsIndex).Scan(&inserted)
 	if err != nil {
 		return false, err
 	}
-	affected, _ := res.RowsAffected()
-	return affected == 1, nil
+	return inserted, nil
 }
