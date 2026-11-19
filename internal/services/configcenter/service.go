@@ -213,5 +213,25 @@ func (s *Service) Reset(ctx context.Context, keys []string, operator, note strin
 }
 
 func (s *Service) History(ctx context.Context, key string, limit int) ([]HistoryEntry, error) {
-	return s.store.History(ctx, key, limit)
+	entries, err := s.store.History(ctx, key, limit)
+	if err != nil {
+		return nil, err
+	}
+	for i := range entries {
+		spec, ok := s.registry.Get(entries[i].Key)
+		if !ok || !spec.Sensitive {
+			continue
+		}
+		entries[i].OldValue = maskHistoryValue(entries[i].OldValue)
+		entries[i].NewValue = maskHistoryValue(entries[i].NewValue)
+	}
+	return entries, nil
+}
+
+// maskHistoryValue 对敏感项历史值脱敏；保留 null 语义。
+func maskHistoryValue(value json.RawMessage) json.RawMessage {
+	if len(value) == 0 || string(value) == "null" {
+		return value
+	}
+	return json.RawMessage(`"******"`)
 }

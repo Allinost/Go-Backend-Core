@@ -83,3 +83,26 @@ func TestServiceEncryptedValueRequiresCipher(t *testing.T) {
 		t.Fatal("缺少密钥时应加载失败")
 	}
 }
+
+func TestServiceHistoryMasksSensitiveValues(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := testService(t)
+	svc.SetSecretCipher(prefixCipher{})
+
+	if err := svc.Update(ctx, map[string]any{"app.token": "jd-pass"}, "tester", ""); err != nil {
+		t.Fatal(err)
+	}
+	history, err := svc.History(ctx, "app.token", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history) == 0 {
+		t.Fatal("缺少历史记录")
+	}
+	if strings.Contains(string(history[0].NewValue), "jd-pass") {
+		t.Errorf("历史泄露明文: %s", history[0].NewValue)
+	}
+	if string(history[0].NewValue) != `"******"` {
+		t.Errorf("历史未脱敏: %s", history[0].NewValue)
+	}
+}
