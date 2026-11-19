@@ -9,7 +9,11 @@ import (
 
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/Allinost/go-backend-core/internal/database"
+	"github.com/Allinost/go-backend-core/internal/middleware"
+	"github.com/Allinost/go-backend-core/internal/modules"
+	coreAuth "github.com/Allinost/go-backend-core/internal/modules/auth"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
+	svcAuth "github.com/Allinost/go-backend-core/internal/services/auth"
 	"github.com/Allinost/go-backend-core/internal/services/fileref"
 	"github.com/Allinost/go-backend-core/internal/services/storage"
 	"github.com/gin-gonic/gin"
@@ -20,6 +24,10 @@ type Module struct {
 	svc    *Service
 	h      *Handler
 	refSvc *fileref.Service
+	maint  *MaintenanceService
+	maintH *MaintenanceHandler
+	authMW gin.HandlerFunc
+	rbac   *svcAuth.RBACService
 }
 
 func (m *Module) Name() string {
@@ -74,6 +82,24 @@ func (m *Module) Init(cfg *config.Config) error {
 		}
 	}
 
+	if sqlDB != nil {
+		m.maint = NewMaintenanceService(NewMaintenanceRepository(sqlDB))
+		m.maintH = NewMaintenanceHandler(m.maint)
+	}
+
+	if authMod := modules.Get("auth"); authMod != nil {
+		if am, ok := authMod.(*coreAuth.Module); ok {
+			m.authMW = am.AuthMiddleware()
+			m.rbac = am.RBAC()
+			if err := SeedMaintenancePermissions(m.rbac); err != nil {
+				logger.Warn().Err(err).Msg("ops: 维护权限初始化失败")
+			}
+		}
+	}
+	if m.authMW == nil {
+		logger.Warn().Msg("ops: auth 模块不可用，维护 API 未启用")
+	}
+
 	m.svc = NewService(sqlDB, s3Client, s3Bucket, store, s3Endpoint, s3UseSSL, m.refSvc)
 	m.h = NewHandler(m.svc)
 
@@ -119,6 +145,19 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	st.POST("", m.h.CreateScanTarget)
 	st.PUT("/:id", m.h.UpdateScanTarget)
 	st.DELETE("/:id", m.h.DeleteScanTarget)
+
+	// L1/L2 手动维护
+	if m.maintH != nil && m.authMW != nil {
+		need := func(action string) gin.HandlerFunc {
+			return middleware.RequirePermission(m.rbac, "ops.maintenance", action)
+		}
+		maint := r.Group("/maintenance")
+		maint.Use(m.authMW)
+		maint.GET("", need("read"), m.maintH.Status)
+		maint.POST("/start", need("start"), m.maintH.Start)
+		maint.POST("/end", need("end"), m.maintH.End)
+		maint.GET("/history", need("read"), m.maintH.History)
+	}
 }
 
 var _ interface {

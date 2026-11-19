@@ -515,6 +515,7 @@ make swagger
 - 开始维护：`migrate_*` 需勾选“L1→L2 已同步”；停止 L1 V3，在 L2 启动 V3（`APP_PROFILE=backup`）。
 - 结束维护：按模式处理；`migrate_return` 必须反向同步确认。
 - 状态/操作审计：维护状态表 + 模式/操作人/时间/同步确认；权限 `ops.maintenance.read/start/end`。
+- API：`GET /api/v1/ops/maintenance`、`POST /start`、`POST /end`、`GET /history`。
 - 不做运行中热切连接；L1/L2 各自 V3 进程连接本机服务。
 
 ### 10.11 管理员账号初始化（V3.0）
