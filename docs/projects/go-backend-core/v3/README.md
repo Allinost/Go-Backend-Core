@@ -121,7 +121,7 @@
 
 | 编号 | 任务 | 类型 | 优先级 | 预估 | 依赖 | 状态 | 验收/备注 |
 |---|---|---|---|---:|---|---|---|
-| V3-P4-01 | auth User/RBAC/ApiKey：PG 驱动/迁移/默认权限 | refactor | P0 | 2.0 | P3-05 | doing | GORM PG Store 已接，登录/RBAC/API Key 待 HTTP 验证 |
+| V3-P4-01 | auth User/RBAC/ApiKey：PG 驱动/迁移/默认权限 | refactor | P0 | 2.0 | P3-05 | done | HTTP 登录/RBAC/API Key 已验证；自助注册关闭属 P4-06 |
 | V3-P4-02 | scheduler PG Store：tasks/logs/`NOW()`/AutoMigrate 关闭 | refactor | P0 | 1.0 | P3-05 | done | PG 持久化/JSONB/日志已验证 |
 | V3-P4-03 | outbox + integration action log：upsert/jsonb/时间 | refactor | P1 | 1.0 | P3-03 | todo | 事件投递幂等 |
 | V3-P4-04 | fileref + ops：DDL→迁移、`current_database()`、扫描、引号 | refactor | P1 | 1.0 | P3-03 | todo | 文件引用/扫描可用 |

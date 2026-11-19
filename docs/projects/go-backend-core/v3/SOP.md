@@ -517,6 +517,21 @@ make swagger
 - 状态/操作审计：维护状态表 + 模式/操作人/时间/同步确认；权限 `ops.maintenance.read/start/end`。
 - 不做运行中热切连接；L1/L2 各自 V3 进程连接本机服务。
 
+### 10.11 管理员账号初始化（V3.0）
+
+首次部署后使用 `v3admin` 创建管理员，不依赖开放注册。
+
+```powershell
+$env:V3_ADMIN_PASSWORD='至少8位密码'
+go run ./cmd/v3admin -username admin -nickname 管理员
+```
+
+- 默认角色 `admin`；`-role user` 可创建普通用户后另行授权。
+- 用户已存在时只补齐角色，不重置密码。
+- 密码也可用 `-password` 传入，但推荐环境变量，避免进入命令历史。
+- 表不存在时先执行 `POST /api/v1/migrate/schema/migrate`。
+- 首次登录后立即修改密码；默认不开放自助注册（P4-06 关闭 `/auth/register`）。
+
 ---
 
 ## 11. 项目管控与周报
