@@ -5580,6 +5580,256 @@ const docTemplate = `{
                 }
             }
         },
+        "/health/echo": {
+            "get": {
+                "description": "返回请求的详细信息，包括方法、路径、查询参数、请求头和客户端 IP",
+                "tags": [
+                    "health-调试"
+                ],
+                "summary": "请求回显（调试用）",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "client_ip": {
+                                                    "type": "string"
+                                                },
+                                                "headers": {
+                                                    "type": "object"
+                                                },
+                                                "method": {
+                                                    "type": "string"
+                                                },
+                                                "path": {
+                                                    "type": "string"
+                                                },
+                                                "query": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/health/health": {
+            "get": {
+                "description": "返回所有依赖服务的健康检查结果",
+                "tags": [
+                    "health-调试"
+                ],
+                "summary": "全服务健康状态",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "checks": {
+                                                    "type": "object"
+                                                },
+                                                "status": {
+                                                    "type": "string"
+                                                },
+                                                "uptime": {
+                                                    "type": "string"
+                                                },
+                                                "version": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/health/info": {
+            "get": {
+                "description": "返回服务名称、版本、运行时长、Go 运行时信息等",
+                "tags": [
+                    "health-调试"
+                ],
+                "summary": "服务信息",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "config_watch": {
+                                                    "type": "boolean"
+                                                },
+                                                "go_arch": {
+                                                    "type": "string"
+                                                },
+                                                "go_os": {
+                                                    "type": "string"
+                                                },
+                                                "go_version": {
+                                                    "type": "string"
+                                                },
+                                                "goroutines": {
+                                                    "type": "integer"
+                                                },
+                                                "mode": {
+                                                    "type": "string"
+                                                },
+                                                "modules": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "start_time": {
+                                                    "type": "string"
+                                                },
+                                                "uptime": {
+                                                    "type": "string"
+                                                },
+                                                "version": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/health/metrics": {
+            "get": {
+                "description": "返回 Prometheus 格式的监控指标",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "health-调试"
+                ],
+                "summary": "Prometheus 指标暴露",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/health/modules": {
+            "get": {
+                "description": "返回所有已注册的业务模块名称",
+                "tags": [
+                    "health-调试"
+                ],
+                "summary": "已注册模块列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "modules": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/health/ping": {
+            "get": {
+                "description": "返回 pong 表示服务运行正常",
+                "tags": [
+                    "health-调试"
+                ],
+                "summary": "存活检查",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/integration/actions": {
             "get": {
                 "tags": [
@@ -8571,478 +8821,6 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/internal_modules_ops.ComponentStatus"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/s0/echo": {
-            "get": {
-                "description": "返回请求的详细信息，包括方法、路径、查询参数、请求头和客户端 IP",
-                "tags": [
-                    "s0-调试"
-                ],
-                "summary": "请求回显（调试用）",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "client_ip": {
-                                                    "type": "string"
-                                                },
-                                                "headers": {
-                                                    "type": "object"
-                                                },
-                                                "method": {
-                                                    "type": "string"
-                                                },
-                                                "path": {
-                                                    "type": "string"
-                                                },
-                                                "query": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/s0/health": {
-            "get": {
-                "description": "返回所有依赖服务的健康检查结果",
-                "tags": [
-                    "s0-调试"
-                ],
-                "summary": "全服务健康状态",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "checks": {
-                                                    "type": "object"
-                                                },
-                                                "status": {
-                                                    "type": "string"
-                                                },
-                                                "uptime": {
-                                                    "type": "string"
-                                                },
-                                                "version": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/s0/info": {
-            "get": {
-                "description": "返回服务名称、版本、运行时长、Go 运行时信息等",
-                "tags": [
-                    "s0-调试"
-                ],
-                "summary": "服务信息",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "config_watch": {
-                                                    "type": "boolean"
-                                                },
-                                                "go_arch": {
-                                                    "type": "string"
-                                                },
-                                                "go_os": {
-                                                    "type": "string"
-                                                },
-                                                "go_version": {
-                                                    "type": "string"
-                                                },
-                                                "goroutines": {
-                                                    "type": "integer"
-                                                },
-                                                "mode": {
-                                                    "type": "string"
-                                                },
-                                                "modules": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "string"
-                                                    }
-                                                },
-                                                "name": {
-                                                    "type": "string"
-                                                },
-                                                "start_time": {
-                                                    "type": "string"
-                                                },
-                                                "uptime": {
-                                                    "type": "string"
-                                                },
-                                                "version": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/s0/metrics": {
-            "get": {
-                "description": "返回 Prometheus 格式的监控指标",
-                "produces": [
-                    "text/plain"
-                ],
-                "tags": [
-                    "s0-调试"
-                ],
-                "summary": "Prometheus 指标暴露",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/s0/modules": {
-            "get": {
-                "description": "返回所有已注册的业务模块名称",
-                "tags": [
-                    "s0-调试"
-                ],
-                "summary": "已注册模块列表",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "count": {
-                                                    "type": "integer"
-                                                },
-                                                "modules": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object"
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/s0/ping": {
-            "get": {
-                "description": "返回 pong 表示服务运行正常",
-                "tags": [
-                    "s0-调试"
-                ],
-                "summary": "存活检查",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "message": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/s1/ping": {
-            "get": {
-                "description": "返回 pong 表示 s1 模块运行正常",
-                "tags": [
-                    "s1-调试"
-                ],
-                "summary": "s1 存活检查",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "module": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/s1/status": {
-            "get": {
-                "description": "返回 s1 模块运行时长和健康状态",
-                "tags": [
-                    "s1-调试"
-                ],
-                "summary": "s1 运行状态",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "alive": {
-                                                    "type": "boolean"
-                                                },
-                                                "module": {
-                                                    "type": "string"
-                                                },
-                                                "uptime": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/s1/version": {
-            "get": {
-                "description": "返回 s1 模块版本号",
-                "tags": [
-                    "s1-调试"
-                ],
-                "summary": "s1 版本信息",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "module": {
-                                                    "type": "string"
-                                                },
-                                                "version": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/s2/ping": {
-            "get": {
-                "description": "返回 pong 表示 s2 模块运行正常",
-                "tags": [
-                    "s2-调试"
-                ],
-                "summary": "s2 存活检查",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "module": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/s2/status": {
-            "get": {
-                "description": "返回 s2 模块运行时长和健康状态",
-                "tags": [
-                    "s2-调试"
-                ],
-                "summary": "s2 运行状态",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "alive": {
-                                                    "type": "boolean"
-                                                },
-                                                "module": {
-                                                    "type": "string"
-                                                },
-                                                "uptime": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/s2/version": {
-            "get": {
-                "description": "返回 s2 模块版本号",
-                "tags": [
-                    "s2-调试"
-                ],
-                "summary": "s2 版本信息",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "module": {
-                                                    "type": "string"
-                                                },
-                                                "version": {
-                                                    "type": "string"
-                                                }
-                                            }
                                         }
                                     }
                                 }

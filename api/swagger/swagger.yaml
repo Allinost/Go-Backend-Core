@@ -9359,6 +9359,154 @@ paths:
       summary: 移除白名单成员
       tags:
       - developmentManager
+  /health/echo:
+    get:
+      description: 返回请求的详细信息，包括方法、路径、查询参数、请求头和客户端 IP
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    client_ip:
+                      type: string
+                    headers:
+                      type: object
+                    method:
+                      type: string
+                    path:
+                      type: string
+                    query:
+                      type: string
+                  type: object
+              type: object
+      summary: 请求回显（调试用）
+      tags:
+      - health-调试
+  /health/health:
+    get:
+      description: 返回所有依赖服务的健康检查结果
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    checks:
+                      type: object
+                    status:
+                      type: string
+                    uptime:
+                      type: string
+                    version:
+                      type: string
+                  type: object
+              type: object
+      summary: 全服务健康状态
+      tags:
+      - health-调试
+  /health/info:
+    get:
+      description: 返回服务名称、版本、运行时长、Go 运行时信息等
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    config_watch:
+                      type: boolean
+                    go_arch:
+                      type: string
+                    go_os:
+                      type: string
+                    go_version:
+                      type: string
+                    goroutines:
+                      type: integer
+                    mode:
+                      type: string
+                    modules:
+                      items:
+                        type: string
+                      type: array
+                    name:
+                      type: string
+                    start_time:
+                      type: string
+                    uptime:
+                      type: string
+                    version:
+                      type: string
+                  type: object
+              type: object
+      summary: 服务信息
+      tags:
+      - health-调试
+  /health/metrics:
+    get:
+      description: 返回 Prometheus 格式的监控指标
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Prometheus 指标暴露
+      tags:
+      - health-调试
+  /health/modules:
+    get:
+      description: 返回所有已注册的业务模块名称
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    count:
+                      type: integer
+                    modules:
+                      items:
+                        type: object
+                      type: array
+                  type: object
+              type: object
+      summary: 已注册模块列表
+      tags:
+      - health-调试
+  /health/ping:
+    get:
+      description: 返回 pong 表示服务运行正常
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+            - properties:
+                data:
+                  properties:
+                    message:
+                      type: string
+                  type: object
+              type: object
+      summary: 存活检查
+      tags:
+      - health-调试
   /integration/actions:
     get:
       responses:
@@ -11227,280 +11375,6 @@ paths:
       summary: 服务状态
       tags:
       - ops-诊断
-  /s0/echo:
-    get:
-      description: 返回请求的详细信息，包括方法、路径、查询参数、请求头和客户端 IP
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
-            - properties:
-                data:
-                  properties:
-                    client_ip:
-                      type: string
-                    headers:
-                      type: object
-                    method:
-                      type: string
-                    path:
-                      type: string
-                    query:
-                      type: string
-                  type: object
-              type: object
-      summary: 请求回显（调试用）
-      tags:
-      - s0-调试
-  /s0/health:
-    get:
-      description: 返回所有依赖服务的健康检查结果
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
-            - properties:
-                data:
-                  properties:
-                    checks:
-                      type: object
-                    status:
-                      type: string
-                    uptime:
-                      type: string
-                    version:
-                      type: string
-                  type: object
-              type: object
-      summary: 全服务健康状态
-      tags:
-      - s0-调试
-  /s0/info:
-    get:
-      description: 返回服务名称、版本、运行时长、Go 运行时信息等
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
-            - properties:
-                data:
-                  properties:
-                    config_watch:
-                      type: boolean
-                    go_arch:
-                      type: string
-                    go_os:
-                      type: string
-                    go_version:
-                      type: string
-                    goroutines:
-                      type: integer
-                    mode:
-                      type: string
-                    modules:
-                      items:
-                        type: string
-                      type: array
-                    name:
-                      type: string
-                    start_time:
-                      type: string
-                    uptime:
-                      type: string
-                    version:
-                      type: string
-                  type: object
-              type: object
-      summary: 服务信息
-      tags:
-      - s0-调试
-  /s0/metrics:
-    get:
-      description: 返回 Prometheus 格式的监控指标
-      produces:
-      - text/plain
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: string
-      summary: Prometheus 指标暴露
-      tags:
-      - s0-调试
-  /s0/modules:
-    get:
-      description: 返回所有已注册的业务模块名称
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
-            - properties:
-                data:
-                  properties:
-                    count:
-                      type: integer
-                    modules:
-                      items:
-                        type: object
-                      type: array
-                  type: object
-              type: object
-      summary: 已注册模块列表
-      tags:
-      - s0-调试
-  /s0/ping:
-    get:
-      description: 返回 pong 表示服务运行正常
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
-            - properties:
-                data:
-                  properties:
-                    message:
-                      type: string
-                  type: object
-              type: object
-      summary: 存活检查
-      tags:
-      - s0-调试
-  /s1/ping:
-    get:
-      description: 返回 pong 表示 s1 模块运行正常
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
-            - properties:
-                data:
-                  properties:
-                    module:
-                      type: string
-                  type: object
-              type: object
-      summary: s1 存活检查
-      tags:
-      - s1-调试
-  /s1/status:
-    get:
-      description: 返回 s1 模块运行时长和健康状态
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
-            - properties:
-                data:
-                  properties:
-                    alive:
-                      type: boolean
-                    module:
-                      type: string
-                    uptime:
-                      type: string
-                  type: object
-              type: object
-      summary: s1 运行状态
-      tags:
-      - s1-调试
-  /s1/version:
-    get:
-      description: 返回 s1 模块版本号
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
-            - properties:
-                data:
-                  properties:
-                    module:
-                      type: string
-                    version:
-                      type: string
-                  type: object
-              type: object
-      summary: s1 版本信息
-      tags:
-      - s1-调试
-  /s2/ping:
-    get:
-      description: 返回 pong 表示 s2 模块运行正常
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
-            - properties:
-                data:
-                  properties:
-                    module:
-                      type: string
-                  type: object
-              type: object
-      summary: s2 存活检查
-      tags:
-      - s2-调试
-  /s2/status:
-    get:
-      description: 返回 s2 模块运行时长和健康状态
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
-            - properties:
-                data:
-                  properties:
-                    alive:
-                      type: boolean
-                    module:
-                      type: string
-                    uptime:
-                      type: string
-                  type: object
-              type: object
-      summary: s2 运行状态
-      tags:
-      - s2-调试
-  /s2/version:
-    get:
-      description: 返回 s2 模块版本号
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
-            - properties:
-                data:
-                  properties:
-                    module:
-                      type: string
-                    version:
-                      type: string
-                  type: object
-              type: object
-      summary: s2 版本信息
-      tags:
-      - s2-调试
   /scheduler/handlers:
     get:
       description: 返回所有已注册的任务处理器名称列表
