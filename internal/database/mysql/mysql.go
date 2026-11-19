@@ -17,7 +17,8 @@ type Pool struct {
 
 // NewPool 根据配置创建 MySQL 连接池
 func NewPool(cfg config.MySQLConfig, skipPing bool) (*Pool, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+	// timeout 必须显式设置：否则 MySQL 不可达时 db.Ping 会一直阻塞，拖住进程启动。
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local&timeout=5s&readTimeout=10s&writeTimeout=10s",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName)
 
 	db, err := sql.Open("mysql", dsn)
