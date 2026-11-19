@@ -252,6 +252,16 @@ func TestSchemaMigratorInit(t *testing.T) {
 	assert.Contains(t, db.schemas, "_migrations")
 }
 
+func TestAsInt(t *testing.T) {
+	for _, value := range []any{int(1), int8(1), int16(1), int32(1), int64(1), uint(1), uint32(1), uint64(1), float32(1), float64(1), "1", []byte("1")} {
+		n, ok := asInt(value)
+		assert.True(t, ok, "%T", value)
+		assert.Equal(t, 1, n, "%T", value)
+	}
+	_, ok := asInt(struct{}{})
+	assert.False(t, ok)
+}
+
 func TestFormatCSVValue(t *testing.T) {
 	assert.Equal(t, "", formatCSVValue(nil))
 	assert.Equal(t, "hello", formatCSVValue("hello"))

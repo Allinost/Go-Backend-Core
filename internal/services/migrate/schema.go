@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -73,11 +74,8 @@ func (m *SchemaMigrator) Applied(ctx context.Context) ([]SchemaEntry, error) {
 		for _, row := range batch {
 			entry := &SchemaEntry{}
 			if v, ok := row["version"]; ok {
-				switch val := v.(type) {
-				case int64:
-					entry.Version = int(val)
-				case float64:
-					entry.Version = int(val)
+				if n, ok := asInt(v); ok {
+					entry.Version = n
 				}
 			}
 			if v, ok := row["name"]; ok {
@@ -108,6 +106,44 @@ func (m *SchemaMigrator) Applied(ctx context.Context) ([]SchemaEntry, error) {
 		return result[i].Version < result[j].Version
 	})
 	return result, nil
+}
+
+// asInt 兼容 database/sql 与 pgx 返回的整数类型，避免 PG INT 被 int32 丢弃。
+func asInt(value any) (int, bool) {
+	switch v := value.(type) {
+	case int:
+		return v, true
+	case int8:
+		return int(v), true
+	case int16:
+		return int(v), true
+	case int32:
+		return int(v), true
+	case int64:
+		return int(v), true
+	case uint:
+		return int(v), true
+	case uint8:
+		return int(v), true
+	case uint16:
+		return int(v), true
+	case uint32:
+		return int(v), true
+	case uint64:
+		return int(v), true
+	case float32:
+		return int(v), true
+	case float64:
+		return int(v), true
+	case []byte:
+		n, err := strconv.Atoi(string(v))
+		return n, err == nil
+	case string:
+		n, err := strconv.Atoi(v)
+		return n, err == nil
+	default:
+		return 0, false
+	}
 }
 
 func (m *SchemaMigrator) Pending(ctx context.Context) ([]MigrationFile, error) {
