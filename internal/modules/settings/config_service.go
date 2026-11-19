@@ -7,6 +7,7 @@ import (
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/Allinost/go-backend-core/internal/database"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
+	svcAuth "github.com/Allinost/go-backend-core/internal/services/auth"
 	"github.com/Allinost/go-backend-core/internal/services/configcenter"
 	"github.com/Allinost/go-backend-core/internal/services/crypto"
 	"github.com/Allinost/go-backend-core/zzz/login3rd"
@@ -91,6 +92,9 @@ func applyConfigValues(cfg *config.Config, values map[string]any) {
 	if n, ok := intValue(values["integration.retention_days"]); ok {
 		cfg.Integration.RetentionDays = n
 	}
+	if b, ok := boolValue(values["auth.allow_registration"]); ok {
+		svcAuth.SetAllowRegistration(b)
+	}
 }
 
 func stringValue(v any) (string, bool) {
@@ -109,4 +113,9 @@ func intValue(v any) (int, bool) {
 	default:
 		return 0, false
 	}
+}
+
+func boolValue(v any) (bool, bool) {
+	b, ok := v.(bool)
+	return b, ok
 }

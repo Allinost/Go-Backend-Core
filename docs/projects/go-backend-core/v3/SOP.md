@@ -532,6 +532,7 @@ go run ./cmd/v3admin -username admin -nickname 管理员
 - 密码也可用 `-password` 传入，但推荐环境变量，避免进入命令历史。
 - 表不存在时先执行 `POST /api/v1/migrate/schema/migrate`。
 - 首次登录后立即修改密码；默认不开放自助注册（P4-06 关闭 `/auth/register`）。
+- 自助注册开关：`auth.allow_registration`（默认 `false`，设置页/配置中心可热更新）；关闭时管理员用 `POST /api/v1/auth/users` 创建用户。
 
 ---
 

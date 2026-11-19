@@ -9,6 +9,7 @@ import (
 	"github.com/Allinost/go-backend-core/internal/database"
 	"github.com/Allinost/go-backend-core/internal/middleware"
 	appErrors "github.com/Allinost/go-backend-core/internal/pkg/errors"
+	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/Allinost/go-backend-core/internal/pkg/response"
 	"github.com/Allinost/go-backend-core/internal/services/auth"
 	"github.com/Allinost/go-backend-core/internal/services/eventbus"
@@ -183,6 +184,7 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	admin.Use(middleware.AuthRequiredWithBlacklist(m.svc, m.blacklist))
 	admin.Use(middleware.RequirePermission(m.rbac, "*", "*"))
 	admin.GET("/users", m.listUsers)
+	admin.POST("/users", m.createUser)
 	admin.GET("/users/:id", m.getUser)
 	admin.PUT("/users/:id", m.updateUser)
 	admin.DELETE("/users/:id", m.deleteUser)
@@ -229,6 +231,10 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 // @Failure      409   {object}  response.Response
 // @Router       /auth/register [post]
 func (m *Module) register(c *gin.Context) {
+	if !auth.AllowRegistration() {
+		response.Fail(c, appErrors.New(appErrors.CodeForbidden, "自助注册已关闭，请联系管理员创建账号"))
+		return
+	}
 	var req auth.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ParamErr(c, "请求格式错误: "+err.Error())
@@ -586,6 +592,56 @@ func (m *Module) changePassword(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"message": "密码已修改"})
+}
+
+// createUser 管理员创建用户
+// @Summary      管理员创建用户
+// @Tags         auth-管理
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  response.Response
+// @Security     BearerAuth
+// @Router       /auth/users [post]
+func (m *Module) createUser(c *gin.Context) {
+	var req struct {
+		Username string `json:"username" binding:"required,min=3,max=32"`
+		Password string `json:"password" binding:"required,min=6,max=128"`
+		Nickname string `json:"nickname"`
+		Email    string `json:"email"`
+		Phone    string `json:"phone"`
+		Role     string `json:"role"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误: "+err.Error())
+		return
+	}
+	role := req.Role
+	if role == "" {
+		role = string(auth.RoleUser)
+	}
+	if role != string(auth.RoleAdmin) && role != string(auth.RoleUser) {
+		response.ParamErr(c, "角色只能是 admin 或 user")
+		return
+	}
+	user, err := m.user.CreateUser(auth.RegisterRequest{
+		Username: req.Username, Password: req.Password, Nickname: req.Nickname,
+	})
+	if err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeConflict, err.Error()))
+		return
+	}
+	if req.Email != "" || req.Phone != "" {
+		email, phone := req.Email, req.Phone
+		if _, err := m.user.UpdateUser(user.ID, auth.UpdateUserRequest{Email: &email, Phone: &phone}); err != nil {
+			logger.Warn().Err(err).Uint("user_id", user.ID).Msg("auth: 更新用户邮箱/手机号失败")
+		}
+	}
+	if err := m.rbac.AssignRole(user.ID, role); err != nil {
+		response.Fail(c, appErrors.New(appErrors.CodeSystemErr, "分配角色失败: "+err.Error()))
+		return
+	}
+	m.publishEvent("user.created", user.ID, c.ClientIP())
+	response.Success(c, gin.H{"id": user.ID, "username": user.Username, "nickname": user.Nickname, "role": role})
 }
 
 // listUsers 用户列表（管理员）

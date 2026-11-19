@@ -28,6 +28,7 @@ import (
 	"github.com/Allinost/go-backend-core/internal/modules/settings"
 	"github.com/Allinost/go-backend-core/internal/modules/webhook"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
+	"github.com/Allinost/go-backend-core/internal/services/audit"
 	"github.com/Allinost/go-backend-core/internal/services/crypto"
 	"github.com/Allinost/go-backend-core/internal/services/eventbus"
 	netmodule "github.com/Allinost/go-backend-core/internal/services/net"
@@ -93,6 +94,19 @@ func main() {
 	if err := database.RequireMain(); err != nil {
 		logger.Error().Err(err).Msg("V3 主库不可用，启动终止")
 		os.Exit(1)
+	}
+
+	// 审计日志持久化到 PostgreSQL；失败时保留内存存储，不阻塞启动。
+	if pg := database.DB.Postgres["main"]; pg != nil && pg.SQLDB != nil {
+		auditStore := audit.NewPostgresStore(pg.SQLDB)
+		auditCtx, auditCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := auditStore.Init(auditCtx); err != nil {
+			logger.Warn().Err(err).Msg("审计日志 PostgreSQL 不可用，使用内存存储")
+		} else {
+			audit.InitDefaultService(audit.NewService(auditStore))
+			logger.Info().Msg("审计日志已使用 PostgreSQL")
+		}
+		auditCancel()
 	}
 
 	// 注册数据库热加载（InitAll 之后 DB 不为 nil）

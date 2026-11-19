@@ -17,6 +17,9 @@ import (
 )
 
 func testModule(t *testing.T) *Module {
+	t.Helper()
+	auth.SetAllowRegistration(true)
+	t.Cleanup(func() { auth.SetAllowRegistration(false) })
 	m := &Module{}
 	err := m.Init(&config.Config{
 		Auth: config.AuthConfig{
@@ -49,6 +52,21 @@ func loginAndGetToken(t *testing.T, m *Module, r *gin.Engine, username, password
 	}
 	json.Unmarshal(w.Body.Bytes(), &regResp)
 	return regResp.Data.AccessToken
+}
+
+func TestRegisterDisabled(t *testing.T) {
+	m := &Module{}
+	require.NoError(t, m.Init(&config.Config{Auth: config.AuthConfig{JWTSecret: "test-secret", JWTExpire: "24h"}}))
+	auth.SetAllowRegistration(false)
+	t.Cleanup(func() { auth.SetAllowRegistration(false) })
+	r := setupRouter(m)
+
+	body := `{"username":"closed","password":"pass123"}`
+	req, _ := http.NewRequest("POST", "/api/v1/auth/register", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 }
 
 func TestRegister(t *testing.T) {
