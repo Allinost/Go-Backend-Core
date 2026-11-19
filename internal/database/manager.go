@@ -1,12 +1,14 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/Allinost/go-backend-core/internal/config"
@@ -178,6 +180,36 @@ func (m *DBManager) Reload(cfg *config.Config) error {
 	}
 
 	return nil
+}
+
+// Main 返回 V3 主库的 database/sql 句柄（PostgreSQL main）。
+// 供现有 *sql.DB 仓库平滑迁移；未配置/未连接时返回 nil。
+func Main() *sql.DB {
+	if DB == nil {
+		return nil
+	}
+	DB.mu.RLock()
+	defer DB.mu.RUnlock()
+	pool := DB.Postgres["main"]
+	if pool == nil {
+		return nil
+	}
+	return pool.SQLDB
+}
+
+// PG 返回 V3 主库的 pgxpool 句柄（PostgreSQL main）。
+// 新代码优先使用 pgx；未配置/未连接时返回 nil。
+func PG() *pgxpool.Pool {
+	if DB == nil {
+		return nil
+	}
+	DB.mu.RLock()
+	defer DB.mu.RUnlock()
+	pool := DB.Postgres["main"]
+	if pool == nil {
+		return nil
+	}
+	return pool.Pool
 }
 
 // GetRedis 按名称获取 Redis 客户端

@@ -27,8 +27,9 @@ log:
   max_age_days: 30             # 日志保留天数
 
 database:
+  auto_migrate: false          # 生产必须 false；仅本地调试可开，Schema 由 migrations 管理
   mysql:
-    main:                      # 主数据库实例标识
+    main:                      # V2 兼容数据库实例（V3 运行时不使用）
       enabled: true            # 是否启用 MySQL
       host: localhost          # MySQL 主机地址
       port: 3306               # MySQL 监听端口
@@ -40,6 +41,20 @@ database:
       conn_max_lifetime: 30m   # 连接最大存活时间
 
   postgres:
+    main:                      # V3 主数据库（PostgreSQL）
+      enabled: false           # 本地未启动 PG 时保持 false；V3 部署必须开启
+      host: localhost
+      port: 5432
+      user: postgres
+      password: ""             # ⚠️ 密码通过 .env 或 Docker Secret 注入
+      dbname: go_backend_core
+      sslmode: disable         # disable/require/verify-ca/verify-full
+      search_path: public
+      timezone: UTC
+      max_open: 30
+      max_idle: 10
+      conn_max_lifetime: 30m
+
     nas:                       # NAS 上的 PostgreSQL 实例（仅 NAS 场景使用）
       enabled: true            # 是否启用 PostgreSQL
       host: localhost

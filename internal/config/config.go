@@ -144,9 +144,10 @@ type LogConfig struct {
 }
 
 type DatabaseConfig struct {
-	MySQL    map[string]MySQLConfig `mapstructure:"mysql"`    // MySQL 实例集（主数据库）
-	Postgres map[string]PGConfig    `mapstructure:"postgres"` // PostgreSQL 实例集（NAS）
-	S3       map[string]S3Config    `mapstructure:"s3"`       // S3 兼容对象存储
+	AutoMigrate bool                   `mapstructure:"auto_migrate"` // 仅本地调试可用；生产必须关闭
+	MySQL       map[string]MySQLConfig `mapstructure:"mysql"`        // MySQL 实例集（V2 兼容）
+	Postgres    map[string]PGConfig    `mapstructure:"postgres"`     // PostgreSQL 实例集（V3 主库）
+	S3          map[string]S3Config    `mapstructure:"s3"`           // S3 兼容对象存储
 }
 
 type MySQLConfig struct {
@@ -168,6 +169,9 @@ type PGConfig struct {
 	User            string `mapstructure:"user"`
 	Password        string `mapstructure:"password"`
 	DBName          string `mapstructure:"dbname"`
+	SSLMode         string `mapstructure:"sslmode"`     // disable/require/verify-ca/verify-full
+	SearchPath      string `mapstructure:"search_path"` // 默认 public
+	TimeZone        string `mapstructure:"timezone"`    // 默认 UTC
 	MaxOpen         int    `mapstructure:"max_open"`
 	MaxIdle         int    `mapstructure:"max_idle"`
 	ConnMaxLifetime string `mapstructure:"conn_max_lifetime"`

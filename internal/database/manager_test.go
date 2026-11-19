@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Allinost/go-backend-core/internal/config"
+	"github.com/Allinost/go-backend-core/internal/database/postgres"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -155,6 +156,18 @@ func TestGetRedis_Nil(t *testing.T) {
 	DB = nil
 	client := GetRedis("main")
 	assert.Nil(t, client)
+}
+
+func TestMain_PG_Nil(t *testing.T) {
+	DB = nil
+	assert.Nil(t, Main())
+	assert.Nil(t, PG())
+}
+
+func TestMain_PG_NoMainPool(t *testing.T) {
+	DB = &DBManager{Postgres: map[string]*postgres.Pool{}}
+	assert.Nil(t, Main())
+	assert.Nil(t, PG())
 }
 
 func TestConcurrentHealth(t *testing.T) {
