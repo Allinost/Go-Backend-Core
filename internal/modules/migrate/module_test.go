@@ -43,3 +43,10 @@ func TestModuleInterface(t *testing.T) {
 		RegisterRoutes(*gin.RouterGroup)
 	})(nil), m)
 }
+
+func TestPrimarySchema(t *testing.T) {
+	assert.Equal(t, "gobackendcore", primarySchema("gobackendcore,public"))
+	assert.Equal(t, "public", primarySchema(" public "))
+	assert.Equal(t, "", primarySchema(""))
+	assert.Equal(t, "app", primarySchema("app, public, extra"))
+}

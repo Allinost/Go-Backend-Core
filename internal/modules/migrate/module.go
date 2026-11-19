@@ -3,11 +3,13 @@ package migrate
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/Allinost/go-backend-core/internal/database"
 	appErrors "github.com/Allinost/go-backend-core/internal/pkg/errors"
+	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/Allinost/go-backend-core/internal/pkg/response"
 	svc "github.com/Allinost/go-backend-core/internal/services/migrate"
 	"github.com/gin-gonic/gin"
@@ -23,14 +25,26 @@ func (m *Module) Name() string {
 	return "migrate"
 }
 
+// primarySchema 取 search_path 的第一段，例如 "gobackendcore,public" → "gobackendcore"。
+func primarySchema(searchPath string) string {
+	for _, part := range strings.Split(searchPath, ",") {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			return part
+		}
+	}
+	return ""
+}
+
 func (m *Module) Init(cfg *config.Config) error {
 	if database.DB != nil {
-		if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
-			m.adapter = svc.NewMySQLAdapter(pool.DB)
-			m.migrateDir = "migrations/mysql"
-		} else if pool, ok := database.DB.Postgres["main"]; ok && pool.Pool != nil {
+		// V3 默认 PG；MySQL 仅作 V2 兼容兜底。
+		if pool, ok := database.DB.Postgres["main"]; ok && pool.Pool != nil {
 			m.adapter = svc.NewPostgresAdapter(pool.Pool)
 			m.migrateDir = "migrations/postgres"
+		} else if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
+			m.adapter = svc.NewMySQLAdapter(pool.DB)
+			m.migrateDir = "migrations/mysql"
 		}
 	}
 
@@ -38,6 +52,12 @@ func (m *Module) Init(cfg *config.Config) error {
 		m.migrator = svc.NewSchemaMigrator(m.adapter, m.migrateDir)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
+		if cfg != nil {
+			schema := primarySchema(cfg.Database.Postgres["main"].SearchPath)
+			if err := m.migrator.EnsureSchema(ctx, schema); err != nil {
+				logger.Warn().Err(err).Msg("migrate: 自动创建 schema 失败")
+			}
+		}
 		_ = m.migrator.Init(ctx)
 	}
 

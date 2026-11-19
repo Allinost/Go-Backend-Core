@@ -50,7 +50,7 @@ database:
       password: ""             # ⚠️ 密码通过 .env 或 Docker Secret 注入
       dbname: go_backend_core
       sslmode: disable         # disable/require/verify-ca/verify-full
-      search_path: public
+      search_path: gobackendcore,public  # 专用 schema；public 仅兜底
       timezone: UTC
       max_open: 30
       max_idle: 10

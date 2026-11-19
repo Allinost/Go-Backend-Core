@@ -7,10 +7,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 )
+
+// schemaNamePattern 只允许常规标识符，避免 CREATE SCHEMA 拼接注入。
+var schemaNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 type SchemaMigrator struct {
 	adapter       DBAdapter
@@ -24,6 +28,26 @@ func NewSchemaMigrator(adapter DBAdapter, migrationsDir string) *SchemaMigrator 
 		migrationsDir: migrationsDir,
 		tableName:     "_migrations",
 	}
+}
+
+// EnsureSchema 确保 PG 专用 schema 存在。应用账号通常无权在 public 建表，
+// 但拥有数据库 CREATE 权限时可以创建并拥有自己的 schema。
+func (m *SchemaMigrator) EnsureSchema(ctx context.Context, schema string) error {
+	schema = strings.TrimSpace(schema)
+	if schema == "" || schema == "public" {
+		return nil
+	}
+	if m.adapter.Type() != DBTypePostgres {
+		return nil
+	}
+	if !schemaNamePattern.MatchString(schema) {
+		return fmt.Errorf("migrate: 非法 schema 名称 %q", schema)
+	}
+	query := fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s AUTHORIZATION CURRENT_USER`, m.adapter.Quote(schema))
+	if err := m.adapter.ExecRaw(ctx, query); err != nil {
+		return fmt.Errorf("migrate: 创建 schema %s 失败: %w", schema, err)
+	}
+	return nil
 }
 
 func (m *SchemaMigrator) Init(ctx context.Context) error {

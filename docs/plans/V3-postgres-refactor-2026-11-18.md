@@ -1298,6 +1298,7 @@ type Spec struct {
 
 > 敏感值只存密文/Secret 引用；历史记录同样脱敏。
 > **env 边界**：业务账号与外部密钥（JD、1Panel 等）不写 env，统一写入 `system_config`；env 只保留基础设施/启动配置。
+> **PG schema**：V3 使用专用 schema `gobackendcore`（`search_path=gobackendcore,public`）；应用账号无需 `public` 建表权限，migrate 启动时自动创建 schema。
 
 #### 7.10.4 管理 API
 

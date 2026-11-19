@@ -239,7 +239,7 @@ database:
       password: ""        # .env/secret
       dbname: go_backend_core_v3
       sslmode: disable    # 生产按需 require/verify-full
-      search_path: public
+      search_path: gobackendcore,public  # 专用 schema；public 仅兜底
       timezone: UTC
       max_open: 30
       max_idle: 10
@@ -247,6 +247,7 @@ database:
 ```
 
 - V3 不初始化 MySQL 主库；`migrations/mysql` 只作 V2 归档。
+- **PG schema**：使用专用 schema `gobackendcore`（`search_path=gobackendcore,public`）。应用账号通常无权在 `public` 建表，但拥有数据库 `CREATE` 权限时，migrate 模块启动会自动创建并拥有该 schema；无需 superuser 授权。
 - 连接池不超过 PG `max_connections` 的 70%；需要时上 pgbouncer。
 - 健康检查暴露 `postgres:main`，不再暴露 `mysql:main`。
 
