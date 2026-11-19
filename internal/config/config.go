@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -290,10 +291,9 @@ func resolveConfigPath() string {
 
 // Load 加载配置文件，根据 APP_ENV 自动选择环境配置
 func Load(path string) (*Config, error) {
-	if _, err := os.Stat(".env"); err == nil {
-		if err := godotenv.Load(); err != nil {
-			return nil, fmt.Errorf("加载 .env 失败: %w", err)
-		}
+	// .env 作为基础配置；APP_PROFILE 选择 .env.<profile> 覆盖（dev/host/backup/cloud）。
+	if err := loadEnvFiles("."); err != nil {
+		return nil, err
 	}
 
 	if path == "" {
@@ -336,6 +336,57 @@ func Load(path string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+// loadEnvFiles 加载 .env，并按 APP_PROFILE 覆盖 .env.<profile>。
+// profile 只允许字母、数字、下划线和短横线，避免路径穿越。
+func loadEnvFiles(dir string) error {
+	base := filepath.Join(dir, ".env")
+	if _, err := os.Stat(base); err == nil {
+		if err := godotenv.Load(base); err != nil {
+			return fmt.Errorf("加载 .env 失败: %w", err)
+		}
+	}
+
+	profile := strings.TrimSpace(os.Getenv("APP_PROFILE"))
+	if profile == "" {
+		return nil
+	}
+	for _, r := range profile {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '_' && r != '-' {
+			return fmt.Errorf("APP_PROFILE 非法: %q", profile)
+		}
+	}
+
+	path := filepath.Join(dir, ".env."+profile)
+	if _, err := os.Stat(path); err == nil {
+		if err := godotenv.Overload(path); err != nil {
+			return fmt.Errorf("加载 %s 失败: %w", path, err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("检查 %s 失败: %w", path, err)
+	}
+
+	// 单文件模式：APP_<PROFILE>_X 覆盖 APP_X。
+	applyProfilePrefix(profile)
+	return nil
+}
+
+// applyProfilePrefix 把 APP_DEV_DATABASE_... 映射为 APP_DATABASE_...，
+// 支持在同一个 .env 中用前缀维护多套环境。
+func applyProfilePrefix(profile string) {
+	prefix := "APP_" + strings.ToUpper(profile) + "_"
+	for _, item := range os.Environ() {
+		key, value, ok := strings.Cut(item, "=")
+		if !ok || !strings.HasPrefix(key, prefix) {
+			continue
+		}
+		target := "APP_" + strings.TrimPrefix(key, prefix)
+		if target == key {
+			continue
+		}
+		_ = os.Setenv(target, value)
+	}
 }
 
 func applyEnvFallbacks(cfg *Config) {
