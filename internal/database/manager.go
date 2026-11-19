@@ -37,6 +37,12 @@ type HealthStatus struct {
 
 var DB *DBManager
 
+// autoFailover 仅在 failover_mode=auto 时启用连接失败自动切 L2；
+// 手动维护模式下由部署 profile/维护状态选择 L1/L2。
+func autoFailover(cfg *config.Config) bool {
+	return cfg != nil && strings.EqualFold(strings.TrimSpace(cfg.Database.FailoverMode), "auto")
+}
+
 // InitAll 根据配置初始化所有数据库连接
 func InitAll(cfg *config.Config) error {
 	skipPing := strings.HasPrefix(cfg.Server.Version, "release")
@@ -79,7 +85,7 @@ func initPostgres(cfg *config.Config, skipPing bool) {
 			continue
 		}
 		pool, err := postgres.NewPool(dbCfg, skipPing)
-		if err != nil && dbCfg.FallbackHost != "" {
+		if err != nil && dbCfg.FallbackHost != "" && autoFailover(cfg) {
 			fallback := dbCfg
 			fallback.Host = dbCfg.FallbackHost
 			if dbCfg.FallbackPort > 0 {
@@ -112,7 +118,7 @@ func initS3(cfg *config.Config) {
 				log.Printf("[database] MinIO 初始化失败: %v", err)
 				continue
 			}
-			if s3Cfg.FallbackEndpoint != "" {
+			if s3Cfg.FallbackEndpoint != "" && autoFailover(cfg) {
 				if healthErr := client.Health(); healthErr != nil {
 					fallback := s3Cfg
 					fallback.Endpoint = s3Cfg.FallbackEndpoint
@@ -135,7 +141,7 @@ func initS3(cfg *config.Config) {
 				log.Printf("[database] RustFS 初始化失败: %v", err)
 				continue
 			}
-			if s3Cfg.FallbackEndpoint != "" {
+			if s3Cfg.FallbackEndpoint != "" && autoFailover(cfg) {
 				if healthErr := client.Health(); healthErr != nil {
 					fallback := s3Cfg
 					fallback.Endpoint = s3Cfg.FallbackEndpoint
@@ -162,7 +168,7 @@ func initRedis(cfg *config.Config, skipPing bool) {
 	mainCfg := cfg.Redis.Main
 	if mainCfg.Enabled && mainCfg.Addr != "" {
 		client, err := redis.NewClient(mainCfg, skipPing)
-		if err != nil && mainCfg.FallbackAddr != "" {
+		if err != nil && mainCfg.FallbackAddr != "" && autoFailover(cfg) {
 			fallback := mainCfg
 			fallback.Addr = mainCfg.FallbackAddr
 			client, err = redis.NewClient(fallback, skipPing)
@@ -183,7 +189,7 @@ func initRedis(cfg *config.Config, skipPing bool) {
 			continue
 		}
 		client, err := redis.NewClient(rc, skipPing)
-		if err != nil && rc.FallbackAddr != "" {
+		if err != nil && rc.FallbackAddr != "" && autoFailover(cfg) {
 			fallback := rc
 			fallback.Addr = rc.FallbackAddr
 			client, err = redis.NewClient(fallback, skipPing)

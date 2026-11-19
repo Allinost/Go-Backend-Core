@@ -28,6 +28,7 @@ log:
 
 database:
   auto_migrate: false          # 生产必须 false；仅本地调试可开，Schema 由 migrations 管理
+  failover_mode: manual        # manual（默认，维护时显式切 L2）/auto（连接失败自动尝试 fallback）
   mysql:
     main:                      # V2 兼容数据库实例（V3 运行时不使用）
       enabled: true            # 是否启用 MySQL

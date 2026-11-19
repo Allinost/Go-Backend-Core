@@ -72,6 +72,7 @@ func TestInitAll_RedisFallback(t *testing.T) {
 	defer server.Close()
 
 	cfg := &config.Config{
+		Database: config.DatabaseConfig{FailoverMode: "auto"},
 		Redis: config.RedisConfig{
 			Main: config.RedisInstance{
 				Enabled:      true,
@@ -85,6 +86,29 @@ func TestInitAll_RedisFallback(t *testing.T) {
 	if assert.NotNil(t, DB.Redis["main"]) {
 		assert.True(t, DB.Redis["main"].UsingFallback)
 	}
+	CloseAll()
+}
+
+func TestInitAll_RedisManualNoFallback(t *testing.T) {
+	server, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	cfg := &config.Config{
+		Database: config.DatabaseConfig{FailoverMode: "manual"},
+		Redis: config.RedisConfig{
+			Main: config.RedisInstance{
+				Enabled:      true,
+				Addr:         "127.0.0.1:1",
+				FallbackAddr: server.Addr(),
+			},
+		},
+	}
+	err = InitAll(cfg)
+	assert.NoError(t, err)
+	assert.Empty(t, DB.Redis)
 	CloseAll()
 }
 

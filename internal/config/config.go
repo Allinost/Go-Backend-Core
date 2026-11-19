@@ -145,10 +145,11 @@ type LogConfig struct {
 }
 
 type DatabaseConfig struct {
-	AutoMigrate bool                   `mapstructure:"auto_migrate"` // 仅本地调试可用；生产必须关闭
-	MySQL       map[string]MySQLConfig `mapstructure:"mysql"`        // MySQL 实例集（V2 兼容）
-	Postgres    map[string]PGConfig    `mapstructure:"postgres"`     // PostgreSQL 实例集（V3 主库）
-	S3          map[string]S3Config    `mapstructure:"s3"`           // S3 兼容对象存储
+	AutoMigrate  bool                   `mapstructure:"auto_migrate"`  // 仅本地调试可用；生产必须关闭
+	FailoverMode string                 `mapstructure:"failover_mode"` // manual（默认）/auto；manual 只按维护目标切 L1/L2
+	MySQL        map[string]MySQLConfig `mapstructure:"mysql"`         // MySQL 实例集（V2 兼容）
+	Postgres     map[string]PGConfig    `mapstructure:"postgres"`      // PostgreSQL 实例集（V3 主库）
+	S3           map[string]S3Config    `mapstructure:"s3"`            // S3 兼容对象存储
 }
 
 type MySQLConfig struct {
