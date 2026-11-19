@@ -22,8 +22,8 @@ func TestPermissionSpecsNaming(t *testing.T) {
 		}
 		seen[spec.Name] = true
 	}
-	if len(PermissionSpecs) != 28 {
-		t.Errorf("权限点应为 28 个（规划 §4.1 矩阵），实际 %d", len(PermissionSpecs))
+	if len(PermissionSpecs) != 59 {
+		t.Errorf("权限点应为 59 个（V3 项目管控矩阵），实际 %d", len(PermissionSpecs))
 	}
 }
 

@@ -21,6 +21,7 @@ type Module struct {
 	cfg    *config.Config
 	repo   *Repository
 	svc    *Service
+	pm     *PMService
 	h      *Handler
 	authMW gin.HandlerFunc
 	rbac   *svcAuth.RBACService
@@ -61,6 +62,14 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.svc = NewService(m.repo)
 	m.h = NewHandler(m.svc)
 	m.h.SetRBAC(m.rbac)
+
+	// V3 里程碑/任务使用 PostgreSQL；旧台账/需求仍走 MySQL，后续 P3-04 统一迁移。
+	if pg := database.DB.Postgres["main"]; pg != nil && pg.SQLDB != nil {
+		m.pm = NewPMService(NewPMRepository(pg.SQLDB))
+		m.h.SetPM(m.pm)
+	} else {
+		logger.Warn().Msg("developmentmanager: PostgreSQL 不可用，里程碑/任务 API 未启用")
+	}
 
 	// 台账 seed 幂等登记现有项目（迁移未应用时后台重试）
 	go m.seedWithRetry()
@@ -179,6 +188,26 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/requirements/:id/generations", need("dm.generation", "read"), m.h.ListGenerations)
 	r.GET("/generations/:id", need("dm.generation", "read"), m.h.GetGeneration)
 	r.POST("/generations/:id/retry", need("dm.generation", "execute"), m.h.RetryGeneration)
+
+	// 里程碑/任务（V3 PM，PostgreSQL）
+	r.GET("/projects/:id/milestones", need("dm.milestone", "read"), m.h.ListMilestones)
+	r.POST("/projects/:id/milestones", need("dm.milestone", "create"), m.h.CreateMilestone)
+	r.GET("/milestones/:id", need("dm.milestone", "read"), m.h.GetMilestone)
+	r.PUT("/milestones/:id", need("dm.milestone", "update"), m.h.UpdateMilestone)
+	r.DELETE("/milestones/:id", need("dm.milestone", "delete"), m.h.DeleteMilestone)
+	r.GET("/milestones/:id/progress", need("dm.milestone", "read"), m.h.MilestoneProgress)
+
+	r.GET("/projects/:id/tasks", need("dm.task", "read"), m.h.ListTasks)
+	r.POST("/projects/:id/tasks", need("dm.task", "create"), m.h.CreateTask)
+	r.GET("/tasks/:id", need("dm.task", "read"), m.h.GetTask)
+	r.PUT("/tasks/:id", need("dm.task", "update"), m.h.UpdateTask)
+	r.DELETE("/tasks/:id", need("dm.task", "delete"), m.h.DeleteTask)
+	r.POST("/tasks/:id/status", need("dm.task", "update"), m.h.ChangeTaskStatus)
+	r.GET("/tasks/:id/logs", need("dm.task", "read"), m.h.ListTaskLogs)
+	r.POST("/tasks/:id/logs", need("dm.task", "update"), m.h.AddTaskLog)
+	r.GET("/tasks/:id/dependencies", need("dm.task", "read"), m.h.ListDependencies)
+	r.POST("/tasks/:id/dependencies", need("dm.task", "update"), m.h.AddDependency)
+	r.DELETE("/tasks/:id/dependencies/:dep_id", need("dm.task", "update"), m.h.RemoveDependency)
 
 	// 统计与权限元数据
 	r.GET("/stats", need("dm.project", "read"), m.h.Stats)

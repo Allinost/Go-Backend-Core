@@ -17,12 +17,18 @@ import (
 // Handler HTTP 处理器
 type Handler struct {
 	svc  *Service
+	pm   *PMService
 	rbac *auth.RBACService // 用于敏感动作的二次权限校验（如 auto_commit）
 }
 
 // NewHandler 创建 Handler
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// SetPM 注入里程碑/任务服务。
+func (h *Handler) SetPM(svc *PMService) {
+	h.pm = svc
 }
 
 // SetRBAC 注入 RBAC 服务（auto_commit 等敏感动作需要按用户二次校验）

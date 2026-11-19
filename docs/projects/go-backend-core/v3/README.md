@@ -133,7 +133,7 @@
 | 编号 | 任务 | 类型 | 优先级 | 预估 | 依赖 | 状态 | 验收/备注 |
 |---|---|---|---|---:|---|---|---|
 | V3-PM-01 | PM 核心迁移：milestone/task/task_dependency/task_log | migration | P0 | 1.0 | P2-01 | done | 表/索引/外键就绪，dev 已验证 |
-| V3-PM-02 | PM 核心后端：models/repo/service/handler/routes/进度 | feature | P0 | 2.0 | PM-01、P3-04 | todo | 任务 CRUD/依赖/流转/进度 |
+| V3-PM-02 | PM 核心后端：models/repo/service/handler/routes/进度 | feature | P0 | 2.0 | PM-01、P3-04 | done | 里程碑/任务 CRUD、依赖环检测、状态流转、工时/日志、进度已实测；PM 走 PG |
 | V3-PM-03 | PM 权限 + 默认角色 + 幂等导入 | feature | P1 | 1.0 | PM-02 | todo | `dm.task/milestone` 可授权 |
 | V3-PM-04 | PM 前端核心：路线图/看板/任务抽屉 | feature | P0 | 2.0 | PM-02 | todo | 可视化可用 |
 | V3-PM-05 | PM 高级迁移：risk/release/baseline/iteration/comment/checklist/label/task_label/task_asset | migration | P1 | 1.0 | PM-01 | todo | 完整管控表就绪 |

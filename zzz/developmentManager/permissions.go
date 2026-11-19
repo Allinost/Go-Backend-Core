@@ -51,6 +51,41 @@ var PermissionSpecs = []PermSpec{
 	{Resource: "dm.asset", Action: "read", Desc: "查看归类资产索引"},
 	{Resource: "dm.asset", Action: "create", Desc: "登记归类资产"},
 	{Resource: "dm.asset", Action: "delete", Desc: "删除归类资产"},
+	// 里程碑
+	{Resource: "dm.milestone", Action: "read", Desc: "查看里程碑"},
+	{Resource: "dm.milestone", Action: "create", Desc: "新建里程碑"},
+	{Resource: "dm.milestone", Action: "update", Desc: "修改里程碑"},
+	{Resource: "dm.milestone", Action: "delete", Desc: "删除里程碑"},
+	// 任务/WBS
+	{Resource: "dm.task", Action: "read", Desc: "查看任务/依赖/日志/检查项/评论"},
+	{Resource: "dm.task", Action: "create", Desc: "新建任务"},
+	{Resource: "dm.task", Action: "update", Desc: "修改任务/状态/依赖/日志"},
+	{Resource: "dm.task", Action: "delete", Desc: "删除任务"},
+	{Resource: "dm.task", Action: "assign", Desc: "分配任务负责人"},
+	{Resource: "dm.task", Action: "import", Desc: "导入任务"},
+	// 风险/发布/基线/迭代
+	{Resource: "dm.risk", Action: "read", Desc: "查看风险"},
+	{Resource: "dm.risk", Action: "create", Desc: "新建风险"},
+	{Resource: "dm.risk", Action: "update", Desc: "修改风险"},
+	{Resource: "dm.risk", Action: "delete", Desc: "删除风险"},
+	{Resource: "dm.release", Action: "read", Desc: "查看发布"},
+	{Resource: "dm.release", Action: "create", Desc: "新建发布"},
+	{Resource: "dm.release", Action: "update", Desc: "修改发布"},
+	{Resource: "dm.release", Action: "delete", Desc: "删除发布"},
+	{Resource: "dm.baseline", Action: "read", Desc: "查看基线"},
+	{Resource: "dm.baseline", Action: "create", Desc: "创建基线"},
+	{Resource: "dm.baseline", Action: "delete", Desc: "删除基线"},
+	{Resource: "dm.iteration", Action: "read", Desc: "查看迭代"},
+	{Resource: "dm.iteration", Action: "create", Desc: "新建迭代"},
+	{Resource: "dm.iteration", Action: "update", Desc: "修改迭代"},
+	{Resource: "dm.iteration", Action: "delete", Desc: "删除迭代"},
+	// 评论/标签
+	{Resource: "dm.comment", Action: "read", Desc: "查看评论"},
+	{Resource: "dm.comment", Action: "create", Desc: "发表评论"},
+	{Resource: "dm.comment", Action: "delete", Desc: "删除评论"},
+	{Resource: "dm.label", Action: "read", Desc: "查看标签"},
+	{Resource: "dm.label", Action: "create", Desc: "新建标签/绑定任务标签"},
+	{Resource: "dm.label", Action: "delete", Desc: "删除标签"},
 }
 
 func init() {

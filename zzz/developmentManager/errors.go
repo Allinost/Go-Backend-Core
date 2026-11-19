@@ -76,6 +76,24 @@ const (
 	ErrAutoCommitUnsafe         = 46503
 	ErrGenerationAlreadySuccess = 46504
 	ErrGenerationOutputWrite    = 46505
+
+	// 里程碑/任务（V3 PM）
+	ErrMilestoneNotFound        = 46601
+	ErrTaskNotFound             = 46602
+	ErrTaskDependencyNotFound   = 46603
+	ErrInvalidMilestoneStatus   = 46610
+	ErrInvalidTaskType          = 46611
+	ErrInvalidTaskStatus        = 46612
+	ErrInvalidTaskTransition    = 46613
+	ErrTaskDependencyCycle      = 46614
+	ErrTaskSelfDependency       = 46615
+	ErrTaskCodeRequired         = 46616
+	ErrTaskCrossProject         = 46617
+	ErrMilestoneVersionRequired = 46618
+	ErrMilestoneNameRequired    = 46619
+	ErrTaskTitleRequired        = 46620
+	ErrInvalidTaskPriority      = 46621
+	ErrInvalidTaskHours         = 46622
 )
 
 var errMsgs = map[int]string{
@@ -148,6 +166,23 @@ var errMsgs = map[int]string{
 	ErrAutoCommitUnsafe:         "自动提交失败：当前分支不允许提交或 git 操作失败",
 	ErrGenerationAlreadySuccess: "该生成任务已成功，无需重试",
 	ErrGenerationOutputWrite:    "生成产物写入失败",
+
+	ErrMilestoneNotFound:        "里程碑不存在",
+	ErrTaskNotFound:             "任务不存在",
+	ErrTaskDependencyNotFound:   "任务依赖不存在",
+	ErrInvalidMilestoneStatus:   "无效的里程碑状态（planned/active/blocked/done/cancelled）",
+	ErrInvalidTaskType:          "无效的任务类型（refactor/feature/test/docs/ops/migration/risk）",
+	ErrInvalidTaskStatus:        "无效的任务状态（todo/doing/blocked/review/done/cancelled）",
+	ErrInvalidTaskTransition:    "非法的任务状态流转",
+	ErrTaskDependencyCycle:      "任务依赖会形成环",
+	ErrTaskSelfDependency:       "任务不能依赖自身",
+	ErrTaskCodeRequired:         "任务编号不能为空",
+	ErrTaskCrossProject:         "任务/里程碑/需求必须属于同一项目",
+	ErrMilestoneVersionRequired: "里程碑版本号不能为空",
+	ErrMilestoneNameRequired:    "里程碑名称不能为空",
+	ErrTaskTitleRequired:        "任务标题不能为空",
+	ErrInvalidTaskPriority:      "无效的优先级（P0/P1/P2/P3）",
+	ErrInvalidTaskHours:         "工时不能为负数",
 }
 
 // DevelopmentManagerError 模块业务错误，携带模块级错误码
