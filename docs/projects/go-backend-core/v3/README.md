@@ -92,7 +92,7 @@
 | V3-P1-03 | pgx stdlib `*sql.DB` 封装、事务助手、错误映射 | refactor | P1 | 1.0 | P1-02 | todo | 现有仓库可复用 `*sql.DB` |
 | V3-P1-04 | 启动 fail-fast、s0→health 改名、s1/s2 删除、移除 MySQL fallback | refactor | P0 | 1.0 | P1-02 | doing | 模块改名/删除已完成；fail-fast 待主库切换 |
 | V3-P1-05 | Compose/.env/config：postgres 服务、移除 V3 mysql | ops | P1 | 0.5 | P1-01 | todo | V3 `docker compose up` 仅 PG |
-| V3-P1-06 | 配置中心：Schema/默认值/校验/优先级/热更新/审计/脱敏/管理 API | feature | P0 | 2.0 | P1-01 | todo | 核心配置可动态管理；失败回滚 |
+| V3-P1-06 | 配置中心：Schema/默认值/校验/优先级/热更新/审计/脱敏/管理 API | feature | P0 | 2.0 | P1-01 | doing | 框架/内存/API 已落地；PG 持久化待 P2 建表 |
 
 ### V3-P2 Schema 基线（6 个，6.5 人日）
 

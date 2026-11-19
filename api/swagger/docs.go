@@ -9694,6 +9694,157 @@ const docTemplate = `{
                 }
             }
         },
+        "/settings/config": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "获取配置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "更新配置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/settings/config/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "配置历史",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/settings/config/reset": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "重置配置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/settings/config/schema": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "配置 Schema",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/settings/config/validate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "校验配置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/shopchecker/dashboard": {
             "get": {
                 "description": "返回全局统计数据：监控商品总数、已启用数、今日检查次数、今日通知次数、最近降价列表",

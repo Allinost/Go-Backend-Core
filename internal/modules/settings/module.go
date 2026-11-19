@@ -11,16 +11,18 @@ import (
 	"github.com/Allinost/go-backend-core/internal/modules"
 	coreAuth "github.com/Allinost/go-backend-core/internal/modules/auth"
 	svcAuth "github.com/Allinost/go-backend-core/internal/services/auth"
+	"github.com/Allinost/go-backend-core/internal/services/configcenter"
 	"github.com/gin-gonic/gin"
 )
 
 // Module 设置模块，实现 modules.Module 接口
 type Module struct {
-	cfg    *config.Config
-	store  *Store
-	h      *Handler
-	authMW gin.HandlerFunc
-	rbac   *svcAuth.RBACService
+	cfg       *config.Config
+	store     *Store
+	configSvc *configcenter.Service
+	h         *Handler
+	authMW    gin.HandlerFunc
+	rbac      *svcAuth.RBACService
 }
 
 // Name 返回模块名称，用于路由前缀 /api/v1/settings/*
@@ -44,7 +46,9 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.authMW = am.AuthMiddleware()
 	m.rbac = am.RBAC()
 
+	m.configSvc = newConfigService(cfg)
 	m.h = NewHandler(m.store, cfg)
+	m.h.SetConfigService(m.configSvc)
 	return nil
 }
 
@@ -59,6 +63,14 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	admin := middleware.RequirePermission(m.rbac, "*", "*")
 	r.GET("", admin, m.h.Get)
 	r.PUT("", admin, m.h.Update)
+
+	// 配置中心（V3）
+	r.GET("/config/schema", admin, m.h.ConfigSchema)
+	r.GET("/config", admin, m.h.GetConfig)
+	r.PUT("/config", admin, m.h.UpdateConfig)
+	r.POST("/config/validate", admin, m.h.ValidateConfig)
+	r.POST("/config/reset", admin, m.h.ResetConfig)
+	r.GET("/config/history", admin, m.h.ConfigHistory)
 }
 
 // settingsFilePath 设置文件路径，可用 APP_SETTINGS_FILE 覆盖

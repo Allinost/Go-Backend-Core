@@ -14,6 +14,7 @@ import (
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/Allinost/go-backend-core/internal/pkg/response"
 	"github.com/Allinost/go-backend-core/internal/services/audit"
+	"github.com/Allinost/go-backend-core/internal/services/configcenter"
 	"github.com/Allinost/go-backend-core/zzz/login3rd"
 	"github.com/gin-gonic/gin"
 )
@@ -50,13 +51,19 @@ type View struct {
 
 // Handler 设置 HTTP 处理器
 type Handler struct {
-	store *Store
-	cfg   *config.Config
+	store     *Store
+	cfg       *config.Config
+	configSvc *configcenter.Service
 }
 
 // NewHandler 创建设置处理器
 func NewHandler(store *Store, cfg *config.Config) *Handler {
 	return &Handler{store: store, cfg: cfg}
+}
+
+// SetConfigService 注入配置中心服务。
+func (h *Handler) SetConfigService(svc *configcenter.Service) {
+	h.configSvc = svc
 }
 
 // defaults 文件不存在时的默认设置

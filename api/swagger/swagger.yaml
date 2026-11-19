@@ -11908,6 +11908,95 @@ paths:
       summary: 更新应用设置
       tags:
       - settings
+  /settings/config:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取配置
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新配置
+      tags:
+      - settings
+  /settings/config/history:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 配置历史
+      tags:
+      - settings
+  /settings/config/reset:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 重置配置
+      tags:
+      - settings
+  /settings/config/schema:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 配置 Schema
+      tags:
+      - settings
+  /settings/config/validate:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_Allinost_go-backend-core_internal_pkg_response.Response'
+      security:
+      - BearerAuth: []
+      summary: 校验配置
+      tags:
+      - settings
   /shopchecker/dashboard:
     get:
       consumes:
