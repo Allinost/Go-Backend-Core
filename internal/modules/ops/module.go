@@ -54,29 +54,17 @@ func (m *Module) Init(cfg *config.Config) error {
 		return fmt.Errorf("ops: 没有可用的 S3 存储")
 	}
 
-	// 获取任意可用 MySQL 连接（遍历所有池）
+	// V3 使用 PostgreSQL 主库
 	var sqlDB *sql.DB
-	for name, pool := range database.DB.MySQL {
-		if pool != nil && pool.DB != nil {
-			sqlDB = pool.DB
-			logger.Info().Str("pool", name).Msg("ops: 使用 MySQL 连接池")
-			break
-		}
+	if pg := database.DB.Postgres["main"]; pg != nil && pg.SQLDB != nil {
+		sqlDB = pg.SQLDB
+		logger.Info().Msg("ops: 使用 PostgreSQL 连接池")
 	}
 	if sqlDB == nil {
-		logger.Warn().Int("available_pools", len(database.DB.MySQL)).Msg("ops: MySQL 连接不可用，扫描/引用功能将降级")
-		if len(database.DB.MySQL) > 0 {
-			for name, pool := range database.DB.MySQL {
-				if pool == nil {
-					logger.Warn().Str("pool", name).Msg("ops:  MySQL 连接池 " + name + " 为 nil")
-				} else if pool.DB == nil {
-					logger.Warn().Str("pool", name).Msg("ops:  MySQL 连接池 " + name + " 的 DB 为 nil")
-				}
-			}
-		}
+		logger.Warn().Msg("ops: PostgreSQL 连接不可用，扫描/引用功能将降级")
 	} else {
 		// 初始化文件引用服务
-		refStore := fileref.NewMySQLStore(sqlDB)
+		refStore := fileref.NewPostgresStore(sqlDB)
 		m.refSvc = fileref.NewService(refStore)
 		if err := m.refSvc.Init(context.Background()); err != nil {
 			logger.Warn().Err(err).Msg("ops: 文件引用服务初始化失败，降级运行")

@@ -32,12 +32,12 @@ func (m *Module) Name() string {
 func (m *Module) Init(cfg *config.Config) error {
 	m.cfg = cfg
 
-	pool := database.DB.MySQL["main"]
-	if pool == nil {
-		return fmt.Errorf("servicenav: MySQL 连接不可用")
+	pg := database.DB.Postgres["main"]
+	if pg == nil || pg.SQLDB == nil {
+		return fmt.Errorf("servicenav: PostgreSQL 连接不可用")
 	}
 
-	m.repo = NewRepository(pool.DB)
+	m.repo = NewRepository(pg.SQLDB)
 	m.svc = NewService(m.repo)
 	m.h = NewHandler(m.svc)
 	return nil

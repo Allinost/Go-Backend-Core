@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Allinost/go-backend-core/internal/pkg/dbutil"
 	"github.com/google/uuid"
 )
 
@@ -23,11 +24,23 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
+func (r *Repository) queryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return r.db.QueryContext(ctx, dbutil.Rebind(query), args...)
+}
+
+func (r *Repository) queryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	return r.db.QueryRowContext(ctx, dbutil.Rebind(query), args...)
+}
+
+func (r *Repository) execContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return r.db.ExecContext(ctx, dbutil.Rebind(query), args...)
+}
+
 // ---------- 服务类型 ----------
 
 // ListTypes 查询全部服务类型，按名称升序
 func (r *Repository) ListTypes(ctx context.Context) ([]ServiceType, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.queryContext(ctx,
 		`SELECT id, name, remark, created_at, updated_at FROM `+tableType+` ORDER BY name ASC`)
 	if err != nil {
 		return nil, err
@@ -47,7 +60,7 @@ func (r *Repository) ListTypes(ctx context.Context) ([]ServiceType, error) {
 
 // GetType 根据 ID 获取单个服务类型
 func (r *Repository) GetType(ctx context.Context, id string) (*ServiceType, error) {
-	row := r.db.QueryRowContext(ctx,
+	row := r.queryRowContext(ctx,
 		`SELECT id, name, remark, created_at, updated_at FROM `+tableType+` WHERE id = ?`, id)
 	var t ServiceType
 	if err := row.Scan(&t.ID, &t.Name, &t.Remark, &t.CreatedAt, &t.UpdatedAt); err != nil {
@@ -58,7 +71,7 @@ func (r *Repository) GetType(ctx context.Context, id string) (*ServiceType, erro
 
 // GetTypeByName 根据名称获取单个服务类型
 func (r *Repository) GetTypeByName(ctx context.Context, name string) (*ServiceType, error) {
-	row := r.db.QueryRowContext(ctx,
+	row := r.queryRowContext(ctx,
 		`SELECT id, name, remark, created_at, updated_at FROM `+tableType+` WHERE name = ?`, name)
 	var t ServiceType
 	if err := row.Scan(&t.ID, &t.Name, &t.Remark, &t.CreatedAt, &t.UpdatedAt); err != nil {
@@ -77,7 +90,7 @@ func (r *Repository) CreateType(ctx context.Context, req *CreateTypeReq) (*Servi
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.execContext(ctx,
 		`INSERT INTO `+tableType+` (id, name, remark, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
 		t.ID, t.Name, t.Remark, t.CreatedAt, t.UpdatedAt)
 	if err != nil {
@@ -100,7 +113,7 @@ func (r *Repository) UpdateType(ctx context.Context, id string, req *UpdateTypeR
 	}
 	t.UpdatedAt = time.Now()
 
-	_, err = r.db.ExecContext(ctx,
+	_, err = r.execContext(ctx,
 		`UPDATE `+tableType+` SET name = ?, remark = ?, updated_at = ? WHERE id = ?`,
 		t.Name, t.Remark, t.UpdatedAt, t.ID)
 	if err != nil {
@@ -111,14 +124,14 @@ func (r *Repository) UpdateType(ctx context.Context, id string, req *UpdateTypeR
 
 // DeleteType 删除服务类型
 func (r *Repository) DeleteType(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM `+tableType+` WHERE id = ?`, id)
+	_, err := r.execContext(ctx, `DELETE FROM `+tableType+` WHERE id = ?`, id)
 	return err
 }
 
 // TypeNameExists 判断服务类型名称是否存在（排除指定 ID）
 func (r *Repository) TypeNameExists(ctx context.Context, name, excludeID string) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := r.queryRowContext(ctx,
 		`SELECT COUNT(*) FROM `+tableType+` WHERE name = ? AND id <> ?`, name, excludeID).Scan(&count)
 	return count > 0, err
 }
@@ -127,8 +140,8 @@ func (r *Repository) TypeNameExists(ctx context.Context, name, excludeID string)
 func (r *Repository) CountItemsByType(ctx context.Context, name string) (int, error) {
 	typeJSON, _ := json.Marshal(name)
 	var count int
-	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM `+tableItem+` WHERE JSON_CONTAINS(types, ?)`, string(typeJSON)).Scan(&count)
+	err := r.queryRowContext(ctx,
+		`SELECT COUNT(*) FROM `+tableItem+` WHERE types @> ?::jsonb`, string(typeJSON)).Scan(&count)
 	return count, err
 }
 
@@ -144,7 +157,7 @@ func (r *Repository) ValidateTypes(ctx context.Context, names []string) ([]strin
 		args[i] = n
 	}
 	query := fmt.Sprintf(`SELECT name FROM `+tableType+` WHERE name IN (%s)`, strings.Join(placeholders, ","))
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := r.queryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -194,12 +207,12 @@ func (r *Repository) ListItems(ctx context.Context, req *ListItemsReq) ([]Servic
 	conditions = append(conditions, "1=1")
 
 	if req.Keyword != "" {
-		conditions = append(conditions, "i.name LIKE ?")
+		conditions = append(conditions, "i.name ILIKE ?")
 		args = append(args, "%"+req.Keyword+"%")
 	}
 	if req.Type != "" {
 		typeJSON, _ := json.Marshal(req.Type)
-		conditions = append(conditions, "JSON_CONTAINS(i.types, ?)")
+		conditions = append(conditions, "i.types @> ?::jsonb")
 		args = append(args, string(typeJSON))
 	}
 	if req.ProjectID != nil {
@@ -211,7 +224,7 @@ func (r *Repository) ListItems(ctx context.Context, req *ListItemsReq) ([]Servic
 
 	var total int
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s i WHERE %s", tableItem, where)
-	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := r.queryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, false, 0, err
 	}
 
@@ -220,7 +233,7 @@ func (r *Repository) ListItems(ctx context.Context, req *ListItemsReq) ([]Servic
 	sortBy, sortOrder := sanitizeSort(req.SortBy, req.SortOrder)
 
 	dataArgs := append(args, limit+1, offset)
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.queryContext(ctx,
 		fmt.Sprintf("%s WHERE %s ORDER BY i.%s %s LIMIT ? OFFSET ?", itemSelect, where, sortBy, sortOrder),
 		dataArgs...)
 	if err != nil {
@@ -241,19 +254,19 @@ func (r *Repository) ListItems(ctx context.Context, req *ListItemsReq) ([]Servic
 
 // GetItem 根据 ID 获取单个服务条目
 func (r *Repository) GetItem(ctx context.Context, id string) (*ServiceItem, error) {
-	row := r.db.QueryRowContext(ctx, itemSelect+` WHERE i.id = ?`, id)
+	row := r.queryRowContext(ctx, itemSelect+` WHERE i.id = ?`, id)
 	return scanItem(row)
 }
 
 // GetItemByName 根据名称获取单个服务条目
 func (r *Repository) GetItemByName(ctx context.Context, name string) (*ServiceItem, error) {
-	row := r.db.QueryRowContext(ctx, itemSelect+` WHERE i.name = ?`, name)
+	row := r.queryRowContext(ctx, itemSelect+` WHERE i.name = ?`, name)
 	return scanItem(row)
 }
 
 // GetItemByAccessPointID 根据网络接入点 ID 查询已导入条目（用于导入幂等）
 func (r *Repository) GetItemByAccessPointID(ctx context.Context, accessPointID int64) (*ServiceItem, error) {
-	row := r.db.QueryRowContext(ctx, itemSelect+` WHERE i.access_point_id = ?`, accessPointID)
+	row := r.queryRowContext(ctx, itemSelect+` WHERE i.access_point_id = ?`, accessPointID)
 	return scanItem(row)
 }
 
@@ -283,7 +296,7 @@ func (r *Repository) CreateItem(ctx context.Context, req *CreateItemReq) (*Servi
 	}
 
 	typesJSON, _ := json.Marshal(req.Types)
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.execContext(ctx,
 		`INSERT INTO `+tableItem+` (id, name, types, protocol, address, intranet_port, easytier_port, account, password_hint, remark,
 		 project_id, container_id, access_point_id, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -356,7 +369,7 @@ func (r *Repository) UpdateItem(ctx context.Context, id string, req *UpdateItemR
 	item.UpdatedAt = time.Now()
 
 	typesJSON, _ := json.Marshal(item.Types)
-	_, err = r.db.ExecContext(ctx,
+	_, err = r.execContext(ctx,
 		`UPDATE `+tableItem+` SET name = ?, types = ?, protocol = ?, address = ?, intranet_port = ?, easytier_port = ?,
 		 account = ?, password_hint = ?, remark = ?, project_id = ?, container_id = ?, access_point_id = ?,
 		 updated_at = ? WHERE id = ?`,
@@ -371,7 +384,7 @@ func (r *Repository) UpdateItem(ctx context.Context, id string, req *UpdateItemR
 
 // DeleteItem 删除服务条目
 func (r *Repository) DeleteItem(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM `+tableItem+` WHERE id = ?`, id)
+	_, err := r.execContext(ctx, `DELETE FROM `+tableItem+` WHERE id = ?`, id)
 	return err
 }
 

@@ -47,12 +47,12 @@ func (m *Module) Name() string {
 func (m *Module) Init(cfg *config.Config) error {
 	m.cfg = cfg
 
-	pool := database.DB.MySQL["main"]
-	if pool == nil {
-		return fmt.Errorf("integration: MySQL main 连接不可用")
+	pg := database.DB.Postgres["main"]
+	if pg == nil || pg.SQLDB == nil {
+		return fmt.Errorf("integration: PostgreSQL main 连接不可用")
 	}
 
-	m.outbox = outbox.NewService(outbox.NewMySQLStore(pool.DB))
+	m.outbox = outbox.NewService(outbox.NewPostgresStore(pg.SQLDB))
 	m.connectors = connector.NewRegistry()
 
 	var secretCipher *crypto.Cipher
@@ -65,7 +65,7 @@ func (m *Module) Init(cfg *config.Config) error {
 	} else {
 		logger.Warn().Msg("integration: 未配置 crypto.master_key_hex，连接器 secret 将无法加密保存")
 	}
-	m.connectorMgr = NewConnectorManager(pool.DB, secretCipher, m.connectors)
+	m.connectorMgr = NewConnectorManager(pg.SQLDB, secretCipher, m.connectors)
 	if err := m.connectorMgr.Load(context.Background()); err != nil {
 		logger.Warn().Err(err).Msg("integration: 加载连接器配置失败")
 	}
@@ -128,7 +128,7 @@ func (m *Module) Init(cfg *config.Config) error {
 		})
 	}
 
-	m.h = NewHandler(m.gateway, m.outbox, m.connectors, NewMySQLActionLogger(pool.DB))
+	m.h = NewHandler(m.gateway, m.outbox, m.connectors, NewPostgresActionLogger(pg.SQLDB))
 	m.h.SetConnectorManager(m.connectorMgr)
 
 	dc := cfg.Integration.Dispatcher

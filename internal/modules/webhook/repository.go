@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Allinost/go-backend-core/internal/pkg/dbutil"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
@@ -29,6 +30,18 @@ type Repository struct {
 // NewRepository 创建 Repository
 func NewRepository(db *sql.DB, rdb *redis.Client) *Repository {
 	return &Repository{db: db, rdb: rdb}
+}
+
+func (r *Repository) queryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return r.db.QueryContext(ctx, dbutil.Rebind(query), args...)
+}
+
+func (r *Repository) queryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	return r.db.QueryRowContext(ctx, dbutil.Rebind(query), args...)
+}
+
+func (r *Repository) execContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return r.db.ExecContext(ctx, dbutil.Rebind(query), args...)
 }
 
 // ListConfigs 分页查询配置列表，支持按 type/status/source/tag/keyword 筛选
@@ -51,12 +64,12 @@ func (r *Repository) ListConfigs(ctx context.Context, req *ListConfigsReq) ([]We
 		args = append(args, req.Source)
 	}
 	if req.Tag != "" {
-		conditions = append(conditions, "JSON_CONTAINS(tags, ?)")
+		conditions = append(conditions, "tags @> ?::jsonb")
 		tagJSON, _ := json.Marshal(req.Tag)
 		args = append(args, string(tagJSON))
 	}
 	if req.Keyword != "" {
-		conditions = append(conditions, "(name LIKE ? OR description LIKE ?)")
+		conditions = append(conditions, "(name ILIKE ? OR description ILIKE ?)")
 		kw := "%" + req.Keyword + "%"
 		args = append(args, kw, kw)
 	}
@@ -65,7 +78,7 @@ func (r *Repository) ListConfigs(ctx context.Context, req *ListConfigsReq) ([]We
 
 	var total int
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s", tableConfigs, where)
-	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := r.queryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, false, 0, err
 	}
 
@@ -81,7 +94,7 @@ func (r *Repository) ListConfigs(ctx context.Context, req *ListConfigsReq) ([]We
 		FROM %s WHERE %s ORDER BY created_at DESC LIMIT ? OFFSET ?`, tableConfigs, where)
 
 	dataArgs := append(args, limit+1, offset)
-	rows, err := r.db.QueryContext(ctx, dataQuery, dataArgs...)
+	rows, err := r.queryContext(ctx, dataQuery, dataArgs...)
 	if err != nil {
 		return nil, false, 0, err
 	}
@@ -100,7 +113,7 @@ func (r *Repository) ListConfigs(ctx context.Context, req *ListConfigsReq) ([]We
 
 // GetConfig 根据 ID 获取单个配置
 func (r *Repository) GetConfig(ctx context.Context, id string) (*WebhookConfig, error) {
-	row := r.db.QueryRowContext(ctx,
+	row := r.queryRowContext(ctx,
 		`SELECT id, name, type, url, status, tags, description, source, app,
 		 signing_key, access_token, auth_type, auth_value, custom_headers,
 		 whitelist_keywords, whitelist_mode,
@@ -129,7 +142,7 @@ func (r *Repository) FindByIDs(ctx context.Context, ids []string) ([]WebhookConf
 		last_sent_at, last_success_at, last_error, total_sent, total_failed,
 		created_at, updated_at
 		FROM %s WHERE id IN (%s) AND status = 'active'`, tableConfigs, strings.Join(placeholders, ","))
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := r.queryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +159,7 @@ func (r *Repository) FindByTags(ctx context.Context, tags []string) ([]WebhookCo
 	var args []any
 	for _, tag := range tags {
 		tagJSON, _ := json.Marshal(tag)
-		conditions = append(conditions, "JSON_CONTAINS(tags, ?)")
+		conditions = append(conditions, "tags @> ?::jsonb")
 		args = append(args, string(tagJSON))
 	}
 	query := fmt.Sprintf(`SELECT id, name, type, url, status, tags, description, source, app,
@@ -156,7 +169,7 @@ func (r *Repository) FindByTags(ctx context.Context, tags []string) ([]WebhookCo
 		last_sent_at, last_success_at, last_error, total_sent, total_failed,
 		created_at, updated_at
 		FROM %s WHERE status = 'active' AND (%s)`, tableConfigs, strings.Join(conditions, " OR "))
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := r.queryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +179,7 @@ func (r *Repository) FindByTags(ctx context.Context, tags []string) ([]WebhookCo
 
 // FindActive 查询全部活跃配置
 func (r *Repository) FindActive(ctx context.Context) ([]WebhookConfig, error) {
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.queryContext(ctx,
 		`SELECT id, name, type, url, status, tags, description, source, app,
 		 signing_key, access_token, auth_type, auth_value, custom_headers,
 		 whitelist_keywords, whitelist_mode,
@@ -235,7 +248,7 @@ func (r *Repository) CreateConfig(ctx context.Context, req *CreateConfigReq) (*W
 	headersJSON, _ := json.Marshal(req.CustomHeaders)
 	kwJSON, _ := json.Marshal(req.WhitelistKeywords)
 
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.execContext(ctx,
 		`INSERT INTO `+tableConfigs+` (id, name, type, url, status, tags, description, source, app,
 		 signing_key, access_token, auth_type, auth_value, custom_headers,
 		 whitelist_keywords, whitelist_mode,
@@ -327,7 +340,7 @@ func (r *Repository) UpdateConfig(ctx context.Context, id string, req *UpdateCon
 	headersJSON, _ := json.Marshal(c.CustomHeaders)
 	kwJSON, _ := json.Marshal(c.WhitelistKeywords)
 
-	_, err = r.db.ExecContext(ctx,
+	_, err = r.execContext(ctx,
 		`UPDATE `+tableConfigs+` SET name=?, type=?, url=?, tags=?, description=?, source=?, app=?,
 		 signing_key=?, access_token=?, auth_type=?, auth_value=?, custom_headers=?,
 		 whitelist_keywords=?, whitelist_mode=?,
@@ -346,13 +359,13 @@ func (r *Repository) UpdateConfig(ctx context.Context, id string, req *UpdateCon
 
 // DeleteConfig 删除配置
 func (r *Repository) DeleteConfig(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM `+tableConfigs+` WHERE id = ?`, id)
+	_, err := r.execContext(ctx, `DELETE FROM `+tableConfigs+` WHERE id = ?`, id)
 	return err
 }
 
 // UpdateStatus 更新配置状态
 func (r *Repository) UpdateStatus(ctx context.Context, id, status string) error {
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.execContext(ctx,
 		`UPDATE `+tableConfigs+` SET status = ?, updated_at = ? WHERE id = ?`,
 		status, time.Now(), id)
 	return err
@@ -362,11 +375,11 @@ func (r *Repository) UpdateStatus(ctx context.Context, id, status string) error 
 func (r *Repository) UpdateStats(ctx context.Context, id string, success bool) {
 	now := time.Now()
 	if success {
-		r.db.ExecContext(ctx,
+		r.execContext(ctx,
 			`UPDATE `+tableConfigs+` SET total_sent = total_sent + 1, last_sent_at = ?, last_success_at = ? WHERE id = ?`,
 			now, now, id)
 	} else {
-		r.db.ExecContext(ctx,
+		r.execContext(ctx,
 			`UPDATE `+tableConfigs+` SET total_sent = total_sent + 1, total_failed = total_failed + 1, last_sent_at = ? WHERE id = ?`,
 			now, id)
 	}
@@ -374,7 +387,7 @@ func (r *Repository) UpdateStats(ctx context.Context, id string, success bool) {
 
 // UpdateLastError 更新 last_error 字段
 func (r *Repository) UpdateLastError(ctx context.Context, id, errMsg string) {
-	r.db.ExecContext(ctx,
+	r.execContext(ctx,
 		`UPDATE `+tableConfigs+` SET last_error = ? WHERE id = ?`, errMsg, id)
 }
 
@@ -385,7 +398,7 @@ func (r *Repository) SaveDeliveryLog(ctx context.Context, log *DeliveryLog) erro
 		bodyForHash += *log.RequestBody
 	}
 	log.ContentHash = sha256Hex(bodyForHash)
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.execContext(ctx,
 		`INSERT INTO `+tableDeliveryLogs+` (webhook_id, source, title, content_hash, status,
 		 request_body, response_code, response_body, error_msg, retry_count, duration_ms)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -418,7 +431,7 @@ func (r *Repository) ListDeliveryLogs(ctx context.Context, req *ListDeliveryLogs
 
 	var total int
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s", tableDeliveryLogs, where)
-	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := r.queryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, false, 0, err
 	}
 
@@ -426,7 +439,7 @@ func (r *Repository) ListDeliveryLogs(ctx context.Context, req *ListDeliveryLogs
 	offset := req.Offset()
 
 	dataArgs := append(args, limit+1, offset)
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := r.queryContext(ctx,
 		fmt.Sprintf(`SELECT id, webhook_id, source, title, content_hash, status,
 		 request_body, response_code, response_body, error_msg, retry_count, duration_ms, created_at
 		 FROM %s WHERE %s ORDER BY created_at DESC LIMIT ? OFFSET ?`, tableDeliveryLogs, where),
@@ -459,7 +472,7 @@ func (r *Repository) ListDeliveryLogs(ctx context.Context, req *ListDeliveryLogs
 
 // DeleteDeliveryLog 删除单条投递日志
 func (r *Repository) DeleteDeliveryLog(ctx context.Context, id int64) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM `+tableDeliveryLogs+` WHERE id = ?`, id)
+	_, err := r.execContext(ctx, `DELETE FROM `+tableDeliveryLogs+` WHERE id = ?`, id)
 	return err
 }
 
@@ -474,7 +487,7 @@ func (r *Repository) BatchDeleteDeliveryLogs(ctx context.Context, ids []int64) e
 		placeholders[i] = "?"
 		args[i] = id
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := r.execContext(ctx,
 		`DELETE FROM `+tableDeliveryLogs+` WHERE id IN (`+strings.Join(placeholders, ",")+`)`, args...)
 	return err
 }
@@ -486,22 +499,22 @@ func (r *Repository) GetStats(ctx context.Context) (*StatsResp, error) {
 		BySource: make(map[string]int),
 	}
 
-	r.db.QueryRowContext(ctx,
+	r.queryRowContext(ctx,
 		`SELECT COUNT(*) FROM `+tableConfigs).Scan(&stats.TotalConfigs)
-	r.db.QueryRowContext(ctx,
+	r.queryRowContext(ctx,
 		`SELECT COUNT(*) FROM `+tableConfigs+` WHERE status = 'active'`).Scan(&stats.ActiveConfigs)
 
 	todayStart := time.Now().Truncate(24 * time.Hour)
-	r.db.QueryRowContext(ctx,
+	r.queryRowContext(ctx,
 		`SELECT COUNT(*) FROM `+tableDeliveryLogs+` WHERE created_at >= ?`, todayStart).Scan(&stats.TotalSentToday)
-	r.db.QueryRowContext(ctx,
+	r.queryRowContext(ctx,
 		`SELECT COUNT(*) FROM `+tableDeliveryLogs+` WHERE created_at >= ? AND status = 'success'`, todayStart).Scan(&stats.SuccessToday)
-	r.db.QueryRowContext(ctx,
+	r.queryRowContext(ctx,
 		`SELECT COUNT(*) FROM `+tableDeliveryLogs+` WHERE created_at >= ? AND status = 'failed'`, todayStart).Scan(&stats.FailedToday)
-	r.db.QueryRowContext(ctx,
+	r.queryRowContext(ctx,
 		`SELECT COUNT(*) FROM `+tableDeliveryLogs+` WHERE created_at >= ? AND status = 'rate_limited'`, todayStart).Scan(&stats.RateLimitedToday)
 
-	rows, _ := r.db.QueryContext(ctx,
+	rows, _ := r.queryContext(ctx,
 		`SELECT type, COUNT(*) FROM `+tableConfigs+` GROUP BY type`)
 	if rows != nil {
 		defer rows.Close()
@@ -513,7 +526,7 @@ func (r *Repository) GetStats(ctx context.Context) (*StatsResp, error) {
 		}
 	}
 
-	srows, _ := r.db.QueryContext(ctx,
+	srows, _ := r.queryContext(ctx,
 		`SELECT source, COUNT(*) as cnt FROM `+tableDeliveryLogs+` WHERE created_at >= ? GROUP BY source`, todayStart)
 	if srows != nil {
 		defer srows.Close()
@@ -531,7 +544,7 @@ func (r *Repository) GetStats(ctx context.Context) (*StatsResp, error) {
 // GetConfigStats 获取单个配置的统计
 func (r *Repository) GetConfigStats(ctx context.Context, id string) (*ConfigStatsResp, error) {
 	stats := &ConfigStatsResp{}
-	err := r.db.QueryRowContext(ctx,
+	err := r.queryRowContext(ctx,
 		`SELECT total_sent, total_failed, last_sent_at, last_success_at, last_error
 		 FROM `+tableConfigs+` WHERE id = ?`, id).Scan(
 		&stats.TotalSent, &stats.TotalFailed, &stats.LastSentAt, &stats.LastSuccessAt, &stats.LastError)

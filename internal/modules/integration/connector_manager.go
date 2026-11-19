@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Allinost/go-backend-core/internal/pkg/crypto"
+	"github.com/Allinost/go-backend-core/internal/pkg/dbutil"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/Allinost/go-backend-core/internal/services/connector"
 	"github.com/google/uuid"
@@ -126,8 +127,8 @@ func (m *ConnectorManager) Create(ctx context.Context, req *ConnectorReq) (*Conn
 	if req.Enabled != nil {
 		enabled = *req.Enabled
 	}
-	_, err = m.db.ExecContext(ctx, `INSERT INTO `+tableConnectors+`
-		(id, name, type, config, enabled) VALUES (?, ?, ?, ?, ?)`,
+	_, err = m.db.ExecContext(ctx, dbutil.Rebind(`INSERT INTO `+tableConnectors+`
+		(id, name, type, config, enabled) VALUES (?, ?, ?, ?, ?)`),
 		id, connectorName(req.Name), connectorType(req.Type), string(data), enabled)
 	if err != nil {
 		return nil, err
@@ -163,9 +164,9 @@ func (m *ConnectorManager) Update(ctx context.Context, id string, req *Connector
 	if req.Enabled != nil {
 		enabled = *req.Enabled
 	}
-	result, err := m.db.ExecContext(ctx, `UPDATE `+tableConnectors+`
+	result, err := m.db.ExecContext(ctx, dbutil.Rebind(`UPDATE `+tableConnectors+`
 		SET name = ?, type = ?, config = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
-		WHERE id = ?`,
+		WHERE id = ?`),
 		connectorName(req.Name), connectorType(req.Type), string(data), enabled, id)
 	if err != nil {
 		return nil, err
@@ -181,7 +182,7 @@ func (m *ConnectorManager) Update(ctx context.Context, id string, req *Connector
 
 // Delete 删除连接器并刷新注册表。
 func (m *ConnectorManager) Delete(ctx context.Context, id string) error {
-	result, err := m.db.ExecContext(ctx, `DELETE FROM `+tableConnectors+` WHERE id = ?`, id)
+	result, err := m.db.ExecContext(ctx, dbutil.Rebind(`DELETE FROM `+tableConnectors+` WHERE id = ?`), id)
 	if err != nil {
 		return err
 	}
@@ -293,10 +294,10 @@ func (m *ConnectorManager) buildWebhook(id string, cfg ConnectorConfig) (connect
 func (m *ConnectorManager) listRecords(ctx context.Context, onlyEnabled bool) ([]connectorRecord, error) {
 	query := `SELECT id, name, type, config, enabled, created_at, updated_at FROM ` + tableConnectors
 	if onlyEnabled {
-		query += " WHERE enabled = 1"
+		query += " WHERE enabled = true"
 	}
 	query += " ORDER BY created_at DESC"
-	rows, err := m.db.QueryContext(ctx, query)
+	rows, err := m.db.QueryContext(ctx, dbutil.Rebind(query))
 	if err != nil {
 		return nil, err
 	}
@@ -313,8 +314,8 @@ func (m *ConnectorManager) listRecords(ctx context.Context, onlyEnabled bool) ([
 }
 
 func (m *ConnectorManager) getRecord(ctx context.Context, id string) (connectorRecord, error) {
-	row := m.db.QueryRowContext(ctx, `SELECT id, name, type, config, enabled, created_at, updated_at
-		FROM `+tableConnectors+` WHERE id = ?`, id)
+	row := m.db.QueryRowContext(ctx, dbutil.Rebind(`SELECT id, name, type, config, enabled, created_at, updated_at
+		FROM `+tableConnectors+` WHERE id = ?`), id)
 	record, err := scanConnectorRecord(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return connectorRecord{}, connector.ErrNotFound
@@ -335,12 +336,12 @@ type connectorRecord struct {
 func scanConnectorRecord(scanner rowScanner) (connectorRecord, error) {
 	var (
 		record  connectorRecord
-		enabled int
+		enabled bool
 	)
 	if err := scanner.Scan(&record.ID, &record.Name, &record.Type, &record.Config, &enabled, &record.CreatedAt, &record.UpdatedAt); err != nil {
 		return connectorRecord{}, err
 	}
-	record.Enabled = enabled == 1
+	record.Enabled = enabled
 	return record, nil
 }
 

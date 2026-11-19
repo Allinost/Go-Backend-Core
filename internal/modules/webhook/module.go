@@ -32,9 +32,9 @@ func (m *Module) Name() string {
 func (m *Module) Init(cfg *config.Config) error {
 	m.cfg = cfg
 
-	pool := database.DB.MySQL["main"]
-	if pool == nil {
-		return fmt.Errorf("webhook: MySQL 连接不可用")
+	pg := database.DB.Postgres["main"]
+	if pg == nil || pg.SQLDB == nil {
+		return fmt.Errorf("webhook: PostgreSQL 连接不可用")
 	}
 
 	var rdb *redis.Client
@@ -44,7 +44,7 @@ func (m *Module) Init(cfg *config.Config) error {
 		logger.Warn().Msg("webhook: Redis 不可用，限流和去重功能将禁用")
 	}
 
-	m.repo = NewRepository(pool.DB, rdb)
+	m.repo = NewRepository(pg.SQLDB, rdb)
 
 	senderFactory := sender.NewFactory()
 	rateLimiter := limiter.New(rdb)

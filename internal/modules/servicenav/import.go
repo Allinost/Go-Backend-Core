@@ -51,7 +51,7 @@ func (r *Repository) ListImportCandidates(ctx context.Context, projectIDs []int6
 		FROM ` + projectTable + ` p
 		JOIN zzz_development_manager_access_point ap ON ap.project_id = p.id
 		LEFT JOIN ` + containerTable + ` c ON c.id = ap.container_id
-		WHERE p.deleted = 0 AND ap.deleted = 0 AND ap.url IS NOT NULL AND ap.url <> ''
+		WHERE p.deleted = false AND ap.deleted = false AND ap.url IS NOT NULL AND ap.url <> ''
 		  AND p.type IN (?, ?, ?, ?)`
 	args := []any{importableProjectTypes[0], importableProjectTypes[1], importableProjectTypes[2], importableProjectTypes[3]}
 	if len(projectIDs) > 0 {
@@ -64,7 +64,7 @@ func (r *Repository) ListImportCandidates(ctx context.Context, projectIDs []int6
 	}
 	query += " ORDER BY p.id ASC, ap.id ASC"
 
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := r.queryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

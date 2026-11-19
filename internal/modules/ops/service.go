@@ -300,9 +300,15 @@ func (s *Service) ScanFileUsage(ctx context.Context, targets []ScanTarget) (*Sca
 	}, nil
 }
 
+// quoteIdent 为 PostgreSQL 包一层双引号，避免表/列名大小写与保留字问题。
+func quoteIdent(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
 // scanColumn 扫描单个列对文件路径的引用
 func (s *Service) scanColumn(ctx context.Context, table, column string, referencedSet map[string]bool) (*TargetScanReport, error) {
-	query := fmt.Sprintf("SELECT `%s` FROM `%s` WHERE `%s` IS NOT NULL AND `%s` != ''", column, table, column, column)
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE %s IS NOT NULL AND %s <> ''",
+		quoteIdent(column), quoteIdent(table), quoteIdent(column), quoteIdent(column))
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("查询 %s.%s 失败: %w", table, column, err)
@@ -470,7 +476,7 @@ func (s *Service) GetBucketStats(ctx context.Context) (*BucketStats, error) {
 // ComponentStatus 各组件状态
 type ComponentStatus struct {
 	S3Backend   string `json:"s3_backend"`
-	MySQL       string `json:"mysql"`
+	Database    string `json:"database"`
 	FileRefSvc  string `json:"file_ref_service"`
 	RefTable    string `json:"file_references_table"`
 	TargetTable string `json:"scan_targets_table"`
@@ -480,16 +486,16 @@ type ComponentStatus struct {
 func (s *Service) Status(ctx context.Context) *ComponentStatus {
 	st := &ComponentStatus{
 		S3Backend:  "已连接",
-		MySQL:      "未连接",
+		Database:   "未连接",
 		FileRefSvc: "未初始化",
 		RefTable:   "未知",
 	}
 
 	if s.db != nil {
 		if err := s.db.PingContext(ctx); err != nil {
-			st.MySQL = "连接失败: " + err.Error()
+			st.Database = "连接失败: " + err.Error()
 		} else {
-			st.MySQL = "已连接"
+			st.Database = "已连接"
 		}
 	}
 
@@ -512,7 +518,7 @@ func (s *Service) Status(ctx context.Context) *ComponentStatus {
 		if s.db != nil {
 			st.FileRefSvc = "初始化失败 — 检查服务端日志"
 		} else {
-			st.FileRefSvc = "未初始化 — MySQL 不可用"
+			st.FileRefSvc = "未初始化 — PostgreSQL 不可用"
 		}
 	}
 
@@ -526,7 +532,7 @@ const tableScanTargets = "scan_targets"
 // refUnavailable 返回统一的引用服务不可用错误
 func (s *Service) refUnavailable() error {
 	if s.db == nil {
-		return fmt.Errorf("MySQL 数据库未连接，无法使用引用服务")
+		return fmt.Errorf("PostgreSQL 数据库未连接，无法使用引用服务")
 	}
 	return fmt.Errorf("file_references 数据表初始化失败，请检查数据库权限后重启服务")
 }
@@ -575,7 +581,8 @@ func (s *Service) SyncReferences(ctx context.Context, targets []ScanTarget) (*Sy
 	result := &SyncResult{}
 
 	for _, target := range targets {
-		query := fmt.Sprintf("SELECT id, `%s` FROM `%s` WHERE `%s` IS NOT NULL AND `%s` != ''", target.Column, target.Table, target.Column, target.Column)
+		query := fmt.Sprintf("SELECT id, %s FROM %s WHERE %s IS NOT NULL AND %s <> ''",
+			quoteIdent(target.Column), quoteIdent(target.Table), quoteIdent(target.Column), quoteIdent(target.Column))
 		rows, err := s.db.QueryContext(ctx, query)
 		if err != nil {
 			logger.Warn().Str("table", target.Table).Str("column", target.Column).Err(err).Msg("同步扫描失败，跳过")

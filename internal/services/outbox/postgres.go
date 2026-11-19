@@ -8,23 +8,25 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/Allinost/go-backend-core/internal/pkg/dbutil"
 )
 
 // TableName 外盒事件表名
 const TableName = "zzz_integration_outbox"
 
-// MySQLStore 基于 MySQL 的外盒存储
-type MySQLStore struct {
+// PostgresStore 基于 PostgreSQL 的外盒存储
+type PostgresStore struct {
 	db *sql.DB
 }
 
-// NewMySQLStore 创建 MySQL 存储
-func NewMySQLStore(db *sql.DB) *MySQLStore {
-	return &MySQLStore{db: db}
+// NewPostgresStore 创建 PostgreSQL 存储
+func NewPostgresStore(db *sql.DB) *PostgresStore {
+	return &PostgresStore{db: db}
 }
 
 // Append 写入事件
-func (s *MySQLStore) Append(ctx context.Context, event Event) error {
+func (s *PostgresStore) Append(ctx context.Context, event Event) error {
 	payload := event.Payload
 	if len(payload) == 0 {
 		payload = json.RawMessage("null")
@@ -42,9 +44,9 @@ func (s *MySQLStore) Append(ctx context.Context, event Event) error {
 		updatedAt = createdAt
 	}
 
-	_, err := s.db.ExecContext(ctx, `INSERT INTO `+TableName+`
+	_, err := s.db.ExecContext(ctx, dbutil.Rebind(`INSERT INTO `+TableName+`
 		(id, topic, source, aggregate_type, aggregate_id, payload, status, attempts, last_error, created_at, updated_at, delivered_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
 		event.ID, event.Topic, event.Source, event.AggregateType, event.AggregateID,
 		string(payload), string(status), event.Attempts, event.LastError,
 		createdAt, updatedAt, event.DeliveredAt,
@@ -53,10 +55,10 @@ func (s *MySQLStore) Append(ctx context.Context, event Event) error {
 }
 
 // Get 读取单条事件
-func (s *MySQLStore) Get(ctx context.Context, id string) (Event, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, topic, source, aggregate_type, aggregate_id,
+func (s *PostgresStore) Get(ctx context.Context, id string) (Event, error) {
+	row := s.db.QueryRowContext(ctx, dbutil.Rebind(`SELECT id, topic, source, aggregate_type, aggregate_id,
 		payload, status, attempts, last_error, created_at, updated_at, delivered_at
-		FROM `+TableName+` WHERE id = ?`, id)
+		FROM `+TableName+` WHERE id = ?`), id)
 	event, err := scanEvent(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Event{}, ErrNotFound
@@ -65,7 +67,7 @@ func (s *MySQLStore) Get(ctx context.Context, id string) (Event, error) {
 }
 
 // List 按条件查询事件
-func (s *MySQLStore) List(ctx context.Context, filter Filter) ([]Event, error) {
+func (s *PostgresStore) List(ctx context.Context, filter Filter) ([]Event, error) {
 	var conditions []string
 	var args []any
 	if filter.Topic != "" {
@@ -114,7 +116,7 @@ func (s *MySQLStore) List(ctx context.Context, filter Filter) ([]Event, error) {
 	}
 	args = append(args, limit, offset)
 
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	rows, err := s.db.QueryContext(ctx, dbutil.Rebind(query), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -135,10 +137,10 @@ func (s *MySQLStore) List(ctx context.Context, filter Filter) ([]Event, error) {
 }
 
 // MarkDelivered 标记为已投递
-func (s *MySQLStore) MarkDelivered(ctx context.Context, id string, at time.Time) error {
-	result, err := s.db.ExecContext(ctx, `UPDATE `+TableName+`
+func (s *PostgresStore) MarkDelivered(ctx context.Context, id string, at time.Time) error {
+	result, err := s.db.ExecContext(ctx, dbutil.Rebind(`UPDATE `+TableName+`
 		SET status = ?, last_error = '', updated_at = ?, delivered_at = ?
-		WHERE id = ?`, string(StatusDelivered), at, at, id)
+		WHERE id = ?`), string(StatusDelivered), at, at, id)
 	if err != nil {
 		return err
 	}
@@ -146,10 +148,10 @@ func (s *MySQLStore) MarkDelivered(ctx context.Context, id string, at time.Time)
 }
 
 // MarkFailed 标记失败并累加尝试次数
-func (s *MySQLStore) MarkFailed(ctx context.Context, id, reason string, at time.Time) error {
-	result, err := s.db.ExecContext(ctx, `UPDATE `+TableName+`
+func (s *PostgresStore) MarkFailed(ctx context.Context, id, reason string, at time.Time) error {
+	result, err := s.db.ExecContext(ctx, dbutil.Rebind(`UPDATE `+TableName+`
 		SET status = ?, attempts = attempts + 1, last_error = ?, updated_at = ?
-		WHERE id = ?`, string(StatusFailed), strings.TrimSpace(reason), at, id)
+		WHERE id = ?`), string(StatusFailed), strings.TrimSpace(reason), at, id)
 	if err != nil {
 		return err
 	}
@@ -157,9 +159,9 @@ func (s *MySQLStore) MarkFailed(ctx context.Context, id, reason string, at time.
 }
 
 // DeleteDeliveredBefore 删除指定时间之前已投递的事件
-func (s *MySQLStore) DeleteDeliveredBefore(ctx context.Context, before time.Time) (int64, error) {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM `+TableName+`
-		WHERE status = ? AND delivered_at IS NOT NULL AND delivered_at < ?`,
+func (s *PostgresStore) DeleteDeliveredBefore(ctx context.Context, before time.Time) (int64, error) {
+	result, err := s.db.ExecContext(ctx, dbutil.Rebind(`DELETE FROM `+TableName+`
+		WHERE status = ? AND delivered_at IS NOT NULL AND delivered_at < ?`),
 		string(StatusDelivered), before)
 	if err != nil {
 		return 0, err

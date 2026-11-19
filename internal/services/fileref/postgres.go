@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Allinost/go-backend-core/internal/pkg/dbutil"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 )
 
@@ -15,100 +16,52 @@ const (
 	targetTableName = "scan_targets"
 )
 
-// MySQLStore 基于 MySQL 的文件引用存储
-type MySQLStore struct {
+// PostgresStore 基于 PostgreSQL 的文件引用存储
+type PostgresStore struct {
 	db *sql.DB
 }
 
-func NewMySQLStore(db *sql.DB) *MySQLStore {
-	return &MySQLStore{db: db}
+func NewPostgresStore(db *sql.DB) *PostgresStore {
+	return &PostgresStore{db: db}
 }
 
-// execDDL 执行一条 DDL 并记录精确 SQL（出错时方便排查）
-func (m *MySQLStore) execDDL(ctx context.Context, label, ddl string) error {
-	logger.Info().Str("ddl", ddl).Msg("fileref: 执行 " + label)
-	_, err := m.db.ExecContext(ctx, ddl)
-	if err != nil {
-		logger.Error().Str("ddl", ddl).Err(err).Msg("fileref: " + label + " 失败")
-		return fmt.Errorf("%s 失败: %w", label, err)
-	}
-	return nil
+func (m *PostgresStore) queryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return m.db.QueryContext(ctx, dbutil.Rebind(query), args...)
 }
 
-func (m *MySQLStore) Init(ctx context.Context) error {
-	// 记录当前连接的数据库
-	var dbName string
-	if err := m.db.QueryRowContext(ctx, "SELECT DATABASE()").Scan(&dbName); err != nil {
-		logger.Warn().Err(err).Msg("fileref: 无法获取当前数据库名")
-		dbName = "unknown"
-	} else {
-		logger.Info().Str("database", dbName).Msg("fileref: 当前 MySQL 数据库")
-	}
+func (m *PostgresStore) queryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	return m.db.QueryRowContext(ctx, dbutil.Rebind(query), args...)
+}
 
-	// 创建 file_references 表
-	if err := m.execDDL(ctx, "创建 file_references 表", fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
-		id BIGINT AUTO_INCREMENT PRIMARY KEY,
-		storage_name VARCHAR(64) NOT NULL DEFAULT 'rustfs',
-		object_key VARCHAR(500) NOT NULL,
-		module_name VARCHAR(64) NOT NULL,
-		table_name VARCHAR(64) NOT NULL DEFAULT '',
-		record_id VARCHAR(64) NOT NULL DEFAULT '',
-		column_name VARCHAR(64) NOT NULL DEFAULT '',
-		reference_type VARCHAR(32) NOT NULL DEFAULT 'image',
-		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-		INDEX idx_storage_object (storage_name, object_key(255)),
-		INDEX idx_module_ref (module_name, table_name, record_id)
-	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`, tableName)); err != nil {
-		return err
-	}
+func (m *PostgresStore) execContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return m.db.ExecContext(ctx, dbutil.Rebind(query), args...)
+}
 
-	// 创建 scan_targets 表
-	if err := m.execDDL(ctx, "创建 scan_targets 表", fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
-		id BIGINT AUTO_INCREMENT PRIMARY KEY,
-		storage_name VARCHAR(64) NOT NULL DEFAULT 'rustfs',
-		table_name VARCHAR(64) NOT NULL,
-		column_name VARCHAR(64) NOT NULL,
-		module_name VARCHAR(64) NOT NULL DEFAULT '',
-		reference_type VARCHAR(32) NOT NULL DEFAULT 'image',
-		enabled TINYINT(1) NOT NULL DEFAULT 1,
-		description VARCHAR(255) NOT NULL DEFAULT '',
-		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-		UNIQUE INDEX idx_unique_target (storage_name, table_name, column_name)
-	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`, targetTableName)); err != nil {
-		return err
-	}
-
-	// 验证表是否真的创建成功
+func (m *PostgresStore) Init(ctx context.Context) error {
 	for _, tbl := range []string{tableName, targetTableName} {
-		var cnt int
-		if err := m.db.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?",
-			dbName, tbl).Scan(&cnt); err != nil {
-			logger.Warn().Str("table", tbl).Err(err).Msg("fileref: 验证表存在性失败")
-		} else if cnt == 0 {
-			logger.Error().Str("database", dbName).Str("table", tbl).Msg("fileref: 表创建后仍不存在！请检查 MySQL 权限和数据库名称")
-		} else {
-			logger.Info().Str("table", tbl).Msg("fileref: 表已确认存在")
+		var exists bool
+		if err := m.queryRowContext(ctx, `SELECT to_regclass($1) IS NOT NULL`, tbl).Scan(&exists); err != nil {
+			return fmt.Errorf("检查 %s 失败: %w", tbl, err)
+		}
+		if !exists {
+			return fmt.Errorf("%s 表不存在，请先执行 PostgreSQL 迁移", tbl)
 		}
 	}
 
-	// 插入默认扫描目标（首次启动）
-	seed := fmt.Sprintf(`INSERT IGNORE INTO %s (storage_name, table_name, column_name, module_name, reference_type, description) VALUES
+	// 首次启动插入默认扫描目标；表由 migrations 管理，运行时只做幂等 seed。
+	seed := fmt.Sprintf(`INSERT INTO %s (storage_name, table_name, column_name, module_name, reference_type, description) VALUES
 		('rustfs', 'zzz_goodser_products', 'image_url', 'goodser', 'image', '商品主图'),
-		('rustfs', 'zzz_goodser_products', 'images', 'goodser', 'image', '商品图片列表')`, targetTableName)
-	if _, err := m.db.ExecContext(ctx, seed); err != nil {
+		('rustfs', 'zzz_goodser_products', 'images', 'goodser', 'image', '商品图片列表')
+		ON CONFLICT (storage_name, table_name, column_name) DO NOTHING`, targetTableName)
+	if _, err := m.execContext(ctx, seed); err != nil {
 		logger.Warn().Err(err).Msg("fileref: 插入默认扫描目标失败")
 	} else {
-		logger.Info().Msg("fileref: 默认扫描目标已插入")
+		logger.Info().Msg("fileref: Postgres 表检查完成")
 	}
-
-	logger.Info().Msg("fileref: 数据表初始化完成")
 	return nil
 }
 
-func (m *MySQLStore) Insert(ctx context.Context, refs []ReferenceRecord) error {
+func (m *PostgresStore) Insert(ctx context.Context, refs []ReferenceRecord) error {
 	if len(refs) == 0 {
 		return nil
 	}
@@ -133,31 +86,31 @@ func (m *MySQLStore) Insert(ctx context.Context, refs []ReferenceRecord) error {
 	query := fmt.Sprintf(`INSERT INTO %s (storage_name, object_key, module_name, table_name, record_id, column_name, reference_type, created_at, updated_at) VALUES %s`,
 		tableName, strings.Join(valueStrings, ","))
 
-	_, err := m.db.ExecContext(ctx, query, valueArgs...)
+	_, err := m.execContext(ctx, query, valueArgs...)
 	if err != nil {
 		return fmt.Errorf("插入文件引用失败: %w", err)
 	}
 	return nil
 }
 
-func (m *MySQLStore) DeleteByID(ctx context.Context, id int64) error {
-	_, err := m.db.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE id = ?", tableName), id)
+func (m *PostgresStore) DeleteByID(ctx context.Context, id int64) error {
+	_, err := m.execContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE id = ?", tableName), id)
 	if err != nil {
 		return fmt.Errorf("删除文件引用失败 (id=%d): %w", id, err)
 	}
 	return nil
 }
 
-func (m *MySQLStore) DeleteByRecord(ctx context.Context, moduleName, tableName, recordID string) error {
+func (m *PostgresStore) DeleteByRecord(ctx context.Context, moduleName, recordTable, recordID string) error {
 	query := fmt.Sprintf("DELETE FROM %s WHERE module_name = ? AND table_name = ? AND record_id = ?", tableName)
-	_, err := m.db.ExecContext(ctx, query, moduleName, tableName, recordID)
+	_, err := m.execContext(ctx, query, moduleName, recordTable, recordID)
 	if err != nil {
 		return fmt.Errorf("删除记录文件引用失败: %w", err)
 	}
 	return nil
 }
 
-func (m *MySQLStore) List(ctx context.Context, filter ReferenceFilter) ([]ReferenceRecord, int64, error) {
+func (m *PostgresStore) List(ctx context.Context, filter ReferenceFilter) ([]ReferenceRecord, int64, error) {
 	var conditions []string
 	var args []interface{}
 
@@ -194,7 +147,7 @@ func (m *MySQLStore) List(ctx context.Context, filter ReferenceFilter) ([]Refere
 	// 计数
 	var total int64
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s%s", tableName, whereClause)
-	if err := m.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := m.queryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("查询引用计数失败: %w", err)
 	}
 
@@ -209,7 +162,7 @@ func (m *MySQLStore) List(ctx context.Context, filter ReferenceFilter) ([]Refere
 		tableName, whereClause)
 	listArgs := append(args, limit, offset)
 
-	rows, err := m.db.QueryContext(ctx, query, listArgs...)
+	rows, err := m.queryContext(ctx, query, listArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("查询文件引用列表失败: %w", err)
 	}
@@ -229,13 +182,15 @@ func (m *MySQLStore) List(ctx context.Context, filter ReferenceFilter) ([]Refere
 	return records, total, nil
 }
 
-func (m *MySQLStore) AllKeys(ctx context.Context, storageName string) ([]string, error) {
+func (m *PostgresStore) AllKeys(ctx context.Context, storageName string) ([]string, error) {
 	query := fmt.Sprintf("SELECT DISTINCT object_key FROM %s WHERE storage_name = ?", tableName)
+	args := []any{storageName}
 	if storageName == "" {
 		query = fmt.Sprintf("SELECT DISTINCT object_key FROM %s", tableName)
+		args = nil
 	}
 
-	rows, err := m.db.QueryContext(ctx, query)
+	rows, err := m.queryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("查询所有引用文件键失败: %w", err)
 	}
@@ -252,21 +207,21 @@ func (m *MySQLStore) AllKeys(ctx context.Context, storageName string) ([]string,
 	return keys, nil
 }
 
-func (m *MySQLStore) Stats(ctx context.Context) (*UsageStats, error) {
+func (m *PostgresStore) Stats(ctx context.Context) (*UsageStats, error) {
 	stats := &UsageStats{}
 
 	// 总引用数
-	if err := m.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)).Scan(&stats.TotalReferences); err != nil {
+	if err := m.queryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)).Scan(&stats.TotalReferences); err != nil {
 		return nil, fmt.Errorf("统计引用总数失败: %w", err)
 	}
 
 	// 独立文件数
-	if err := m.db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(DISTINCT storage_name, object_key) FROM %s", tableName)).Scan(&stats.TotalFiles); err != nil {
+	if err := m.queryRowContext(ctx, fmt.Sprintf("SELECT COUNT(DISTINCT (storage_name, object_key)) FROM %s", tableName)).Scan(&stats.TotalFiles); err != nil {
 		return nil, fmt.Errorf("统计文件数失败: %w", err)
 	}
 
 	// 按模块统计
-	mRows, err := m.db.QueryContext(ctx, fmt.Sprintf("SELECT module_name, COUNT(*) as cnt FROM %s GROUP BY module_name ORDER BY cnt DESC", tableName))
+	mRows, err := m.queryContext(ctx, fmt.Sprintf("SELECT module_name, COUNT(*) as cnt FROM %s GROUP BY module_name ORDER BY cnt DESC", tableName))
 	if err != nil {
 		return nil, fmt.Errorf("统计模块引用失败: %w", err)
 	}
@@ -280,7 +235,7 @@ func (m *MySQLStore) Stats(ctx context.Context) (*UsageStats, error) {
 	}
 
 	// 按存储统计
-	sRows, err := m.db.QueryContext(ctx, fmt.Sprintf("SELECT storage_name, COUNT(*) as cnt FROM %s GROUP BY storage_name ORDER BY cnt DESC", tableName))
+	sRows, err := m.queryContext(ctx, fmt.Sprintf("SELECT storage_name, COUNT(*) as cnt FROM %s GROUP BY storage_name ORDER BY cnt DESC", tableName))
 	if err != nil {
 		return nil, fmt.Errorf("统计存储引用失败: %w", err)
 	}
@@ -296,11 +251,11 @@ func (m *MySQLStore) Stats(ctx context.Context) (*UsageStats, error) {
 	return stats, nil
 }
 
-func (m *MySQLStore) InsertScanTarget(ctx context.Context, t *ScanTarget) error {
+func (m *PostgresStore) InsertScanTarget(ctx context.Context, t *ScanTarget) error {
 	now := time.Now()
 	query := fmt.Sprintf(`INSERT INTO %s (storage_name, table_name, column_name, module_name, reference_type, enabled, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		targetTableName)
-	_, err := m.db.ExecContext(ctx, query,
+	_, err := m.execContext(ctx, query,
 		t.StorageName, t.TableName, t.ColumnName, t.ModuleName, t.ReferenceType, t.Enabled, t.Description, now, now)
 	if err != nil {
 		return fmt.Errorf("插入扫描目标失败: %w", err)
@@ -308,10 +263,10 @@ func (m *MySQLStore) InsertScanTarget(ctx context.Context, t *ScanTarget) error 
 	return nil
 }
 
-func (m *MySQLStore) UpdateScanTarget(ctx context.Context, t *ScanTarget) error {
+func (m *PostgresStore) UpdateScanTarget(ctx context.Context, t *ScanTarget) error {
 	query := fmt.Sprintf(`UPDATE %s SET storage_name=?, table_name=?, column_name=?, module_name=?, reference_type=?, enabled=?, description=?, updated_at=? WHERE id=?`,
 		targetTableName)
-	_, err := m.db.ExecContext(ctx, query,
+	_, err := m.execContext(ctx, query,
 		t.StorageName, t.TableName, t.ColumnName, t.ModuleName, t.ReferenceType, t.Enabled, t.Description, time.Now(), t.ID)
 	if err != nil {
 		return fmt.Errorf("更新扫描目标失败: %w", err)
@@ -319,15 +274,15 @@ func (m *MySQLStore) UpdateScanTarget(ctx context.Context, t *ScanTarget) error 
 	return nil
 }
 
-func (m *MySQLStore) DeleteScanTarget(ctx context.Context, id int64) error {
-	_, err := m.db.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE id=?", targetTableName), id)
+func (m *PostgresStore) DeleteScanTarget(ctx context.Context, id int64) error {
+	_, err := m.execContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE id=?", targetTableName), id)
 	if err != nil {
 		return fmt.Errorf("删除扫描目标失败: %w", err)
 	}
 	return nil
 }
 
-func (m *MySQLStore) ListScanTargets(ctx context.Context, storageName string, enabledOnly bool) ([]ScanTarget, error) {
+func (m *PostgresStore) ListScanTargets(ctx context.Context, storageName string, enabledOnly bool) ([]ScanTarget, error) {
 	var conditions []string
 	var args []interface{}
 
@@ -336,7 +291,7 @@ func (m *MySQLStore) ListScanTargets(ctx context.Context, storageName string, en
 		args = append(args, storageName)
 	}
 	if enabledOnly {
-		conditions = append(conditions, "enabled = 1")
+		conditions = append(conditions, "enabled = true")
 	}
 
 	whereClause := ""
@@ -347,7 +302,7 @@ func (m *MySQLStore) ListScanTargets(ctx context.Context, storageName string, en
 	query := fmt.Sprintf("SELECT id, storage_name, table_name, column_name, module_name, reference_type, enabled, description, created_at, updated_at FROM %s%s ORDER BY module_name, table_name, column_name",
 		targetTableName, whereClause)
 
-	rows, err := m.db.QueryContext(ctx, query, args...)
+	rows, err := m.queryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("查询扫描目标失败: %w", err)
 	}
@@ -356,17 +311,17 @@ func (m *MySQLStore) ListScanTargets(ctx context.Context, storageName string, en
 	var targets []ScanTarget
 	for rows.Next() {
 		var t ScanTarget
-		var enabled int
+		var enabled bool
 		if err := rows.Scan(&t.ID, &t.StorageName, &t.TableName, &t.ColumnName,
 			&t.ModuleName, &t.ReferenceType, &enabled, &t.Description, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("扫描扫描目标记录失败: %w", err)
 		}
-		t.Enabled = enabled == 1
+		t.Enabled = enabled
 		targets = append(targets, t)
 	}
 	return targets, nil
 }
 
-func (m *MySQLStore) Close() error {
+func (m *PostgresStore) Close() error {
 	return nil
 }
