@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -231,6 +232,16 @@ func NewMySQLUserStore(sqlDB *sql.DB) (*MySQLUserStore, error) {
 	db, err := gorm.Open(mysql.New(mysql.Config{Conn: sqlDB}), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("auth: GORM 初始化失败: %w", err)
+	}
+	return &MySQLUserStore{db: db}, nil
+}
+
+// NewPostgresUserStore 使用现有 sql.DB 创建 PostgreSQL 用户存储。
+// V3 生产使用该构造函数，表由 migrations 管理，不调用 AutoMigrate。
+func NewPostgresUserStore(sqlDB *sql.DB) (*MySQLUserStore, error) {
+	db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("auth: PostgreSQL GORM 初始化失败: %w", err)
 	}
 	return &MySQLUserStore{db: db}, nil
 }

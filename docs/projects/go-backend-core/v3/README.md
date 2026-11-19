@@ -121,8 +121,8 @@
 
 | 编号 | 任务 | 类型 | 优先级 | 预估 | 依赖 | 状态 | 验收/备注 |
 |---|---|---|---|---:|---|---|---|
-| V3-P4-01 | auth User/RBAC/ApiKey：PG 驱动/迁移/默认权限 | refactor | P0 | 2.0 | P3-05 | todo | 登录/RBAC/API Key 通过 |
-| V3-P4-02 | scheduler PG Store：tasks/logs/`NOW()`/AutoMigrate 关闭 | refactor | P0 | 1.0 | P3-05 | todo | 定时任务可持久化 |
+| V3-P4-01 | auth User/RBAC/ApiKey：PG 驱动/迁移/默认权限 | refactor | P0 | 2.0 | P3-05 | doing | GORM PG Store 已接，登录/RBAC/API Key 待 HTTP 验证 |
+| V3-P4-02 | scheduler PG Store：tasks/logs/`NOW()`/AutoMigrate 关闭 | refactor | P0 | 1.0 | P3-05 | done | PG 持久化/JSONB/日志已验证 |
 | V3-P4-03 | outbox + integration action log：upsert/jsonb/时间 | refactor | P1 | 1.0 | P3-03 | todo | 事件投递幂等 |
 | V3-P4-04 | fileref + ops：DDL→迁移、`current_database()`、扫描、引号 | refactor | P1 | 1.0 | P3-03 | todo | 文件引用/扫描可用 |
 | V3-P4-05 | audit + feature + migrate：PG Store/`ON CONFLICT`/dumper | refactor | P1 | 1.0 | P3-05 | todo | 审计/开关/dump 可用 |
@@ -132,7 +132,7 @@
 
 | 编号 | 任务 | 类型 | 优先级 | 预估 | 依赖 | 状态 | 验收/备注 |
 |---|---|---|---|---:|---|---|---|
-| V3-PM-01 | PM 核心迁移：milestone/task/task_dependency/task_log | migration | P0 | 1.0 | P2-01 | todo | 表/索引/外键就绪 |
+| V3-PM-01 | PM 核心迁移：milestone/task/task_dependency/task_log | migration | P0 | 1.0 | P2-01 | done | 表/索引/外键就绪，dev 已验证 |
 | V3-PM-02 | PM 核心后端：models/repo/service/handler/routes/进度 | feature | P0 | 2.0 | PM-01、P3-04 | todo | 任务 CRUD/依赖/流转/进度 |
 | V3-PM-03 | PM 权限 + 默认角色 + 幂等导入 | feature | P1 | 1.0 | PM-02 | todo | `dm.task/milestone` 可授权 |
 | V3-PM-04 | PM 前端核心：路线图/看板/任务抽屉 | feature | P0 | 2.0 | PM-02 | todo | 可视化可用 |

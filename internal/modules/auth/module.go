@@ -44,11 +44,17 @@ func (m *Module) Init(cfg *config.Config) error {
 	})
 
 	if database.DB != nil {
-		if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
-			store, err := auth.NewMySQLUserStore(pool.DB)
-			if err == nil {
-				_ = store.AutoMigrate()
+		if pool, ok := database.DB.Postgres["main"]; ok && pool.SQLDB != nil {
+			if store, err := auth.NewPostgresUserStore(pool.SQLDB); err == nil {
 				m.user = store
+			}
+		}
+		if m.user == nil {
+			if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
+				if store, err := auth.NewMySQLUserStore(pool.DB); err == nil {
+					_ = store.AutoMigrate()
+					m.user = store
+				}
 			}
 		}
 	}
@@ -69,12 +75,19 @@ func (m *Module) Init(cfg *config.Config) error {
 
 	var rbacStore auth.RBACStore
 	if database.DB != nil {
-		if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
-			mysqlStore, err := auth.NewMySQLRBACStore(pool.DB)
-			if err == nil {
-				_ = mysqlStore.AutoMigrate()
-				_ = mysqlStore.EnsureDefaultPermissions()
-				rbacStore = mysqlStore
+		if pool, ok := database.DB.Postgres["main"]; ok && pool.SQLDB != nil {
+			if store, err := auth.NewPostgresRBACStore(pool.SQLDB); err == nil {
+				_ = store.EnsureDefaultPermissions()
+				rbacStore = store
+			}
+		}
+		if rbacStore == nil {
+			if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
+				if store, err := auth.NewMySQLRBACStore(pool.DB); err == nil {
+					_ = store.AutoMigrate()
+					_ = store.EnsureDefaultPermissions()
+					rbacStore = store
+				}
 			}
 		}
 	}
@@ -86,11 +99,17 @@ func (m *Module) Init(cfg *config.Config) error {
 
 	var apikeyStore auth.ApiKeyStore
 	if database.DB != nil {
-		if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
-			mysqlStore, err := auth.NewMySQLApiKeyStore(pool.DB)
-			if err == nil {
-				_ = mysqlStore.AutoMigrate()
-				apikeyStore = mysqlStore
+		if pool, ok := database.DB.Postgres["main"]; ok && pool.SQLDB != nil {
+			if store, err := auth.NewPostgresApiKeyStore(pool.SQLDB); err == nil {
+				apikeyStore = store
+			}
+		}
+		if apikeyStore == nil {
+			if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
+				if store, err := auth.NewMySQLApiKeyStore(pool.DB); err == nil {
+					_ = store.AutoMigrate()
+					apikeyStore = store
+				}
 			}
 		}
 	}

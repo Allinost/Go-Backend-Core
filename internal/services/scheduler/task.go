@@ -30,9 +30,9 @@ type Task struct {
 	ID         uint            `json:"id" gorm:"primaryKey;autoIncrement"`
 	Name       string          `json:"name" gorm:"uniqueIndex;size:255"`
 	Type       TaskType        `json:"type" gorm:"size:20"`
-	Expression string          `json:"expression" gorm:"size:255"`         // cron 表达式或时间间隔
-	Handler    string          `json:"handler" gorm:"size:255"`            // 注册的处理器名称
-	Payload    json.RawMessage `json:"payload,omitempty" gorm:"type:json"` // 任务自定义参数
+	Expression string          `json:"expression" gorm:"size:255"`          // cron 表达式或时间间隔
+	Handler    string          `json:"handler" gorm:"size:255"`             // 注册的处理器名称
+	Payload    json.RawMessage `json:"payload,omitempty" gorm:"type:jsonb"` // 任务自定义参数
 	Status     TaskStatus      `json:"status" gorm:"size:20;default:active"`
 	MaxRetries int             `json:"max_retries" gorm:"default:3"`
 	Timeout    int             `json:"timeout" gorm:"default:300"`
@@ -41,6 +41,9 @@ type Task struct {
 	CreatedAt  time.Time       `json:"created_at"`
 	UpdatedAt  time.Time       `json:"updated_at"`
 }
+
+// TableName V3 表名固定为 scheduler_tasks。
+func (Task) TableName() string { return "scheduler_tasks" }
 
 // TaskLogStatus 任务日志状态
 type TaskLogStatus string
@@ -61,10 +64,13 @@ type TaskLog struct {
 	Status    TaskLogStatus   `json:"status" gorm:"size:20"`
 	StartedAt time.Time       `json:"started_at"`
 	EndedAt   *time.Time      `json:"ended_at,omitempty"`
-	Result    json.RawMessage `json:"result,omitempty" gorm:"type:json"`
+	Result    json.RawMessage `json:"result,omitempty" gorm:"type:jsonb"`
 	Error     string          `json:"error,omitempty" gorm:"type:text"`
 	CreatedAt time.Time       `json:"created_at"`
 }
+
+// TableName V3 表名固定为 scheduler_task_logs。
+func (TaskLog) TableName() string { return "scheduler_task_logs" }
 
 // TaskHandler 任务处理器接口，所有注册的处理器需实现此接口
 type TaskHandler interface {

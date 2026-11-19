@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -41,6 +42,9 @@ type RoleModel struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
+
+// TableName V3 表名固定为 roles，避免 GORM 默认复数 role_models。
+func (RoleModel) TableName() string { return "roles" }
 
 // UserRole 用户与角色的关联表
 type UserRole struct {
@@ -403,6 +407,16 @@ func NewMySQLRBACStore(sqlDB *sql.DB) (*MySQLRBACStore, error) {
 	db, err := gorm.Open(mysql.New(mysql.Config{Conn: sqlDB}), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("auth: RBAC GORM 初始化失败: %w", err)
+	}
+	return &MySQLRBACStore{db: db}, nil
+}
+
+// NewPostgresRBACStore 使用现有 sql.DB 创建 PostgreSQL RBAC 存储。
+// 表由 migrations 管理，不调用 AutoMigrate。
+func NewPostgresRBACStore(sqlDB *sql.DB) (*MySQLRBACStore, error) {
+	db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("auth: RBAC PostgreSQL GORM 初始化失败: %w", err)
 	}
 	return &MySQLRBACStore{db: db}, nil
 }

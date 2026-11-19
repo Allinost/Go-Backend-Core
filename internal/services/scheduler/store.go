@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -33,6 +34,16 @@ func NewMySQLStoreFromDB(sqlDB *sql.DB) (*MySQLStore, error) {
 	db, err := gorm.Open(mysql.New(mysql.Config{Conn: sqlDB}), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("scheduler: GORM 初始化失败: %w", err)
+	}
+	return &MySQLStore{db: db}, nil
+}
+
+// NewPostgresStoreFromDB 从现有 sql.DB 创建 PostgreSQL 任务存储。
+// 表由 migrations 管理，不调用 AutoMigrate。
+func NewPostgresStoreFromDB(sqlDB *sql.DB) (*MySQLStore, error) {
+	db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("scheduler: PostgreSQL GORM 初始化失败: %w", err)
 	}
 	return &MySQLStore{db: db}, nil
 }

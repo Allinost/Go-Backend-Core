@@ -32,22 +32,42 @@ func (m *Module) Init(cfg *config.Config) error {
 	var asynqClient *asynq.Client
 	var asynqServer *asynq.Server
 
-	if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
-		var err error
-		store, err = NewMySQLStoreFromDB(pool.DB)
-		if err != nil {
-			return fmt.Errorf("scheduler: DB 初始化失败: %w", err)
+	if database.DB != nil {
+		if pool, ok := database.DB.Postgres["main"]; ok && pool.SQLDB != nil {
+			var err error
+			store, err = NewPostgresStoreFromDB(pool.SQLDB)
+			if err != nil {
+				return fmt.Errorf("scheduler: PostgreSQL 初始化失败: %w", err)
+			}
+		} else if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
+			var err error
+			store, err = NewMySQLStoreFromDB(pool.DB)
+			if err != nil {
+				return fmt.Errorf("scheduler: DB 初始化失败: %w", err)
+			}
+			if err := store.(*MySQLStore).AutoMigrate(); err != nil {
+				return fmt.Errorf("scheduler: 自动迁移失败: %w", err)
+			}
 		}
-		if err := store.(*MySQLStore).AutoMigrate(); err != nil {
-			return fmt.Errorf("scheduler: 自动迁移失败: %w", err)
-		}
-
-		if rdb := database.GetRedis("main"); rdb != nil {
-			asynqClient = newAsynqClient(rdb)
-			asynqServer = newAsynqServer(rdb, sc.WorkerConcurrency, sc.DefaultTimeout)
-		}
-	} else {
+	}
+	if store == nil {
 		store = NewInMemoryStore()
+	}
+
+	if database.DB != nil {
+		dbReady := false
+		if pool, ok := database.DB.Postgres["main"]; ok && pool.SQLDB != nil {
+			dbReady = true
+		}
+		if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
+			dbReady = true
+		}
+		if dbReady {
+			if rdb := database.GetRedis("main"); rdb != nil {
+				asynqClient = newAsynqClient(rdb)
+				asynqServer = newAsynqServer(rdb, sc.WorkerConcurrency, sc.DefaultTimeout)
+			}
+		}
 	}
 
 	cfgScheduler := SchedulerConfig{
