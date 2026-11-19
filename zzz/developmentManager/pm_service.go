@@ -503,3 +503,53 @@ func (s *PMService) RemoveDependency(ctx context.Context, taskID, depID int64) e
 	}
 	return s.repo.RemoveDependency(ctx, taskID, depID)
 }
+
+// ImportTasks 按任务编号幂等导入：已存在则更新内容，不改变状态。
+func (s *PMService) ImportTasks(ctx context.Context, projectID int64, req *ImportTasksReq, actor string) (*ImportTasksResp, error) {
+	if err := s.ensureProject(ctx, projectID); err != nil {
+		return nil, err
+	}
+	resp := &ImportTasksResp{}
+	for _, item := range req.Tasks {
+		code := strings.TrimSpace(item.Code)
+		if code == "" {
+			resp.Skipped++
+			continue
+		}
+		existing, getErr := s.repo.GetTaskByCode(ctx, projectID, code)
+		if getErr != nil {
+			if de, ok := getErr.(*DevelopmentManagerError); !ok || de.Code != ErrTaskNotFound {
+				return nil, getErr
+			}
+			create := &CreateTaskReq{
+				MilestoneID: item.MilestoneID, IterationID: item.IterationID, RequirementID: item.RequirementID,
+				ParentID: item.ParentID, Code: code, Title: item.Title, Description: item.Description,
+				Type: item.Type, Status: item.Status, Priority: item.Priority, EstimateHours: item.EstimateHours,
+				Owner: item.Owner, StartDate: item.StartDate, DueDate: item.DueDate, OrderNo: item.OrderNo,
+			}
+			if _, err := s.CreateTask(ctx, projectID, create, actor); err != nil {
+				return nil, err
+			}
+			resp.Created++
+			continue
+		}
+
+		update := &UpdateTaskReq{
+			MilestoneID: item.MilestoneID, IterationID: item.IterationID, RequirementID: item.RequirementID,
+			ParentID: item.ParentID, Code: &code, Title: &item.Title, Description: &item.Description,
+			EstimateHours: item.EstimateHours, ActualHours: item.ActualHours, Owner: &item.Owner,
+			StartDate: &item.StartDate, DueDate: &item.DueDate, OrderNo: item.OrderNo,
+		}
+		if item.Type != "" {
+			update.Type = &item.Type
+		}
+		if item.Priority != "" {
+			update.Priority = &item.Priority
+		}
+		if _, err := s.UpdateTask(ctx, existing.ID, update, actor); err != nil {
+			return nil, err
+		}
+		resp.Updated++
+	}
+	return resp, nil
+}

@@ -115,7 +115,7 @@
 | V3-P3-03 | 基座模块 SQL：webhook/servicenav/integration/outbox/ops | refactor | P0 | 2.0 | P3-01 | done | PG CRUD/JSONB/ILIKE 已实测 |
 | V3-P3-04 | developmentManager 仓库：`DATABASE()`/info_schema/upsert/分页 | refactor | P0 | 1.5 | P3-01 | done | 台账/部署/字典/需求/生成全切 PG；字典扫描与 upsert 已实测 |
 | V3-P3-05 | Store 改造：auth/scheduler/audit/feature/fileref/migrate | refactor | P0 | 1.5 | P3-01 | done | auth/scheduler/audit/feature/fileref/migrate 均已切 PG |
-| V3-P3-06 | 方言清零门禁 + golden SQL 测试 + 全仓 grep | test | P0 | 1.0 | P3-03..05 | todo | 门禁计数为 0 |
+| V3-P3-06 | 方言清零门禁 + golden SQL 测试 + 全仓 grep | test | P0 | 1.0 | P3-03..05 | done | `TestV3DialectGate` 已落地，V3 模块方言计数为 0 |
 
 ### V3-P4 基础/公共模块（6 个，7 人日）
 
@@ -134,9 +134,9 @@
 |---|---|---|---|---:|---|---|---|
 | V3-PM-01 | PM 核心迁移：milestone/task/task_dependency/task_log | migration | P0 | 1.0 | P2-01 | done | 表/索引/外键就绪，dev 已验证 |
 | V3-PM-02 | PM 核心后端：models/repo/service/handler/routes/进度 | feature | P0 | 2.0 | PM-01、P3-04 | done | 里程碑/任务 CRUD、依赖环检测、状态流转、工时/日志、进度已实测；PM 走 PG |
-| V3-PM-03 | PM 权限 + 默认角色 + 幂等导入 | feature | P1 | 1.0 | PM-02 | todo | `dm.task/milestone` 可授权 |
+| V3-PM-03 | PM 权限 + 默认角色 + 幂等导入 | feature | P1 | 1.0 | PM-02 | done | `dm.task/milestone` 权限已播种；任务按 code 幂等导入已实测 |
 | V3-PM-04 | PM 前端核心：路线图/看板/任务抽屉 | feature | P0 | 2.0 | PM-02 | todo | 可视化可用 |
-| V3-PM-05 | PM 高级迁移：risk/release/baseline/iteration/comment/checklist/label/task_label/task_asset | migration | P1 | 1.0 | PM-01 | todo | 完整管控表就绪 |
+| V3-PM-05 | PM 高级迁移：risk/release/baseline/iteration/comment/checklist/label/task_label/task_asset | migration | P1 | 1.0 | PM-01 | done | 005 已建 9 张高级表并验证外键 |
 | V3-PM-06 | PM 高级后端：风险/发布/基线/迭代/评论/检查项/标签/资产 | feature | P1 | 1.0 | PM-05 | todo | API 可用 |
 | V3-PM-07 | PM 高级前端：风险矩阵/发布日历/甘特/报表 | feature | P1 | 1.0 | PM-06、PM-04 | todo（12/31） | 页面可用；12.15 后补齐 |
 | V3-PM-08 | V3 台账导入 + 周报机制 + 仪表盘 | ops | P1 | 1.0 | PM-03、PM-04 | todo | 58 任务完整入库 |

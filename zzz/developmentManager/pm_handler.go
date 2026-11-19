@@ -182,6 +182,28 @@ func (h *Handler) CreateTask(c *gin.Context) {
 	response.Success(c, item)
 }
 
+func (h *Handler) ImportTasks(c *gin.Context) {
+	if !h.pmReady(c) {
+		return
+	}
+	projectID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	var req ImportTasksReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误: "+err.Error())
+		return
+	}
+	resp, err := h.pm.ImportTasks(c.Request.Context(), projectID, &req, actorName(c))
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	recordAudit(c, "create", "developmentmanager:task", "import tasks")
+	response.Success(c, resp)
+}
+
 func (h *Handler) GetTask(c *gin.Context) {
 	if !h.pmReady(c) {
 		return

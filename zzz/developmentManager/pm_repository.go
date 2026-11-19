@@ -352,6 +352,15 @@ func (r *PMRepository) GetTask(ctx context.Context, id int64) (*Task, error) {
 	return item, err
 }
 
+// GetTaskByCode 按项目内任务编号查询任务（导入幂等键）。
+func (r *PMRepository) GetTaskByCode(ctx context.Context, projectID int64, code string) (*Task, error) {
+	item, err := scanTask(r.queryRow(ctx, "SELECT "+taskColumns+" FROM "+tableTask+" WHERE project_id = ? AND code = ? AND deleted = false", projectID, code))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, NewDevelopmentManagerError(ErrTaskNotFound)
+	}
+	return item, err
+}
+
 func (r *PMRepository) CreateTask(ctx context.Context, t *Task) (*Task, error) {
 	var id int64
 	err := r.queryRow(ctx, `INSERT INTO `+tableTask+`

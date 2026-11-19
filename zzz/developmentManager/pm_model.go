@@ -287,3 +287,33 @@ type AddTaskDependencyReq struct {
 	DepType         string `json:"dep_type"`
 	LagDays         int    `json:"lag_days"`
 }
+
+// ImportTaskItem 任务导入项，Code 作为幂等键。
+type ImportTaskItem struct {
+	MilestoneID   *int64   `json:"milestone_id"`
+	IterationID   *int64   `json:"iteration_id"`
+	RequirementID *int64   `json:"requirement_id"`
+	ParentID      *int64   `json:"parent_id"`
+	Code          string   `json:"code" binding:"required"`
+	Title         string   `json:"title" binding:"required"`
+	Description   string   `json:"description"`
+	Type          string   `json:"type"`
+	Status        string   `json:"status"`
+	Priority      string   `json:"priority"`
+	EstimateHours *float64 `json:"estimate_hours"`
+	ActualHours   *float64 `json:"actual_hours"`
+	Owner         string   `json:"owner"`
+	StartDate     string   `json:"start_date"`
+	DueDate       string   `json:"due_date"`
+	OrderNo       *int     `json:"order_no"`
+}
+
+type ImportTasksReq struct {
+	Tasks []ImportTaskItem `json:"tasks" binding:"required"`
+}
+
+type ImportTasksResp struct {
+	Created int `json:"created"`
+	Updated int `json:"updated"`
+	Skipped int `json:"skipped"`
+}

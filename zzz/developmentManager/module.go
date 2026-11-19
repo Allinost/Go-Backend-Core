@@ -195,6 +195,7 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 
 	r.GET("/projects/:id/tasks", need("dm.task", "read"), m.h.ListTasks)
 	r.POST("/projects/:id/tasks", need("dm.task", "create"), m.h.CreateTask)
+	r.POST("/projects/:id/tasks/import", need("dm.task", "import"), m.h.ImportTasks)
 	r.GET("/tasks/:id", need("dm.task", "read"), m.h.GetTask)
 	r.PUT("/tasks/:id", need("dm.task", "update"), m.h.UpdateTask)
 	r.DELETE("/tasks/:id", need("dm.task", "delete"), m.h.DeleteTask)
