@@ -7,6 +7,7 @@ import (
 
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/Allinost/go-backend-core/internal/database/postgres"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,10 +48,12 @@ func TestInitAll_InvalidPostgres(t *testing.T) {
 		Database: config.DatabaseConfig{
 			Postgres: map[string]config.PGConfig{
 				"nas": {
-					Host:   "127.0.0.1",
-					Port:   9999,
-					User:   "postgres",
-					DBName: "test",
+					Host:         "127.0.0.1",
+					Port:         9999,
+					User:         "postgres",
+					DBName:       "test",
+					FallbackHost: "127.0.0.1",
+					FallbackPort: 9998,
 				},
 			},
 		},
@@ -58,6 +61,30 @@ func TestInitAll_InvalidPostgres(t *testing.T) {
 	err := InitAll(cfg)
 	assert.NoError(t, err)
 	assert.Empty(t, DB.Postgres)
+	CloseAll()
+}
+
+func TestInitAll_RedisFallback(t *testing.T) {
+	server, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	cfg := &config.Config{
+		Redis: config.RedisConfig{
+			Main: config.RedisInstance{
+				Enabled:      true,
+				Addr:         "127.0.0.1:1",
+				FallbackAddr: server.Addr(),
+			},
+		},
+	}
+	err = InitAll(cfg)
+	assert.NoError(t, err)
+	if assert.NotNil(t, DB.Redis["main"]) {
+		assert.True(t, DB.Redis["main"].UsingFallback)
+	}
 	CloseAll()
 }
 

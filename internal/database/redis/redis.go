@@ -12,6 +12,8 @@ import (
 
 type Client struct {
 	*redis.Client
+	Endpoint      string
+	UsingFallback bool
 }
 
 func NewClient(cfg config.RedisInstance, skipPing bool) (*Client, error) {
@@ -43,7 +45,7 @@ func NewClient(cfg config.RedisInstance, skipPing bool) (*Client, error) {
 		}
 	}
 
-	return &Client{rdb}, nil
+	return &Client{Client: rdb, Endpoint: cfg.Addr}, nil
 }
 
 // Close 关闭 Redis 连接

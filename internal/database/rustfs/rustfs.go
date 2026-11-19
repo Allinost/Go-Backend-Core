@@ -14,8 +14,10 @@ import (
 
 type Client struct {
 	*minio.Client
-	Bucket string
-	Region string
+	Bucket        string
+	Region        string
+	Endpoint      string
+	UsingFallback bool
 }
 
 func NewClient(cfg config.S3Config) (*Client, error) {
@@ -39,9 +41,10 @@ func NewClient(cfg config.S3Config) (*Client, error) {
 	}
 
 	return &Client{
-		Client: client,
-		Bucket: cfg.Bucket,
-		Region: cfg.Region,
+		Client:   client,
+		Bucket:   cfg.Bucket,
+		Region:   cfg.Region,
+		Endpoint: cfg.Endpoint,
 	}, nil
 }
 

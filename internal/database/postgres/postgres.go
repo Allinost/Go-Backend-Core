@@ -20,7 +20,9 @@ type Pool struct {
 	*pgxpool.Pool
 	// SQLDB 是 pgx 的 database/sql 兼容层，供现有 *sql.DB 仓库复用。
 	// 它由同一个 pgxpool 提供连接，Close 时需先关 SQLDB 再关 pgxpool。
-	SQLDB *sql.DB
+	SQLDB         *sql.DB
+	Endpoint      string // 当前实际连接地址
+	UsingFallback bool   // 是否已切换到 L2
 }
 
 func NewPool(cfg config.PGConfig, skipPing bool) (*Pool, error) {
@@ -65,7 +67,11 @@ func NewPool(cfg config.PGConfig, skipPing bool) (*Pool, error) {
 	// 与 pgxpool 共享连接，避免现有 database/sql 仓库再建一套连接池。
 	sqlDB := stdlib.OpenDBFromPool(pool)
 
-	return &Pool{Pool: pool, SQLDB: sqlDB}, nil
+	return &Pool{
+		Pool:     pool,
+		SQLDB:    sqlDB,
+		Endpoint: net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)),
+	}, nil
 }
 
 // buildDSN 统一构造 PostgreSQL DSN，补齐 V3 默认参数并转义用户/密码。

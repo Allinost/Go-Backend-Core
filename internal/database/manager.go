@@ -79,6 +79,18 @@ func initPostgres(cfg *config.Config, skipPing bool) {
 			continue
 		}
 		pool, err := postgres.NewPool(dbCfg, skipPing)
+		if err != nil && dbCfg.FallbackHost != "" {
+			fallback := dbCfg
+			fallback.Host = dbCfg.FallbackHost
+			if dbCfg.FallbackPort > 0 {
+				fallback.Port = dbCfg.FallbackPort
+			}
+			pool, err = postgres.NewPool(fallback, skipPing)
+			if err == nil {
+				pool.UsingFallback = true
+				log.Printf("[database] PostgreSQL[%s] 主库不可用，已切换到 L2 fallback", name)
+			}
+		}
 		if err != nil {
 			log.Printf("[database] PostgreSQL[%s] 初始化失败: %v", name, err)
 			continue
@@ -100,6 +112,21 @@ func initS3(cfg *config.Config) {
 				log.Printf("[database] MinIO 初始化失败: %v", err)
 				continue
 			}
+			if s3Cfg.FallbackEndpoint != "" {
+				if healthErr := client.Health(); healthErr != nil {
+					fallback := s3Cfg
+					fallback.Endpoint = s3Cfg.FallbackEndpoint
+					fbClient, fbErr := minio.NewClient(fallback)
+					if fbErr == nil && fbClient.Health() == nil {
+						_ = client.Close()
+						client = fbClient
+						client.UsingFallback = true
+						log.Printf("[database] MinIO 主存储不可用，已切换到 L2 fallback")
+					} else {
+						log.Printf("[database] MinIO L2 fallback 不可用: %v", fbErr)
+					}
+				}
+			}
 			DB.breakers["s3:"+name] = NewCircuitBreaker(5, 30*time.Second)
 			DB.S3[name] = client
 		case "rustfs":
@@ -107,6 +134,21 @@ func initS3(cfg *config.Config) {
 			if err != nil {
 				log.Printf("[database] RustFS 初始化失败: %v", err)
 				continue
+			}
+			if s3Cfg.FallbackEndpoint != "" {
+				if healthErr := client.Health(); healthErr != nil {
+					fallback := s3Cfg
+					fallback.Endpoint = s3Cfg.FallbackEndpoint
+					fbClient, fbErr := rustfs.NewClient(fallback)
+					if fbErr == nil && fbClient.Health() == nil {
+						_ = client.Close()
+						client = fbClient
+						client.UsingFallback = true
+						log.Printf("[database] RustFS 主存储不可用，已切换到 L2 fallback")
+					} else {
+						log.Printf("[database] RustFS L2 fallback 不可用: %v", fbErr)
+					}
+				}
 			}
 			DB.breakers["rustfs:"+name] = NewCircuitBreaker(5, 30*time.Second)
 			DB.RustFS[name] = client
@@ -120,6 +162,15 @@ func initRedis(cfg *config.Config, skipPing bool) {
 	mainCfg := cfg.Redis.Main
 	if mainCfg.Enabled && mainCfg.Addr != "" {
 		client, err := redis.NewClient(mainCfg, skipPing)
+		if err != nil && mainCfg.FallbackAddr != "" {
+			fallback := mainCfg
+			fallback.Addr = mainCfg.FallbackAddr
+			client, err = redis.NewClient(fallback, skipPing)
+			if err == nil {
+				client.UsingFallback = true
+				log.Printf("[database] Redis[main] 主库不可用，已切换到 L2 fallback")
+			}
+		}
 		if err != nil {
 			log.Printf("[database] Redis[main] 初始化失败: %v", err)
 		} else {
@@ -132,6 +183,15 @@ func initRedis(cfg *config.Config, skipPing bool) {
 			continue
 		}
 		client, err := redis.NewClient(rc, skipPing)
+		if err != nil && rc.FallbackAddr != "" {
+			fallback := rc
+			fallback.Addr = rc.FallbackAddr
+			client, err = redis.NewClient(fallback, skipPing)
+			if err == nil {
+				client.UsingFallback = true
+				log.Printf("[database] Redis[%s] 主库不可用，已切换到 L2 fallback", name)
+			}
+		}
 		if err != nil {
 			log.Printf("[database] Redis[%s] 初始化失败: %v", name, err)
 			continue

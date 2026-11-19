@@ -54,6 +54,8 @@ database:
       max_open: 30
       max_idle: 10
       conn_max_lifetime: 30m
+      fallback_host: ""        # L1 不可用时切到 L2；空表示不启用
+      fallback_port: 5432
 
     nas:                       # NAS 上的 PostgreSQL 实例（仅 NAS 场景使用）
       enabled: true            # 是否启用 PostgreSQL
@@ -83,6 +85,7 @@ database:
       use_ssl: true
       bucket: "app-files"
       region: "us-east-1"
+      fallback_endpoint: ""    # L1 不可用时切到 L2；空表示不启用
 
 redis:
   main:                        # 主 Redis 实例标识
@@ -91,6 +94,7 @@ redis:
     password: ""               # Redis 密码（生产环境务必设置）
     db: 0                      # Redis 数据库编号
     pool_size: 50              # 连接池大小
+    fallback_addr: ""          # L1 不可用时切到 L2；空表示不启用
 
 cache:
   default_ttl: 5m                       # 默认缓存 TTL

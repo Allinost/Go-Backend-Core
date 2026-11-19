@@ -176,16 +176,21 @@ type PGConfig struct {
 	MaxOpen         int    `mapstructure:"max_open"`
 	MaxIdle         int    `mapstructure:"max_idle"`
 	ConnMaxLifetime string `mapstructure:"conn_max_lifetime"`
+
+	// FallbackHost/FallbackPort 为 L1 不可用时的 L2 备库地址；空表示不启用 fallback。
+	FallbackHost string `mapstructure:"fallback_host"`
+	FallbackPort int    `mapstructure:"fallback_port"`
 }
 
 type S3Config struct {
-	Enabled   bool   `mapstructure:"enabled"`
-	Endpoint  string `mapstructure:"endpoint"`
-	AccessKey string `mapstructure:"access_key"`
-	SecretKey string `mapstructure:"secret_key"`
-	UseSSL    bool   `mapstructure:"use_ssl"`
-	Bucket    string `mapstructure:"bucket"`
-	Region    string `mapstructure:"region"`
+	Enabled          bool   `mapstructure:"enabled"`
+	Endpoint         string `mapstructure:"endpoint"`
+	AccessKey        string `mapstructure:"access_key"`
+	SecretKey        string `mapstructure:"secret_key"`
+	UseSSL           bool   `mapstructure:"use_ssl"`
+	Bucket           string `mapstructure:"bucket"`
+	Region           string `mapstructure:"region"`
+	FallbackEndpoint string `mapstructure:"fallback_endpoint"` // L2 地址；空表示不启用
 }
 
 type RedisConfig struct {
@@ -194,12 +199,13 @@ type RedisConfig struct {
 }
 
 type RedisInstance struct {
-	Enabled  bool   `mapstructure:"enabled"`
-	Addr     string `mapstructure:"addr"`
-	Username string `mapstructure:"username"`
-	Password string `mapstructure:"password"`
-	DB       int    `mapstructure:"db"`
-	PoolSize int    `mapstructure:"pool_size"` // 连接池大小
+	Enabled      bool   `mapstructure:"enabled"`
+	Addr         string `mapstructure:"addr"`
+	Username     string `mapstructure:"username"`
+	Password     string `mapstructure:"password"`
+	DB           int    `mapstructure:"db"`
+	PoolSize     int    `mapstructure:"pool_size"`     // 连接池大小
+	FallbackAddr string `mapstructure:"fallback_addr"` // L2 地址；空表示不启用
 }
 
 type CacheConfig struct {
