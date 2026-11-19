@@ -1,4 +1,4 @@
-package s0
+package health
 
 import (
 	"encoding/json"
@@ -32,7 +32,7 @@ func newTestModule(t *testing.T) (*Module, *gin.Engine) {
 	assert.NoError(t, err)
 
 	r := gin.New()
-	m.RegisterRoutes(r.Group("/api/v1/s0"))
+	m.RegisterRoutes(r.Group("/api/v1/health"))
 	return m, r
 }
 
@@ -40,7 +40,7 @@ func TestModule_Ping(t *testing.T) {
 	_, r := newTestModule(t)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/v1/s0/ping", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/health/ping", nil)
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -59,7 +59,7 @@ func TestModule_Health(t *testing.T) {
 	_, r := newTestModule(t)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/v1/s0/health", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/health/health", nil)
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -78,18 +78,18 @@ func TestModule_Metrics(t *testing.T) {
 	_, r := newTestModule(t)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/v1/s0/metrics", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/health/metrics", nil)
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "go_backend_core_s0_goroutines")
+	assert.Contains(t, w.Body.String(), "go_backend_core_health_goroutines")
 }
 
 func TestModule_Echo(t *testing.T) {
 	_, r := newTestModule(t)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/v1/s0/echo?foo=bar", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/health/echo?foo=bar", nil)
 	req.Header.Set("X-Custom", "test-value")
 	r.ServeHTTP(w, req)
 
@@ -102,20 +102,20 @@ func TestModule_Echo(t *testing.T) {
 
 	data := resp.Data.(map[string]interface{})
 	assert.Equal(t, "GET", data["method"])
-	assert.Equal(t, "/api/v1/s0/echo", data["path"])
+	assert.Equal(t, "/api/v1/health/echo", data["path"])
 	assert.Equal(t, "foo=bar", data["query"])
 }
 
 func TestModule_Name(t *testing.T) {
 	m := &Module{}
-	assert.Equal(t, "s0", m.Name())
+	assert.Equal(t, "health", m.Name())
 }
 
 func TestModule_Info(t *testing.T) {
 	_, r := newTestModule(t)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/v1/s0/info", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/health/info", nil)
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -140,7 +140,7 @@ func TestModule_Modules(t *testing.T) {
 	_, r := newTestModule(t)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/api/v1/s0/modules", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/health/modules", nil)
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)

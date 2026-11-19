@@ -21,11 +21,9 @@ import (
 	"github.com/Allinost/go-backend-core/internal/middleware"
 	"github.com/Allinost/go-backend-core/internal/modules"
 	"github.com/Allinost/go-backend-core/internal/modules/auth"
+	"github.com/Allinost/go-backend-core/internal/modules/health"
 	"github.com/Allinost/go-backend-core/internal/modules/integration"
 	"github.com/Allinost/go-backend-core/internal/modules/migrate"
-	"github.com/Allinost/go-backend-core/internal/modules/s0"
-	"github.com/Allinost/go-backend-core/internal/modules/s1"
-	"github.com/Allinost/go-backend-core/internal/modules/s2"
 	"github.com/Allinost/go-backend-core/internal/modules/servicenav"
 	"github.com/Allinost/go-backend-core/internal/modules/settings"
 	"github.com/Allinost/go-backend-core/internal/modules/webhook"
@@ -95,9 +93,7 @@ func main() {
 	config.RegisterReloader(database.DB)
 
 	// 注册业务模块
-	modules.Register(&s0.Module{Bus: bus})
-	modules.Register(&s1.Module{})
-	modules.Register(&s2.Module{})
+	modules.Register(&health.Module{Bus: bus})
 	modules.Register(&scheduler.Module{})
 	modules.Register(&auth.Module{})
 	modules.Register(&integration.Module{})
@@ -126,7 +122,7 @@ func main() {
 	mainR.Use(middleware.RateLimiter(middleware.NewRateLimit(100, time.Minute)))
 	modules.RegisterAllRoutes(mainR)
 
-	// ========== 调试引擎 :29092 — Swagger UI + s0 调试/监控/运维 ==========
+	// ========== 调试引擎 :29092 — Swagger UI + health 探活/监控 ==========
 	debugR := gin.New()
 	debugR.Use(middleware.Logger())
 	debugR.Use(middleware.CORS())
@@ -169,8 +165,8 @@ func main() {
 		// 静态资源（swagger-ui JS/CSS/图片）由 swaggerFiles 原生提供
 		swaggerUI(c)
 	})
-	// 仅注册 s0 调试模块（ping / health / echo / metrics / info / modules）
-	modules.RegisterRoutesTo(debugR, "s0")
+	// 仅注册 health 探活模块（ping / health / echo / metrics / info / modules）
+	modules.RegisterRoutesTo(debugR, "health")
 
 	// ========== 启动服务 ==========
 	mainAddr := fmt.Sprintf(":%d", cfg.Server.Port)

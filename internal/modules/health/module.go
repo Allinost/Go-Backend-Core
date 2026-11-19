@@ -1,4 +1,4 @@
-package s0
+package health
 
 import (
 	"context"
@@ -25,7 +25,7 @@ type Module struct {
 }
 
 func (m *Module) Name() string {
-	return "s0"
+	return "health"
 }
 
 func (m *Module) Init(cfg *config.Config) error {
@@ -33,7 +33,7 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.startTime = time.Now()
 
 	m.checker = monitor.NewHealthChecker()
-	m.metrics = monitor.NewMetricsRegistry("go_backend_core", "s0")
+	m.metrics = monitor.NewMetricsRegistry("go_backend_core", "health")
 
 	dbHealth := database.Health()
 	for name := range dbHealth {
@@ -67,7 +67,7 @@ func (m *Module) Init(cfg *config.Config) error {
 	if m.Bus != nil {
 		sub, err := m.Bus.Subscribe("config.changed", m.onConfigChanged)
 		if err != nil {
-			logger.Warn().Err(err).Msg("s0: 订阅 config.changed 事件失败")
+			logger.Warn().Err(err).Msg("health: 订阅 config.changed 事件失败")
 		} else {
 			m.subs = append(m.subs, sub)
 		}
@@ -77,7 +77,7 @@ func (m *Module) Init(cfg *config.Config) error {
 }
 
 func (m *Module) onConfigChanged(ctx context.Context, event eventbus.Event) error {
-	logger.Info().Str("source", event.Source).Msg("s0: 配置已变更")
+	logger.Info().Str("source", event.Source).Msg("health: 配置已变更")
 
 	if m.cfg.Config.Watch {
 		m.checker.Stop()
@@ -114,9 +114,9 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 // Ping 存活检查
 // @Summary      存活检查
 // @Description  返回 pong 表示服务运行正常
-// @Tags         s0-调试
+// @Tags         health-调试
 // @Success      200  {object}  response.Response{data=object{message=string}}
-// @Router       /s0/ping [get]
+// @Router       /health/ping [get]
 func (m *Module) Ping(c *gin.Context) {
 	response.Success(c, gin.H{"message": "pong"})
 }
@@ -124,9 +124,9 @@ func (m *Module) Ping(c *gin.Context) {
 // Health 健康检查
 // @Summary      全服务健康状态
 // @Description  返回所有依赖服务的健康检查结果
-// @Tags         s0-调试
+// @Tags         health-调试
 // @Success      200  {object}  response.Response{data=object{status=string,version=string,uptime=string,checks=object}}
-// @Router       /s0/health [get]
+// @Router       /health/health [get]
 func (m *Module) Health(c *gin.Context) {
 	results := m.checker.Check(c.Request.Context())
 
@@ -149,10 +149,10 @@ func (m *Module) Health(c *gin.Context) {
 // Metrics Prometheus 指标
 // @Summary      Prometheus 指标暴露
 // @Description  返回 Prometheus 格式的监控指标
-// @Tags         s0-调试
+// @Tags         health-调试
 // @Produce      plain
 // @Success      200  {string}  string
-// @Router       /s0/metrics [get]
+// @Router       /health/metrics [get]
 func (m *Module) Metrics(c *gin.Context) {
 	m.metrics.Handler().ServeHTTP(c.Writer, c.Request)
 }
@@ -160,9 +160,9 @@ func (m *Module) Metrics(c *gin.Context) {
 // Echo 请求回显
 // @Summary      请求回显（调试用）
 // @Description  返回请求的详细信息，包括方法、路径、查询参数、请求头和客户端 IP
-// @Tags         s0-调试
+// @Tags         health-调试
 // @Success      200  {object}  response.Response{data=object{method=string,path=string,query=string,headers=object,client_ip=string}}
-// @Router       /s0/echo [get]
+// @Router       /health/echo [get]
 func (m *Module) Echo(c *gin.Context) {
 	response.Success(c, gin.H{
 		"method":    c.Request.Method,
@@ -176,9 +176,9 @@ func (m *Module) Echo(c *gin.Context) {
 // Info 服务信息
 // @Summary      服务信息
 // @Description  返回服务名称、版本、运行时长、Go 运行时信息等
-// @Tags         s0-调试
+// @Tags         health-调试
 // @Success      200  {object}  response.Response{data=object{name=string,version=string,mode=string,uptime=string,start_time=string,go_version=string,go_os=string,go_arch=string,goroutines=int,modules=[]string,config_watch=bool}}
-// @Router       /s0/info [get]
+// @Router       /health/info [get]
 func (m *Module) Info(c *gin.Context) {
 	response.Success(c, gin.H{
 		"name":         m.cfg.Server.Name,
@@ -198,9 +198,9 @@ func (m *Module) Info(c *gin.Context) {
 // Modules 模块列表
 // @Summary      已注册模块列表
 // @Description  返回所有已注册的业务模块名称
-// @Tags         s0-调试
+// @Tags         health-调试
 // @Success      200  {object}  response.Response{data=object{count=int,modules=[]object}}
-// @Router       /s0/modules [get]
+// @Router       /health/modules [get]
 func (m *Module) Modules(c *gin.Context) {
 	all := modules.List()
 	details := make([]gin.H, 0, len(all))

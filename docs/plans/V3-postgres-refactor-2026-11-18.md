@@ -31,7 +31,7 @@ V3 采用 **“新机器、PG-only、基座先行、V2 并行、业务模块后�
 - **多主机管理（新增）**：云服务器 + 主机 + 备份机；V3.0 先做主机台账、SSH 连通/状态、权限/审计；完整运维操作后续。
 - **数据库迁移/备份（低优先级）**：主机间迁移、冷备份；等容器迁移到新机器后再做，列入 V3.1，不进 12.15。
 - **外部服务（低优先级）**：Ollama/Embedding/Browser/n8n/OpenClaw/LangBot/MCP/TTS 等，列入 V3.2，按需接入；已有能力保留，不阻塞 12.15。
-- **移除 s0/s1/s2**：删除调试/占位模块；`ping/health/metrics/info/modules` 合并到 `ops`（或 `ops` 下的 system 子能力）。
+- **模块调整**：`s0` 改名为 `health`（保留 ping/health/metrics/info/modules）；删除 `s1/s2` 占位模块。
 - **配置中心（新增架构约束）**：模块声明配置 Schema；统一默认值、校验、优先级、热更新、审计、密钥脱敏、管理 API；运行参数尽量 DB 动态化，启动/安全密钥仍走 Secret。
 - **V2 冻结**：V3 是唯一开发线；老机器/老域名继续运行 V2。
 - **上线目标 2026-12-15 核心上线**：PM-07 高级前端 12/31 前补齐。
@@ -116,7 +116,7 @@ V3 采用 **“新机器、PG-only、基座先行、V2 并行、业务模块后�
 | 31 | **新增多主机管理**：云服务器 + 主机 + 备份机；V3.0 做主机台账、SSH 连通/状态、权限/审计；完整运维后续。 |
 | 32 | **新增数据库迁移/备份**：主机间迁移、冷备份；低优先级，等容器迁移到新机器后做，列入 V3.1。 |
 | 33 | **外部服务低优先级**：Ollama/Embedding/Browser/n8n/OpenClaw/LangBot/MCP/TTS 等，列入 V3.2；已有能力保留。 |
-| 34 | **移除 s0/s1/s2**：删除调试/占位模块；health/metrics/info/modules 合并到 `ops`。 |
+| 34 | **s0 → health**：保留 ping/health/metrics/info/modules；删除 s1/s2 占位模块。 |
 | 35 | 本次开发切到 **`feature-V3`** 分支；V2 冻结。 |
 
 **第九轮确认（2026-11-18）：**
@@ -133,7 +133,7 @@ V3 采用 **“新机器、PG-only、基座先行、V2 并行、业务模块后�
 |---|---|---|
 | 运行时数据库 | PostgreSQL 16+ | 同左 |
 | 部署 | 新机器，与 V2 老机器并行 | 同左，逐步接管业务 |
-| 基础模块 | auth/migrate/ops/settings/integration/webhook/servicenav/scheduler/net/crypto；**移除 s0/s1/s2** | 同左 |
+| 基础模块 | auth/migrate/ops/settings/integration/webhook/servicenav/scheduler/net/crypto/**health**；删除 s1/s2 | 同左 |
 | 公共能力 | 23 个公共服务中与 V3.0 相关的部分（auth/audit/cache/config/eventbus/feature/fileref/migrate/monitor/outbox/scheduler/storage/tracing/ws 等） | 按需补齐 |
 | 配置中心 | 配置 Schema/默认值/校验/优先级/热更新/审计/脱敏 + 管理 API | 全模块配置注册、前端表单、版本回滚 |
 | 多主机 | 主机台账（云服务器/主机/备份机）+ SSH 连通/状态 + 权限/审计（最小） | 完整运维、批量操作、监控 |
@@ -154,7 +154,7 @@ V3 采用 **“新机器、PG-only、基座先行、V2 并行、业务模块后�
 ### 0.4 V3.0 成功标准
 
 1. 新机器上的 V3 只连接 PostgreSQL；运行时无 MySQL 连接。
-2. V3.0 二进制只注册基座 + 公共能力 + 项目管理 + 多主机台账；业务模块不进入构建/路由；**s0/s1/s2 移除**，health/metrics/info 合并到 ops。
+2. V3.0 二进制只注册基座 + 公共能力 + 项目管理 + 多主机台账；业务模块不进入构建/路由；**s0 改名 health，s1/s2 移除**。
 3. `migrations/postgres` 可从空库一键建出 V3.0 约 35 张基础表 + 13 张项目管理扩展表 + 3 张运维/配置表；迁移可重复、可校验、可回滚。
 4. V3.0 基座/公共/项目管理数据从 V2 完成一次性 bootstrap 迁移，校验通过；业务模块数据留在 V2。
 5. GORM 在 PG 上正常工作；生产 `auto_migrate=false`，Schema 只由迁移管理。
@@ -219,7 +219,7 @@ V3 采用 **“新机器、PG-only、基座先行、V2 并行、业务模块后�
 | `net` | `internal/services/net` | 少量 | HTTP/TCP/UDP/DNS/gRPC/熔断/重试 | 无 | 不动 |
 | `crypto` | `internal/services/crypto` | 少量 | 加解密、哈希、压缩、密钥管理 | 无 | 不动 |
 
-> **移除 s0/s1/s2**：`s0` 的 ping/health/echo/metrics/info/modules 以及调试端口能力合并到 `ops`（或 ops 下的 system 子模块）；`s1/s2` 占位模块删除。
+> **模块调整**：`s0` 改名为 `health`，保留 ping/health/echo/metrics/info/modules 与调试端口能力；`s1/s2` 占位模块删除。
 
 ### 1.4 公共能力（V3.0 保留）
 
@@ -423,7 +423,7 @@ V3.0 的范围比“全量重构”小得多，风险也更可控：只改基座
 | 安全头 | `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、CSP（按前端） |
 | 限流 | 登录/写接口在反代层加 `limit_req`；应用层保留限流 |
 | 管理入口 | `/api/v1/auth/admin/*`、`/api/v1/ops/*`、`/api/v1/migrate/*` 加 IP 白名单/内网限制 |
-| 健康检查 | `/api/v1/s0/health` 仅内网/回源可访问；调试端口 29092 不暴露公网 |
+| 健康检查 | `/api/v1/health/health` 仅内网/回源可访问；调试端口 29092 不暴露公网 |
 | 管理面板 | 若用 1Panel，面板**不对公网**；仅内网/VPN/IP 白名单 |
 | 日志 | 反代 access/error log 接入监控；保留真实 IP |
 | CORS | 只允许正式前端域名；不使用 `*` 携带凭证 |
@@ -467,7 +467,7 @@ V3.0 的范围比“全量重构”小得多，风险也更可控：只改基座
 | D29 | 主机凭据 | 加密入库（AES-GCM），只回提示；SSH 指纹校验 | 禁止明文/日志 |
 | D30 | DB 迁移/备份 | **V3.1 低优先级**：主机间迁移 + 冷备份；等容器迁移后做 | 不进 12.15 |
 | D31 | 外部服务 | **V3.2 低优先级**：Ollama/Embedding/Browser/n8n/OpenClaw/LangBot/MCP/TTS | 已有能力保留 |
-| D32 | 模块精简 | **移除 s0/s1/s2**；health/metrics/info/modules 合并到 ops | 减少占位/调试模块 |
+| D32 | 模块精简 | **s0 改名 health**；删除 s1/s2 占位模块 | 保留探活能力，减少占位模块 |
 | D33 | 配置中心 | 模块声明 Schema；默认值/校验/优先级/热更新/审计/脱敏 + 管理 API | 运行参数 DB 动态化；密钥走 Secret |
 
 ### 4.1 GORM 保留方案（详细）
@@ -674,7 +674,7 @@ aiPrompt/
 |---|---|---|---:|
 | P0 | `internal/config/config.go`、`config.yaml`、`.env.example` | MySQL → PG 配置、`sslmode/search_path/timezone` | 1d |
 | P0 | `internal/database/manager.go`、`internal/database/postgres` | PG 主库、`Main()`/`PG()`、健康检查、热加载 | 2d |
-| P0 | `internal/modules/{auth,integration,migrate,ops,s0,servicenav,webhook}` | `database.DB.MySQL["main"]` 全部替换 | 2d |
+| P0 | `internal/modules/{auth,integration,migrate,ops,health,servicenav,webhook}` | `database.DB.MySQL["main"]` 全部替换 | 2d |
 | P0 | `internal/services/scheduler/module.go` + `store.go` | GORM MySQL → PG、AutoMigrate → 迁移 | 1d |
 | P1 | `zzz/developmentManager/*_repository.go` | `SELECT DATABASE()`、`information_schema`、UPSERT、分页 | 2d |
 | P1 | `internal/modules/webhook/repository.go`、`servicenav/repository.go` | `JSON_CONTAINS`、分页 | 1d |

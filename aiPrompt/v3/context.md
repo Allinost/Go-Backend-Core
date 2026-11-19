@@ -16,14 +16,14 @@ Go-Backend-Core V3.0：把基座、公共能力、项目管理模块迁移到 Po
 - V3.0 只要求公网反代/证书可用（1Panel 或 OpenResty，实现待定）；V3 只依赖容器 80 + 转发头 + HTTPS。
 - **配置中心**：能配置就配置；模块声明 ConfigSpec；运行时参数 DB 动态化，启动/安全密钥走 Secret；禁止写死 URL/阈值/开关。
 - **多主机管理**：V3.0 做主机台账（cloud/host/backup）+ SSH 连通/状态；凭据加密；不做任意命令/批量操作。
-- **移除 s0/s1/s2**：health/metrics/info/modules 合并到 `ops`。
+- **s0 → health**：保留 ping/health/metrics/info/modules；删除 s1/s2 占位模块。
 
 ## 2. V3.0 范围
 
 **允许修改：**
 
 - `internal/config`、`internal/database`、`internal/middleware`
-- `internal/modules/{s0,s1,s2,auth,migrate,ops,settings,integration,webhook,servicenav}`
+- `internal/modules/{health,auth,migrate,ops,settings,integration,webhook,servicenav}`
 - `internal/services/*`（V3.0 需要的公共能力）
 - `internal/pkg/*`、`pkg/*`（仅必要改动）
 - `zzz/developmentManager/*`（含项目管理扩展）
@@ -63,7 +63,7 @@ internal/
   config/                    # Viper 配置；database.postgres.main
   database/                  # Manager；Main()/PG()；健康检查；breaker
   middleware/                # logger/CORS/ratelimit/auth/rbac/metrics
-  modules/                   # 基座模块（s0/auth/migrate/ops/...）
+  modules/                   # 基座模块（health/auth/migrate/ops/...）
   services/                  # 23 个公共服务
   pkg/                       # logger/response/errors/crypto/authz
 zzz/developmentManager/      # V3 项目管理模块（重点）

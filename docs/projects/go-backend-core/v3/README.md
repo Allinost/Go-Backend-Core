@@ -27,7 +27,7 @@
 
 **包含：**
 
-- 基座模块：s0/s1/s2/auth/migrate/ops/settings/integration/webhook/servicenav/scheduler/net/crypto。
+- 基座模块：health/auth/migrate/ops/settings/integration/webhook/servicenav/scheduler/net/crypto；删除 s1/s2。
 - 公共能力：auth/audit/cache/config/eventbus/feature/fileref/migrate/monitor/outbox/scheduler/storage/tracing/ws 等。
 - 项目管理：developmentManager + 完整项目管理扩展。
 - 新机器部署、PG、Redis、S3、Chrome、监控、备份。
@@ -90,7 +90,7 @@
 | V3-P1-01 | 配置 PG 主库：`sslmode/search_path/timezone/池` + `.env.example` | refactor | P0 | 1.0 | P0-03 | todo | `database.postgres.main` 可加载 |
 | V3-P1-02 | `database.Manager`：PG 主库、`Main()/PG()`、健康检查、热加载 | refactor | P0 | 1.5 | P1-01 | todo | 模块不再直接取 MySQL |
 | V3-P1-03 | pgx stdlib `*sql.DB` 封装、事务助手、错误映射 | refactor | P1 | 1.0 | P1-02 | todo | 现有仓库可复用 `*sql.DB` |
-| V3-P1-04 | 启动 fail-fast、s0/monitor 健康标签、移除 MySQL fallback | refactor | P0 | 1.0 | P1-02 | todo | PG 不可用即启动失败 |
+| V3-P1-04 | 启动 fail-fast、s0→health 改名、s1/s2 删除、移除 MySQL fallback | refactor | P0 | 1.0 | P1-02 | doing | 模块改名/删除已完成；fail-fast 待主库切换 |
 | V3-P1-05 | Compose/.env/config：postgres 服务、移除 V3 mysql | ops | P1 | 0.5 | P1-01 | todo | V3 `docker compose up` 仅 PG |
 | V3-P1-06 | 配置中心：Schema/默认值/校验/优先级/热更新/审计/脱敏/管理 API | feature | P0 | 2.0 | P1-01 | todo | 核心配置可动态管理；失败回滚 |
 

@@ -1,6 +1,6 @@
 # Go-Backend-Core V3 SOP
 
-> 版本：v1.7（配置中心/多主机管理/移除 s0/s1/s2）
+> 版本：v1.8（配置中心/多主机管理/s0→health、删除 s1/s2）
 > 生效日期：2026-11-18
 > 适用范围：Go-Backend-Core V3.0 及后续 V3.x 业务模块迁移
 > 关联：[V3 规划](../../../plans/V3-postgres-refactor-2026-11-18.md) · [V3 路线图](README.md)
@@ -403,7 +403,7 @@ make swagger
 - 老二级域名/老机器保持不变，继续服务 V2。
 - 环境变量：`APP_DATABASE_POSTGRES_MAIN_*`、`APP_AUTH_JWT_SECRET` 等。
 - 启动前：迁移完成、Schema 版本匹配、备份可用。
-- 启动后：`/api/v1/s0/health`、`/api/v1/s0/modules`、PM 核心 API 冒烟。
+- 启动后：`/api/v1/health/health`、`/api/v1/health/modules`、PM 核心 API 冒烟。
 
 ### 10.2 公网反代 / 证书（实现待定）
 
@@ -499,7 +499,7 @@ make swagger
 - 权限：`ops.host.read/manage/connect`；所有连接审计。
 - V3.0 只做台账 + SSH 连通/状态；不做任意命令/文件分发/批量重启。
 - V3.1 再做：批量运维、数据库迁移/备份（主机间、冷备份）。
-- 移除 `s0/s1/s2`：health/metrics/info/modules 合并到 `ops`；调试端口由 `ops` 提供。
+- 模块调整：`s0` 改名 `health`，保留 ping/health/metrics/info/modules；删除 s1/s2 占位模块。
 
 ---
 
@@ -667,3 +667,4 @@ npm run dev
 | 2026-11-18 | v1.5 | 1Panel 多实例/Key 加密入库；1Panel-skills 只读；云服务器 401 待放行 |
 | 2026-11-18 | v1.6 | 1Panel 接入暂停；V3.0 只要求公网反代/证书；57 任务/61.0 人日 |
 | 2026-11-18 | v1.7 | 配置中心、多主机管理、移除 s0/s1/s2；60 任务/65.0 人日 |
+| 2026-11-18 | v1.8 | s0 改名 health，保留探活能力；s1/s2 删除 |
