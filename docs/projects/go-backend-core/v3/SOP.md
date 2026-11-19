@@ -1,6 +1,6 @@
 # Go-Backend-Core V3 SOP
 
-> 版本：v1.8（配置中心/多主机管理/s0→health、删除 s1/s2）
+> 版本：v1.9（L1/L2 手动维护切换；RustFS 固定在 ACloud）
 > 生效日期：2026-11-18
 > 适用范围：Go-Backend-Core V3.0 及后续 V3.x 业务模块迁移
 > 关联：[V3 规划](../../../plans/V3-postgres-refactor-2026-11-18.md) · [V3 路线图](README.md)
@@ -501,6 +501,17 @@ make swagger
 - V3.1 再做：批量运维、数据库迁移/备份（主机间、冷备份）。
 - 模块调整：`s0` 改名 `health`，保留 ping/health/metrics/info/modules；删除 s1/s2 占位模块。
 
+### 10.10 L1/L2 手动维护（V3.0）
+
+- **默认 `database.failover_mode=manual`**：不做连接失败自动切库，避免脑裂。
+- 开始维护：人工完成 L1→L2 同步并勾选确认；停止 L1 V3，在 L2 启动 V3（`APP_PROFILE=backup`）。
+- 维护期间：L1 服务（PG/Redis 等）切到 L2；**RustFS 固定在 ACloud，不切换**。
+- 结束维护：
+  - 未切 L2：直接结束；
+  - 切过 L2：先完成 L2→L1 反向同步并勾选确认，再停 L2、启动 L1（`APP_PROFILE=host`）。
+- 状态/操作审计：维护状态表 + 操作人/时间/同步确认；权限 `ops.maintenance.read/start/end`。
+- 不做运行中热切连接；L1/L2 各自 V3 进程连接本机服务。
+
 ---
 
 ## 11. 项目管控与周报
@@ -668,3 +679,4 @@ npm run dev
 | 2026-11-18 | v1.6 | 1Panel 接入暂停；V3.0 只要求公网反代/证书；57 任务/61.0 人日 |
 | 2026-11-18 | v1.7 | 配置中心、多主机管理、移除 s0/s1/s2；60 任务/65.0 人日 |
 | 2026-11-18 | v1.8 | s0 改名 health，保留探活能力；s1/s2 删除 |
+| 2026-11-19 | v1.9 | L1/L2 手动维护；RustFS 固定 ACloud；默认关闭自动 fallback |
