@@ -87,11 +87,11 @@
 
 | 编号 | 任务 | 类型 | 优先级 | 预估 | 依赖 | 状态 | 验收/备注 |
 |---|---|---|---|---:|---|---|---|
-| V3-P1-01 | 配置 PG 主库：`sslmode/search_path/timezone/池` + `.env.example` | refactor | P0 | 1.0 | P0-03 | todo | `database.postgres.main` 可加载 |
-| V3-P1-02 | `database.Manager`：PG 主库、`Main()/PG()`、健康检查、热加载 | refactor | P0 | 1.5 | P1-01 | todo | 模块不再直接取 MySQL |
-| V3-P1-03 | pgx stdlib `*sql.DB` 封装、事务助手、错误映射 | refactor | P1 | 1.0 | P1-02 | todo | 现有仓库可复用 `*sql.DB` |
-| V3-P1-04 | 启动 fail-fast、s0→health 改名、s1/s2 删除、移除 MySQL fallback | refactor | P0 | 1.0 | P1-02 | doing | 模块改名/删除已完成；fail-fast 待主库切换 |
-| V3-P1-05 | Compose/.env/config：postgres 服务、移除 V3 mysql | ops | P1 | 0.5 | P1-01 | todo | V3 `docker compose up` 仅 PG |
+| V3-P1-01 | 配置 PG 主库：`sslmode/search_path/timezone/池` + `.env.example` | refactor | P0 | 1.0 | P0-03 | done | `database.postgres.main` 可加载 |
+| V3-P1-02 | `database.Manager`：PG 主库、`Main()/PG()`、健康检查、热加载 | refactor | P0 | 1.5 | P1-01 | done | 模块不再直接取 MySQL |
+| V3-P1-03 | pgx stdlib `*sql.DB` 封装、事务助手、错误映射 | refactor | P1 | 1.0 | P1-02 | done | 现有仓库可复用 `*sql.DB` |
+| V3-P1-04 | 启动 fail-fast、s0→health 改名、s1/s2 删除、移除 MySQL fallback | refactor | P0 | 1.0 | P1-02 | done | health 路由可用；PG 不可用即退出；MySQL 兼容保留给未迁移模块 |
+| V3-P1-05 | Compose/.env/config：postgres 服务、移除 V3 mysql | ops | P1 | 0.5 | P1-01 | blocked | 待业务模块移出/认证迁 PG 后切 V3 Compose |
 | V3-P1-06 | 配置中心：Schema/默认值/校验/优先级/热更新/审计/脱敏/管理 API | feature | P0 | 2.0 | P1-01 | doing | 框架/内存/API 已落地；PG 持久化待 P2 建表 |
 
 ### V3-P2 Schema 基线（6 个，6.5 人日）

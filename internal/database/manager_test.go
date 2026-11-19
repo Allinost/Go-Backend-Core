@@ -170,6 +170,21 @@ func TestMain_PG_NoMainPool(t *testing.T) {
 	assert.Nil(t, PG())
 }
 
+func TestRequireMain_NilDB(t *testing.T) {
+	DB = nil
+	assert.Error(t, RequireMain())
+}
+
+func TestRequireMain_NoMainPool(t *testing.T) {
+	DB = &DBManager{Postgres: map[string]*postgres.Pool{}}
+	assert.Error(t, RequireMain())
+}
+
+func TestRequireMain_EmptyPool(t *testing.T) {
+	DB = &DBManager{Postgres: map[string]*postgres.Pool{"main": {}}}
+	assert.Error(t, RequireMain())
+}
+
 func TestConcurrentHealth(t *testing.T) {
 	err := InitAll(&config.Config{})
 	assert.NoError(t, err)

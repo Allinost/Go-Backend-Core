@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -195,6 +196,26 @@ func Main() *sql.DB {
 		return nil
 	}
 	return pool.SQLDB
+}
+
+// RequireMain 校验 V3 主库已配置且可用；启动阶段调用，失败即快速退出。
+// V3 不再回落到 MySQL 主库。
+func RequireMain() error {
+	if DB == nil {
+		return fmt.Errorf("database: DB 未初始化")
+	}
+	DB.mu.RLock()
+	pool := DB.Postgres["main"]
+	DB.mu.RUnlock()
+	if pool == nil || pool.Pool == nil || pool.SQLDB == nil {
+		return fmt.Errorf("database: PostgreSQL main 未配置或连接失败")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := pool.Pool.Ping(ctx); err != nil {
+		return fmt.Errorf("database: PostgreSQL main 健康检查失败: %w", err)
+	}
+	return nil
 }
 
 // PG 返回 V3 主库的 pgxpool 句柄（PostgreSQL main）。

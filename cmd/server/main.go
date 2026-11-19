@@ -89,6 +89,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// V3 主库 fail-fast：PG main 未配置/不可用则直接退出，不回落 MySQL
+	if err := database.RequireMain(); err != nil {
+		logger.Error().Err(err).Msg("V3 主库不可用，启动终止")
+		os.Exit(1)
+	}
+
 	// 注册数据库热加载（InitAll 之后 DB 不为 nil）
 	config.RegisterReloader(database.DB)
 
