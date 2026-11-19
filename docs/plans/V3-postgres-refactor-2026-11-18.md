@@ -803,6 +803,8 @@ migrations/
     └── README.md              # V3.0 bootstrap 与模块迁移说明
 ```
 
+> 实际文件按落地顺序编号：`001_init.sql`（`_migrations`）、`002_system_config.sql`（配置中心），后续基线/台账为 `003+`；上面为规划集合。
+
 - **0001 baseline**：V3.0 必需的基座/公共/PM 核心表，约 35 张：
   - `_migrations` 1
   - auth：users/roles/permissions/role_permissions/user_roles/api_keys 6
@@ -1293,6 +1295,7 @@ type Spec struct {
 | `system_config_history` | 变更历史/回滚：`id, key, old_value, new_value, version, operator, note, created_at` |
 
 > 敏感值只存密文/Secret 引用；历史记录同样脱敏。
+> **env 边界**：业务账号与外部密钥（JD、1Panel 等）不写 env，统一写入 `system_config`；env 只保留基础设施/启动配置。
 
 #### 7.10.4 管理 API
 

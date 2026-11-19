@@ -15,6 +15,7 @@ type Service struct {
 
 	mu     sync.RWMutex
 	values map[string]any
+	cipher SecretCipher
 }
 
 func New(registry *Registry, store Store) *Service {
@@ -43,6 +44,13 @@ func (s *Service) Load(ctx context.Context) error {
 		var value any
 		if err := json.Unmarshal(raw, &value); err != nil {
 			return fmt.Errorf("configcenter: 解析 %s 失败: %w", key, err)
+		}
+		if spec, ok := s.registry.Get(key); ok {
+			opened, err := s.openSecret(spec, value)
+			if err != nil {
+				return err
+			}
+			value = opened
 		}
 		values[key] = value
 	}
@@ -125,10 +133,24 @@ func (s *Service) Update(ctx context.Context, patch map[string]any, operator, no
 	if err != nil {
 		return err
 	}
+	// 前端可能回传脱敏占位符：视为“不修改”，避免把 ****** 写进配置。
+	for key, value := range normalized {
+		if isMasked(value) {
+			delete(normalized, key)
+		}
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
 
 	raw := make(map[string]json.RawMessage, len(normalized))
 	for key, value := range normalized {
-		b, err := json.Marshal(value)
+		spec, _ := s.registry.Get(key)
+		stored, err := s.sealSecret(spec, value)
+		if err != nil {
+			return err
+		}
+		b, err := json.Marshal(stored)
 		if err != nil {
 			return fmt.Errorf("configcenter: 序列化 %s 失败: %w", key, err)
 		}

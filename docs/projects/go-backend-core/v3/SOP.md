@@ -489,6 +489,8 @@ make swagger
 - 变更：校验 → 持久化 → 发布 `config.changed` → 模块应用；失败自动回滚。
 - API：`/api/v1/settings/config/{schema,validate,history,rollback}`；权限 `settings.config.read/write`。
 - 敏感项只存密文/Secret 引用；接口/日志/历史脱敏。
+- **env 边界**：env 只放启动/节点/数据库/Redis/RustFS 等基础设施配置；**业务账号与外部密钥（如 JD、1Panel）不写 env**，统一走 `system_config`，由设置页维护。
+- 敏感项使用 `crypto.master_key_hex`（AES-GCM）加密后落库；接口/日志/历史只回显脱敏值；未配置密钥时启动告警。
 - 表：`system_config`、`system_config_history`。
 - 测试：优先级、校验、热更新、回滚、脱敏、env_locked。
 

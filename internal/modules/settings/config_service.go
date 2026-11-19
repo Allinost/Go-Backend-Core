@@ -8,6 +8,7 @@ import (
 	"github.com/Allinost/go-backend-core/internal/database"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/Allinost/go-backend-core/internal/services/configcenter"
+	"github.com/Allinost/go-backend-core/internal/services/crypto"
 	"github.com/Allinost/go-backend-core/zzz/login3rd"
 )
 
@@ -47,6 +48,13 @@ func newConfigService(cfg *config.Config) *configcenter.Service {
 		applyConfigValues(cfg, values)
 		return nil
 	})
+	if cfg.Crypto.MasterKeyHex == "" {
+		logger.Warn().Msg("settings: 未配置 crypto.master_key_hex，敏感配置将以明文写入数据库")
+	} else if cipher, err := crypto.NewAESGCMFromHex(cfg.Crypto.MasterKeyHex); err != nil {
+		logger.Warn().Err(err).Msg("settings: 加密密钥不可用，敏感配置将以明文写入数据库")
+	} else {
+		svc.SetSecretCipher(cipher)
+	}
 	if err := svc.ApplyCurrent(); err != nil {
 		logger.Warn().Err(err).Msg("settings: 配置中心启动应用失败")
 	}

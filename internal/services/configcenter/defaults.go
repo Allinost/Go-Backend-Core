@@ -19,5 +19,7 @@ func DefaultSpecs() []Spec {
 		{Key: "integration.rate_limit.requests_per_minute", Module: "integration", Type: TypeInt, Default: 600, Min: &minOne, Max: &maxRate, Reloadable: true, Group: "integration", Description: "集成动作/MCP 每 Key 每分钟限流"},
 		{Key: "integration.retention_days", Module: "integration", Type: TypeInt, Default: 30, Min: &zero, Max: &maxRetention, Reloadable: true, Group: "integration", Description: "已投递事件保留天数"},
 		{Key: "security.upload_max_mb", Module: "security", Type: TypeInt, Default: 100, Min: &minOne, Max: &maxUpload, Reloadable: true, Group: "security", Description: "上传文件大小上限（MB）"},
+		{Key: "goodser.jd.username", Module: "goodser", Type: TypeString, Default: "", Reloadable: false, Group: "business", Description: "京东账号（数据库保存，不写 env）"},
+		{Key: "goodser.jd.password", Module: "goodser", Type: TypeSecret, Default: "", Sensitive: true, Reloadable: false, Group: "business", Description: "京东密码（加密保存，不写 env）"},
 	}
 }

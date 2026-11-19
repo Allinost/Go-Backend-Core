@@ -15,6 +15,7 @@ Go-Backend-Core V3.0：把基座、公共能力、项目管理模块迁移到 Po
 - **1Panel 接入暂停**：API/数据/MCP/多实例/密钥入库不进入 V3.0，后续单独立项。
 - V3.0 只要求公网反代/证书可用（1Panel 或 OpenResty，实现待定）；V3 只依赖容器 80 + 转发头 + HTTPS。
 - **配置中心**：能配置就配置；模块声明 ConfigSpec；运行时参数 DB 动态化，启动/安全密钥走 Secret；禁止写死 URL/阈值/开关。
+- **env 边界**：env 只放启动/节点/数据库/Redis/RustFS 等基础设施配置；业务账号/外部密钥（JD、1Panel 等）必须写 `system_config`，不写 env；敏感项 AES-GCM 加密落库。
 - **多主机管理**：V3.0 做主机台账（cloud/host/backup）+ SSH 连通/状态；凭据加密；不做任意命令/批量操作。
 - **L1/L2 手动维护**：默认 `failover_mode=manual`；开始维护需 L1→L2 同步确认；结束维护若切过 L2 需 L2→L1 反向同步确认；RustFS 固定在 ACloud，不参与切换。
 - **s0 → health**：保留 ping/health/metrics/info/modules；删除 s1/s2 占位模块。
