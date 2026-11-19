@@ -796,16 +796,18 @@ migrations/
 ├── mysql/                     # V2 归档，只读；老机器继续使用
 │   └── 001–017_*.sql
 └── postgres/
-    ├── 0001_v3_baseline.sql   # V3.0 基座/公共/PM 核心表（约 35 张）
-    ├── 0002_v3_pm_full.sql    # 完整项目管理扩展（约 13 张）
-    ├── 0003_v3_ops_config.sql # 主机台账 + 配置中心（3 张）
-    ├── 0004_*.sql             # 后续变更
-    └── README.md              # V3.0 bootstrap 与模块迁移说明
+    ├── 001_init.sql              # _migrations
+    ├── 002_system_config.sql     # 配置中心：system_config/system_config_history
+    ├── 003_v3_ops.sql            # 主机台账 zzz_ops_host + 维护状态 zzz_ops_maintenance
+    ├── 004_v3_baseline.sql       # V3.0 基座/公共/PM 核心表（约 35 张）
+    ├── 005_v3_pm_full.sql        # 完整项目管理扩展（约 13 张）
+    ├── 006_*.sql                 # 后续变更
+    └── README.md                 # V3.0 bootstrap 与模块迁移说明
 ```
 
-> 实际文件按落地顺序编号：`001_init.sql`（`_migrations`）、`002_system_config.sql`（配置中心），后续基线/台账为 `003+`；上面为规划集合。
+> 编号以实现为准；`004` 基线及之后的文件尚未落地。
 
-- **0001 baseline**：V3.0 必需的基座/公共/PM 核心表，约 35 张：
+- **004 baseline**：V3.0 必需的基座/公共/PM 核心表，约 35 张：
   - `_migrations` 1
   - auth：users/roles/permissions/role_permissions/user_roles/api_keys 6
   - scheduler：scheduler_tasks/scheduler_task_logs 2
@@ -816,8 +818,8 @@ migrations/
   - webhook：configs/delivery_logs 2
   - servicenav：item/type 2
   - developmentManager 核心：15
-- **0002 PM full**：约 13 张扩展表（见 §8.3）。
-- **0003 ops/config**：`zzz_ops_host`、`system_config`、`system_config_history`（3 张）。
+- **005 PM full**：约 13 张扩展表（见 §8.3）。
+- **003 ops**：`zzz_ops_host`、`zzz_ops_maintenance`（2 张）；`002 system_config`：`system_config`、`system_config_history`（2 张）。
 - **1Panel 相关表不在 V3.0**：多实例/密钥入库后续单独立项。
 - 业务模块表（goodser/ia/login3rd/shopchecker）不在 V3.0 基线；V3.1+ 按模块新增迁移。
 - V2 的 `_migrations` 记录不迁移；V3 以 baseline 为新起点（版本 1），bootstrap 工具负责把 V2 数据装入 V3。
@@ -1381,7 +1383,7 @@ POST /api/v1/settings/config/rollback/:ver   # 回滚
 | 评论/检查项/标签 | ❌ | 新增 |
 | 路线图/看板/燃尽 | ❌ | 新增 API + 前端 |
 
-### 8.3 数据模型（迁移 `0002_v3_pm_full.sql`）
+### 8.3 数据模型（迁移 `005_v3_pm_full.sql`）
 
 > 所有表前缀 `zzz_development_manager_`；含审计字段与软删除。
 
@@ -1760,7 +1762,7 @@ P0 → P1 → P2 → P3 → P4 → P6 → P8 → P9
 | 类别 | 交付物 |
 |---|---|
 | 代码 | PG 数据层、配置中心、基座/公共/PM 方言改造、GORM PG Store、多主机台账、`cmd/v3migrate` |
-| Schema | `migrations/postgres/0001_v3_baseline.sql`、`0002_v3_pm_full.sql`、后续迁移 |
+| Schema | `migrations/postgres/002_system_config.sql`、`003_v3_ops.sql`、`004_v3_baseline.sql`、`005_v3_pm_full.sql`、后续迁移 |
 | 测试 | PG 集成测试、迁移测试、bootstrap 校验、性能报告 |
 | 部署 | 新机器 Compose、`.env.example`、公网反代/证书配置清单（站点/证书/反代本机/限流/安全头）、备份/恢复、监控面板 |
 | 文档 | 本规划、V3 路线图、V3 SOP、V3 数据字典、部署/迁移/并行 Runbook、公网安全清单、发布说明 |

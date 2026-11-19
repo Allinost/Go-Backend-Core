@@ -99,7 +99,7 @@
 
 | 编号 | 任务 | 类型 | 优先级 | 预估 | 依赖 | 状态 | 验收/备注 |
 |---|---|---|---|---:|---|---|---|
-| V3-P2-01 | PG baseline `0001`：约 35 张基座/公共/PM 表 + `0003` 主机/配置 3 表（identity/boolean/timestamptz/jsonb/numeric） | migration | P0 | 2.0 | P1-03 | todo | 空库可建约 51 张表 |
+| V3-P2-01 | PG baseline `004`：约 35 张基座/公共/PM 表；`002` 配置中心 2 表、`003` 主机/维护 2 表已完成（identity/boolean/timestamptz/jsonb/numeric） | migration | P0 | 2.0 | P1-03 | doing | 空库可建约 51 张表 |
 | V3-P2-02 | 索引/约束/FK/部分索引/GIN 评审与补全 | migration | P1 | 1.5 | P2-01 | todo | 关键查询有计划可用索引 |
 | V3-P2-03 | GORM 表迁入迁移（auth/scheduler/fileref/audit/feature） | migration | P0 | 1.0 | P2-01 | todo | 生产禁用 AutoMigrate |
 | V3-P2-04 | 迁移器 PG 默认：`_migrations` 基线、checksum、MySQL 归档 | refactor | P0 | 1.0 | P2-01 | todo | `migrate` 模块默认走 PG |
