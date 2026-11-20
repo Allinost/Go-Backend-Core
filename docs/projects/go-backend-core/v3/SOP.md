@@ -533,6 +533,7 @@ go run ./cmd/v3admin -username admin -nickname 管理员
 - 表不存在时先执行 `POST /api/v1/migrate/schema/migrate`。
 - 首次登录后立即修改密码；默认不开放自助注册（P4-06 关闭 `/auth/register`）。
 - 自助注册开关：`auth.allow_registration`（默认 `false`，设置页/配置中心可热更新）；关闭时管理员用 `POST /api/v1/auth/users` 创建用户。
+- 登录锁定：`auth.login_max_failures`（默认 5）、`auth.login_lock_minutes`（默认 15）；连续失败锁定，成功后清零。
 
 ### 10.12 V3 台账导入（V3.0）
 

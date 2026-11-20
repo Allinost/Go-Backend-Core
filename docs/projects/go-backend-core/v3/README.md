@@ -126,7 +126,7 @@
 | V3-P4-03 | outbox + integration action log：upsert/jsonb/时间 | refactor | P1 | 1.0 | P3-03 | done | PG 外盒/连接器/动作日志已实测 |
 | V3-P4-04 | fileref + ops：DDL→迁移、`current_database()`、扫描、引号 | refactor | P1 | 1.0 | P3-03 | done | 引用/扫描目标 PG 已实测 |
 | V3-P4-05 | audit + feature + migrate：PG Store/`ON CONFLICT`/dumper | refactor | P1 | 1.0 | P3-05 | done | 审计/开关 PG 已实测；迁移器 PG 默认 |
-| V3-P4-06 | 公网认证/权限硬化：管理员创建用户并授权、限流/锁定/审计、关闭自助注册 | refactor | P0 | 1.0 | P4-01 | doing | 已加 `auth.allow_registration` 开关（默认关）和管理员创建用户；登录锁定待补 |
+| V3-P4-06 | 公网认证/权限硬化：管理员创建用户并授权、限流/锁定/审计、关闭自助注册 | refactor | P0 | 1.0 | P4-01 | done | 注册开关默认关、管理员建用户、登录失败锁定已实现；全局限流已启用 |
 
 ### V3-PM 项目管控（8 个，10 人日）
 

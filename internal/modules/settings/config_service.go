@@ -95,6 +95,14 @@ func applyConfigValues(cfg *config.Config, values map[string]any) {
 	if b, ok := boolValue(values["auth.allow_registration"]); ok {
 		svcAuth.SetAllowRegistration(b)
 	}
+	maxFailures, lockMinutes := 5, 15
+	if n, ok := intValue(values["auth.login_max_failures"]); ok {
+		maxFailures = n
+	}
+	if n, ok := intValue(values["auth.login_lock_minutes"]); ok {
+		lockMinutes = n
+	}
+	svcAuth.ConfigureLoginPolicy(maxFailures, lockMinutes)
 }
 
 func stringValue(v any) (string, bool) {

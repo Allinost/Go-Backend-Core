@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Allinost/go-backend-core/internal/config"
@@ -277,11 +278,24 @@ func (m *Module) login(c *gin.Context) {
 		return
 	}
 
+	guard := auth.DefaultLoginGuard()
+	key := strings.ToLower(strings.TrimSpace(req.Username))
+	if locked, remaining := guard.Check(key); locked {
+		minutes := int(remaining.Minutes()) + 1
+		if minutes < 1 {
+			minutes = 1
+		}
+		response.Fail(c, appErrors.New(appErrors.CodeForbidden, fmt.Sprintf("登录失败次数过多，请 %d 分钟后再试", minutes)))
+		return
+	}
+
 	user, err := m.user.VerifyPassword(req.Username, req.Password)
 	if err != nil {
+		guard.Fail(key)
 		response.Fail(c, appErrors.New(appErrors.CodeUnauth, "用户名或密码错误"))
 		return
 	}
+	guard.Success(key)
 
 	pair, err := m.svc.GenerateTokenPair(user.ID, user.Username)
 	if err != nil {
