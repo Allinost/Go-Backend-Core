@@ -499,6 +499,8 @@ make swagger
 
 - 表：`zzz_ops_host`；角色 `cloud/host/backup`；地址、SSH 端口、用户、凭据密文、状态。
 - 凭据 AES-GCM 加密；只回提示；SSH 指纹校验；命令白名单；超时/重试/熔断。
+- API：`GET/POST /api/v1/ops/hosts`、`GET/PUT/DELETE /api/v1/ops/hosts/:id`、`POST /:id/test`、`GET /:id/status`。
+- V3.0 暂用 `InsecureIgnoreHostKey`，known_hosts/指纹校验后续补；状态采集仅执行固定白名单命令。
 - 权限：`ops.host.read/manage/connect`；所有连接审计。
 - V3.0 只做台账 + SSH 连通/状态；不做任意命令/文件分发/批量重启。
 - V3.1 再做：批量运维、数据库迁移/备份（主机间、冷备份）。

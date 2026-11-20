@@ -14,6 +14,7 @@ import (
 	coreAuth "github.com/Allinost/go-backend-core/internal/modules/auth"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	svcAuth "github.com/Allinost/go-backend-core/internal/services/auth"
+	cryptoSvc "github.com/Allinost/go-backend-core/internal/services/crypto"
 	"github.com/Allinost/go-backend-core/internal/services/fileref"
 	"github.com/Allinost/go-backend-core/internal/services/storage"
 	"github.com/gin-gonic/gin"
@@ -21,13 +22,15 @@ import (
 
 // Module 运维管理模块
 type Module struct {
-	svc    *Service
-	h      *Handler
-	refSvc *fileref.Service
-	maint  *MaintenanceService
-	maintH *MaintenanceHandler
-	authMW gin.HandlerFunc
-	rbac   *svcAuth.RBACService
+	svc     *Service
+	h       *Handler
+	refSvc  *fileref.Service
+	maint   *MaintenanceService
+	maintH  *MaintenanceHandler
+	hostSvc *HostService
+	hostH   *HostHandler
+	authMW  gin.HandlerFunc
+	rbac    *svcAuth.RBACService
 }
 
 func (m *Module) Name() string {
@@ -85,6 +88,16 @@ func (m *Module) Init(cfg *config.Config) error {
 	if sqlDB != nil {
 		m.maint = NewMaintenanceService(NewMaintenanceRepository(sqlDB))
 		m.maintH = NewMaintenanceHandler(m.maint)
+		var aes *cryptoSvc.AESGCM
+		if cfg.Crypto.MasterKeyHex != "" {
+			if cipher, err := cryptoSvc.NewAESGCMFromHex(cfg.Crypto.MasterKeyHex); err != nil {
+				logger.Warn().Err(err).Msg("ops: 主机凭据加密器初始化失败")
+			} else {
+				aes = cipher
+			}
+		}
+		m.hostSvc = NewHostService(NewHostRepository(sqlDB), aes)
+		m.hostH = NewHostHandler(m.hostSvc)
 	}
 
 	if authMod := modules.Get("auth"); authMod != nil {
@@ -93,6 +106,9 @@ func (m *Module) Init(cfg *config.Config) error {
 			m.rbac = am.RBAC()
 			if err := SeedMaintenancePermissions(m.rbac); err != nil {
 				logger.Warn().Err(err).Msg("ops: 维护权限初始化失败")
+			}
+			if err := SeedHostPermissions(m.rbac); err != nil {
+				logger.Warn().Err(err).Msg("ops: 主机权限初始化失败")
 			}
 		}
 	}
@@ -157,6 +173,22 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 		maint.POST("/start", need("start"), m.maintH.Start)
 		maint.POST("/end", need("end"), m.maintH.End)
 		maint.GET("/history", need("read"), m.maintH.History)
+	}
+
+	// 主机台账 / SSH 连通
+	if m.hostH != nil && m.authMW != nil {
+		need := func(action string) gin.HandlerFunc {
+			return middleware.RequirePermission(m.rbac, "ops.host", action)
+		}
+		hosts := r.Group("/hosts")
+		hosts.Use(m.authMW)
+		hosts.GET("", need("read"), m.hostH.List)
+		hosts.POST("", need("manage"), m.hostH.Create)
+		hosts.GET("/:id", need("read"), m.hostH.Get)
+		hosts.PUT("/:id", need("manage"), m.hostH.Update)
+		hosts.DELETE("/:id", need("manage"), m.hostH.Delete)
+		hosts.POST("/:id/test", need("connect"), m.hostH.Test)
+		hosts.GET("/:id/status", need("connect"), m.hostH.Status)
 	}
 }
 
