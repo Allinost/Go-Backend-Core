@@ -206,6 +206,52 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/tasks/:id/dependencies", need("dm.task", "update"), m.h.AddDependency)
 	r.DELETE("/tasks/:id/dependencies/:dep_id", need("dm.task", "update"), m.h.RemoveDependency)
 
+	// 迭代/风险/发布/基线
+	r.GET("/projects/:id/iterations", need("dm.iteration", "read"), m.h.ListIterations)
+	r.POST("/projects/:id/iterations", need("dm.iteration", "create"), m.h.CreateIteration)
+	r.GET("/iterations/:id", need("dm.iteration", "read"), m.h.GetIteration)
+	r.PUT("/iterations/:id", need("dm.iteration", "update"), m.h.UpdateIteration)
+	r.DELETE("/iterations/:id", need("dm.iteration", "delete"), m.h.DeleteIteration)
+
+	r.GET("/projects/:id/risks", need("dm.risk", "read"), m.h.ListRisks)
+	r.POST("/projects/:id/risks", need("dm.risk", "create"), m.h.CreateRisk)
+	r.GET("/risks/:id", need("dm.risk", "read"), m.h.GetRisk)
+	r.PUT("/risks/:id", need("dm.risk", "update"), m.h.UpdateRisk)
+	r.DELETE("/risks/:id", need("dm.risk", "delete"), m.h.DeleteRisk)
+
+	r.GET("/projects/:id/releases", need("dm.release", "read"), m.h.ListReleases)
+	r.POST("/projects/:id/releases", need("dm.release", "create"), m.h.CreateRelease)
+	r.GET("/releases/:id", need("dm.release", "read"), m.h.GetRelease)
+	r.PUT("/releases/:id", need("dm.release", "update"), m.h.UpdateRelease)
+	r.DELETE("/releases/:id", need("dm.release", "delete"), m.h.DeleteRelease)
+
+	r.GET("/projects/:id/baselines", need("dm.baseline", "read"), m.h.ListBaselines)
+	r.POST("/projects/:id/baselines", need("dm.baseline", "create"), m.h.CreateBaseline)
+	r.GET("/baselines/:id", need("dm.baseline", "read"), m.h.GetBaseline)
+	r.DELETE("/baselines/:id", need("dm.baseline", "delete"), m.h.DeleteBaseline)
+
+	// 评论/检查项/标签/任务资产
+	r.GET("/tasks/:id/comments", need("dm.comment", "read"), m.h.ListTaskComments)
+	r.POST("/tasks/:id/comments", need("dm.comment", "create"), m.h.AddTaskComment)
+	r.DELETE("/comments/:id", need("dm.comment", "delete"), m.h.DeleteComment)
+
+	r.GET("/tasks/:id/checklist", need("dm.task", "read"), m.h.ListChecklist)
+	r.POST("/tasks/:id/checklist", need("dm.task", "update"), m.h.CreateChecklistItem)
+	r.PUT("/checklist/:id", need("dm.task", "update"), m.h.UpdateChecklistItem)
+	r.DELETE("/checklist/:id", need("dm.task", "update"), m.h.DeleteChecklistItem)
+
+	r.GET("/projects/:id/labels", need("dm.label", "read"), m.h.ListLabels)
+	r.POST("/projects/:id/labels", need("dm.label", "create"), m.h.CreateLabel)
+	r.DELETE("/labels/:id", need("dm.label", "delete"), m.h.DeleteLabel)
+
+	r.GET("/tasks/:id/labels", need("dm.task", "read"), m.h.ListTaskLabels)
+	r.POST("/tasks/:id/labels", need("dm.label", "create"), m.h.AddTaskLabel)
+	r.DELETE("/tasks/:id/labels/:label_id", need("dm.label", "delete"), m.h.RemoveTaskLabel)
+
+	r.GET("/tasks/:id/assets", need("dm.task", "read"), m.h.ListTaskAssets)
+	r.POST("/tasks/:id/assets", need("dm.task", "update"), m.h.AddTaskAsset)
+	r.DELETE("/tasks/:id/assets/:asset_id", need("dm.task", "update"), m.h.RemoveTaskAsset)
+
 	// 统计与权限元数据
 	r.GET("/stats", need("dm.project", "read"), m.h.Stats)
 	r.GET("/permissions/meta", need("dm.project", "read"), m.h.PermissionMeta)

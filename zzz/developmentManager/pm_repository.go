@@ -129,6 +129,18 @@ func (r *PMRepository) taskInProject(ctx context.Context, taskID, projectID int6
 	return exists, err
 }
 
+func (r *PMRepository) assetInProject(ctx context.Context, assetID, projectID int64) (bool, error) {
+	var exists bool
+	err := r.queryRow(ctx, `SELECT EXISTS(SELECT 1 FROM zzz_development_manager_project_asset WHERE id = ? AND project_id = ? AND deleted = false)`, assetID, projectID).Scan(&exists)
+	return exists, err
+}
+
+func (r *PMRepository) labelInProject(ctx context.Context, labelID, projectID int64) (bool, error) {
+	var exists bool
+	err := r.queryRow(ctx, `SELECT EXISTS(SELECT 1 FROM `+tableLabel+` WHERE id = ? AND project_id = ?)`, labelID, projectID).Scan(&exists)
+	return exists, err
+}
+
 // ---------- 里程碑 ----------
 
 func (r *PMRepository) ListMilestones(ctx context.Context, projectID int64, req *ListMilestonesReq) ([]Milestone, bool, int, error) {

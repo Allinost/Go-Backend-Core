@@ -137,7 +137,7 @@
 | V3-PM-03 | PM 权限 + 默认角色 + 幂等导入 | feature | P1 | 1.0 | PM-02 | done | `dm.task/milestone` 权限已播种；任务按 code 幂等导入已实测 |
 | V3-PM-04 | PM 前端核心：路线图/看板/任务抽屉 | feature | P0 | 2.0 | PM-02 | todo | 可视化可用 |
 | V3-PM-05 | PM 高级迁移：risk/release/baseline/iteration/comment/checklist/label/task_label/task_asset | migration | P1 | 1.0 | PM-01 | done | 005 已建 9 张高级表并验证外键 |
-| V3-PM-06 | PM 高级后端：风险/发布/基线/迭代/评论/检查项/标签/资产 | feature | P1 | 1.0 | PM-05 | todo | API 可用 |
+| V3-PM-06 | PM 高级后端：风险/发布/基线/迭代/评论/检查项/标签/资产 | feature | P1 | 1.0 | PM-05 | done | CRUD/快照/关联已实测；前端待 PM-07 |
 | V3-PM-07 | PM 高级前端：风险矩阵/发布日历/甘特/报表 | feature | P1 | 1.0 | PM-06、PM-04 | todo（12/31） | 页面可用；12.15 后补齐 |
 | V3-PM-08 | V3 台账导入 + 周报机制 + 仪表盘 | ops | P1 | 1.0 | PM-03、PM-04 | todo | 58 任务完整入库 |
 

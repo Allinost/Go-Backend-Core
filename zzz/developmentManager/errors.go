@@ -94,6 +94,29 @@ const (
 	ErrTaskTitleRequired        = 46620
 	ErrInvalidTaskPriority      = 46621
 	ErrInvalidTaskHours         = 46622
+
+	// PM 高级（V3）
+	ErrIterationNotFound        = 46630
+	ErrRiskNotFound             = 46631
+	ErrReleaseNotFound          = 46632
+	ErrBaselineNotFound         = 46633
+	ErrCommentNotFound          = 46634
+	ErrChecklistNotFound        = 46635
+	ErrLabelNotFound            = 46636
+	ErrTaskLabelNotFound        = 46637
+	ErrTaskAssetNotFound        = 46638
+	ErrLabelExists              = 46650
+	ErrTaskLabelExists          = 46651
+	ErrTaskAssetExists          = 46652
+	ErrInvalidIterationStatus   = 46660
+	ErrInvalidRiskProbability   = 46661
+	ErrInvalidRiskImpact        = 46662
+	ErrInvalidRiskLevel         = 46663
+	ErrInvalidRiskStatus        = 46664
+	ErrInvalidReleaseType       = 46665
+	ErrInvalidReleaseStatus     = 46666
+	ErrInvalidCommentTarget     = 46667
+	ErrInvalidTaskAssetRelation = 46668
 )
 
 var errMsgs = map[int]string{
@@ -183,6 +206,28 @@ var errMsgs = map[int]string{
 	ErrTaskTitleRequired:        "任务标题不能为空",
 	ErrInvalidTaskPriority:      "无效的优先级（P0/P1/P2/P3）",
 	ErrInvalidTaskHours:         "工时不能为负数",
+
+	ErrIterationNotFound:        "迭代不存在",
+	ErrRiskNotFound:             "风险不存在",
+	ErrReleaseNotFound:          "发布不存在",
+	ErrBaselineNotFound:         "基线不存在",
+	ErrCommentNotFound:          "评论不存在",
+	ErrChecklistNotFound:        "检查项不存在",
+	ErrLabelNotFound:            "标签不存在",
+	ErrTaskLabelNotFound:        "任务标签不存在",
+	ErrTaskAssetNotFound:        "任务资产关联不存在",
+	ErrLabelExists:              "同项目标签名已存在",
+	ErrTaskLabelExists:          "任务已绑定该标签",
+	ErrTaskAssetExists:          "任务已关联该资产",
+	ErrInvalidIterationStatus:   "无效的迭代状态（planned/active/closed）",
+	ErrInvalidRiskProbability:   "无效的风险概率（low/medium/high）",
+	ErrInvalidRiskImpact:        "无效的风险影响（low/medium/high）",
+	ErrInvalidRiskLevel:         "无效的风险等级（low/medium/high/critical）",
+	ErrInvalidRiskStatus:        "无效的风险状态（open/mitigating/closed/accepted）",
+	ErrInvalidReleaseType:       "无效的发布类型（major/minor/patch/hotfix）",
+	ErrInvalidReleaseStatus:     "无效的发布状态（planned/deploying/deployed/rolled_back）",
+	ErrInvalidCommentTarget:     "无效的评论目标（requirement/task/risk/release）",
+	ErrInvalidTaskAssetRelation: "无效的资产关系（input/output/evidence）",
 }
 
 // DevelopmentManagerError 模块业务错误，携带模块级错误码
