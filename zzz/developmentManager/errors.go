@@ -86,6 +86,7 @@ const (
 	ErrInvalidTaskStatus        = 46612
 	ErrInvalidTaskTransition    = 46613
 	ErrTaskDependencyCycle      = 46614
+	ErrTaskDependencyExists     = 46623
 	ErrTaskSelfDependency       = 46615
 	ErrTaskCodeRequired         = 46616
 	ErrTaskCrossProject         = 46617
@@ -198,6 +199,7 @@ var errMsgs = map[int]string{
 	ErrInvalidTaskStatus:        "无效的任务状态（todo/doing/blocked/review/done/cancelled）",
 	ErrInvalidTaskTransition:    "非法的任务状态流转",
 	ErrTaskDependencyCycle:      "任务依赖会形成环",
+	ErrTaskDependencyExists:     "任务依赖已存在",
 	ErrTaskSelfDependency:       "任务不能依赖自身",
 	ErrTaskCodeRequired:         "任务编号不能为空",
 	ErrTaskCrossProject:         "任务/里程碑/需求必须属于同一项目",

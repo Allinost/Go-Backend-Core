@@ -552,7 +552,7 @@ func (r *PMRepository) AddDependency(ctx context.Context, taskID int64, req *Add
 		taskID, req.DependsOnTaskID, req.DepType, req.LagDays).Scan(&id)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key") {
-			return nil, NewDevelopmentManagerError(ErrTaskDependencyCycle).WithDetail("依赖已存在")
+			return nil, NewDevelopmentManagerError(ErrTaskDependencyExists)
 		}
 		return nil, err
 	}

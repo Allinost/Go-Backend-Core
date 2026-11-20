@@ -534,6 +534,19 @@ go run ./cmd/v3admin -username admin -nickname 管理员
 - 首次登录后立即修改密码；默认不开放自助注册（P4-06 关闭 `/auth/register`）。
 - 自助注册开关：`auth.allow_registration`（默认 `false`，设置页/配置中心可热更新）；关闭时管理员用 `POST /api/v1/auth/users` 创建用户。
 
+### 10.12 V3 台账导入（V3.0）
+
+```powershell
+go run ./cmd/v3ledger -dry-run
+go run ./cmd/v3ledger
+```
+
+- 解析 `docs/projects/go-backend-core/v3/README.md` 的任务表。
+- 项目：`go-backend-core`；里程碑：`V3.0`。
+- 任务按 `code` 幂等导入，重复执行只更新内容。
+- 依赖按任务编号导入，自动跳过不存在/重复/成环依赖。
+- 当前已验证：61 任务、61 依赖入库。
+
 ---
 
 ## 11. 项目管控与周报
