@@ -453,6 +453,11 @@ func isIdent(s string) bool {
 
 func verify(ctx context.Context, mysqlDB, pgDB *sql.DB) error {
 	var bad int
+	// 这些表在 V3 启动后会由种子/管理员新增行，允许 target >= source。
+	allowTargetExtra := map[string]bool{
+		"users": true, "roles": true, "permissions": true, "role_permissions": true,
+		"api_keys": true, "scheduler_tasks": true, "feature_flags": true,
+	}
 	for _, spec := range tableSpecs {
 		v2, err := sourceCount(ctx, mysqlDB, spec.Source)
 		if err != nil {
@@ -464,10 +469,14 @@ func verify(ctx context.Context, mysqlDB, pgDB *sql.DB) error {
 			bad++
 			continue
 		}
-		if v2 != v3 {
-			fmt.Printf("DIFF     %-46s v2=%d v3=%d\n", spec.Target, v2, v3)
-			bad++
+		if v2 == v3 {
+			continue
 		}
+		if allowTargetExtra[spec.Target] && v3 > v2 {
+			continue
+		}
+		fmt.Printf("DIFF     %-46s v2=%d v3=%d\n", spec.Target, v2, v3)
+		bad++
 	}
 	if bad > 0 {
 		fmt.Printf("校验失败：%d 张表不一致\n", bad)
