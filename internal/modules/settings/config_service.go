@@ -25,7 +25,12 @@ func newConfigService(cfg *config.Config) *configcenter.Service {
 	defer cancel()
 
 	// 默认内存存储：保证 PG/迁移未就绪时配置中心仍可用。
-	svc := configcenter.New(registry, configcenter.NewMemoryStore())
+	newSvc := func(store configcenter.Store) *configcenter.Service {
+		s := configcenter.New(registry, store)
+		s.SetBaseline(configBaseline(cfg))
+		return s
+	}
+	svc := newSvc(configcenter.NewMemoryStore())
 	if err := svc.Load(ctx); err != nil {
 		logger.Warn().Err(err).Msg("settings: 配置中心内存加载失败")
 	}
@@ -35,7 +40,7 @@ func newConfigService(cfg *config.Config) *configcenter.Service {
 		if err := sqlStore.Init(ctx); err != nil {
 			logger.Warn().Err(err).Msg("settings: system_config 未迁移，配置中心降级为内存存储")
 		} else {
-			sqlSvc := configcenter.New(registry, sqlStore)
+			sqlSvc := newSvc(sqlStore)
 			if err := sqlSvc.Load(ctx); err != nil {
 				logger.Warn().Err(err).Msg("settings: 配置中心 PG 加载失败，继续使用内存存储")
 			} else {
@@ -60,6 +65,40 @@ func newConfigService(cfg *config.Config) *configcenter.Service {
 		logger.Warn().Err(err).Msg("settings: 配置中心启动应用失败")
 	}
 	return svc
+}
+
+// configBaseline 把 env/config.yaml 中的当前值作为配置中心启动基线；
+// DB 中已保存的值仍会覆盖基线。
+func configBaseline(cfg *config.Config) map[string]any {
+	out := map[string]any{}
+	if cfg == nil {
+		return out
+	}
+	if cfg.Server.PublicBaseURL != "" {
+		out["server.public_base_url"] = cfg.Server.PublicBaseURL
+	}
+	if cfg.Server.Mode != "" {
+		out["server.mode"] = cfg.Server.Mode
+	}
+	if cfg.Log.Level != "" {
+		out["log.level"] = cfg.Log.Level
+	}
+	if cfg.Log.Format != "" {
+		out["log.format"] = cfg.Log.Format
+	}
+	if cfg.Cache.DefaultTTL != "" {
+		out["cache.default_ttl"] = cfg.Cache.DefaultTTL
+	}
+	if cfg.Scheduler.WorkerConcurrency > 0 {
+		out["scheduler.worker_concurrency"] = cfg.Scheduler.WorkerConcurrency
+	}
+	if cfg.Integration.RateLimit.RequestsPerMinute > 0 {
+		out["integration.rate_limit.requests_per_minute"] = cfg.Integration.RateLimit.RequestsPerMinute
+	}
+	if cfg.Integration.RetentionDays > 0 {
+		out["integration.retention_days"] = cfg.Integration.RetentionDays
+	}
+	return out
 }
 
 // applyConfigValues 将配置中心的值映射到运行中的 Config。

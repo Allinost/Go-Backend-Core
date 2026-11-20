@@ -13,16 +13,36 @@ type Service struct {
 	store    Store
 	apply    func(values map[string]any) error
 
-	mu     sync.RWMutex
-	values map[string]any
-	cipher SecretCipher
+	mu       sync.RWMutex
+	values   map[string]any
+	baseline map[string]any
+	cipher   SecretCipher
 }
 
 func New(registry *Registry, store Store) *Service {
+	defaults := registry.Defaults()
+	baseline := make(map[string]any, len(defaults))
+	for k, v := range defaults {
+		baseline[k] = v
+	}
 	return &Service{
 		registry: registry,
 		store:    store,
-		values:   registry.Defaults(),
+		values:   defaults,
+		baseline: baseline,
+	}
+}
+
+// SetBaseline 设置启动基线（来自 env/config.yaml）；DB 中的值仍优先。
+func (s *Service) SetBaseline(values map[string]any) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for key, value := range values {
+		if _, ok := s.registry.Get(key); !ok {
+			continue
+		}
+		s.baseline[key] = value
+		s.values[key] = value
 	}
 }
 
@@ -33,13 +53,23 @@ func (s *Service) SetApply(fn func(values map[string]any) error) {
 	s.apply = fn
 }
 
+func (s *Service) baselineCopy() map[string]any {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make(map[string]any, len(s.baseline))
+	for k, v := range s.baseline {
+		out[k] = v
+	}
+	return out
+}
+
 // Load 从存储加载并覆盖默认值。
 func (s *Service) Load(ctx context.Context) error {
 	stored, err := s.store.Load(ctx)
 	if err != nil {
 		return err
 	}
-	values := s.registry.Defaults()
+	values := s.baselineCopy()
 	for key, raw := range stored {
 		var value any
 		if err := json.Unmarshal(raw, &value); err != nil {

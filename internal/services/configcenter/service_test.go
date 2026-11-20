@@ -102,3 +102,30 @@ func TestServiceLoadFromStore(t *testing.T) {
 		t.Errorf("持久化值未加载: %v", got)
 	}
 }
+
+func TestServiceBaselineThenDB(t *testing.T) {
+	r := testRegistry(t)
+	store := NewMemoryStore()
+	svc := New(r, store)
+	svc.SetBaseline(map[string]any{"app.name": "from-env"})
+	if err := svc.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := svc.Values(false)["app.name"]; got != "from-env" {
+		t.Errorf("baseline 未生效: %v", got)
+	}
+
+	if err := store.Save(context.Background(), map[string]json.RawMessage{
+		"app.name": json.RawMessage(`"from-db"`),
+	}, "seed", "seed"); err != nil {
+		t.Fatal(err)
+	}
+	svc2 := New(r, store)
+	svc2.SetBaseline(map[string]any{"app.name": "from-env"})
+	if err := svc2.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := svc2.Values(false)["app.name"]; got != "from-db" {
+		t.Errorf("DB 应覆盖 baseline: %v", got)
+	}
+}
