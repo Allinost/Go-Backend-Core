@@ -96,7 +96,7 @@ func (m *Module) Init(cfg *config.Config) error {
 				aes = cipher
 			}
 		}
-		m.hostSvc = NewHostService(NewHostRepository(sqlDB), aes)
+		m.hostSvc = NewHostService(NewHostRepository(sqlDB), aes, cfg.Ops.SSHKnownHostsEnabled, cfg.Ops.SSHKnownHostsPath)
 		m.hostH = NewHostHandler(m.hostSvc)
 	}
 

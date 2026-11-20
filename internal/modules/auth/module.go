@@ -67,6 +67,7 @@ func (m *Module) Init(cfg *config.Config) error {
 	if database.DB != nil {
 		if rdb := database.GetRedis("main"); rdb != nil {
 			m.blacklist = auth.NewRedisBlacklist(rdb)
+			auth.EnableRedis(rdb)
 		}
 	}
 	if m.blacklist == nil {
@@ -280,7 +281,7 @@ func (m *Module) login(c *gin.Context) {
 
 	guard := auth.DefaultLoginGuard()
 	key := strings.ToLower(strings.TrimSpace(req.Username))
-	if locked, remaining := guard.Check(key); locked {
+	if locked, remaining := guard.Check(c.Request.Context(), key); locked {
 		minutes := int(remaining.Minutes()) + 1
 		if minutes < 1 {
 			minutes = 1
@@ -291,11 +292,11 @@ func (m *Module) login(c *gin.Context) {
 
 	user, err := m.user.VerifyPassword(req.Username, req.Password)
 	if err != nil {
-		guard.Fail(key)
+		guard.Fail(c.Request.Context(), key)
 		response.Fail(c, appErrors.New(appErrors.CodeUnauth, "用户名或密码错误"))
 		return
 	}
-	guard.Success(key)
+	guard.Success(c.Request.Context(), key)
 
 	pair, err := m.svc.GenerateTokenPair(user.ID, user.Username)
 	if err != nil {

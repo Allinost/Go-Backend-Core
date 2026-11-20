@@ -25,6 +25,9 @@ APP_CRYPTO_MASTER_KEY_HEX=...
 # V3 默认不加载 V2 MySQL 业务模块，也不连接 MySQL
 APP_LEGACY_MODULES_ENABLED=false
 APP_DATABASE_MYSQL_MAIN_ENABLED=false
+# SSH 指纹校验默认关闭；生产建议开启并维护 known_hosts
+APP_OPS_SSH_KNOWN_HOSTS_ENABLED=false
+APP_OPS_SSH_KNOWN_HOSTS_PATH=
 ```
 
 - `search_path` 必须包含专用 schema；应用账号无需 `public` 建表权限。

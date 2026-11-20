@@ -501,6 +501,7 @@ make swagger
 - 凭据 AES-GCM 加密；只回提示；SSH 指纹校验；命令白名单；超时/重试/熔断。
 - API：`GET/POST /api/v1/ops/hosts`、`GET/PUT/DELETE /api/v1/ops/hosts/:id`、`POST /:id/test`、`GET /:id/status`。
 - V3.0 暂用 `InsecureIgnoreHostKey`，known_hosts/指纹校验后续补；状态采集仅执行固定白名单命令。
+- known_hosts 开关：`ops.ssh_known_hosts_enabled`（默认 `false`，避免首次部署 known_hosts 不存在导致不可用）；开启后读取 `ops.ssh_known_hosts_path`，为空用 `~/.ssh/known_hosts`。
 - 权限：`ops.host.read/manage/connect`；所有连接审计。
 - V3.0 只做台账 + SSH 连通/状态；不做任意命令/文件分发/批量重启。
 - V3.1 再做：批量运维、数据库迁移/备份（主机间、冷备份）。
@@ -535,7 +536,7 @@ go run ./cmd/v3admin -username admin -nickname 管理员
 - 表不存在时先执行 `POST /api/v1/migrate/schema/migrate`。
 - 首次登录后立即修改密码；默认不开放自助注册（P4-06 关闭 `/auth/register`）。
 - 自助注册开关：`auth.allow_registration`（默认 `false`，设置页/配置中心可热更新）；关闭时管理员用 `POST /api/v1/auth/users` 创建用户。
-- 登录锁定：`auth.login_max_failures`（默认 5）、`auth.login_lock_minutes`（默认 15）；连续失败锁定，成功后清零。
+- 登录锁定：`auth.login_max_failures`（默认 5）、`auth.login_lock_minutes`（默认 15）；连续失败锁定，成功后清零。Redis 可用时锁定状态写 Redis（多实例共享），不可用回退进程内存。
 
 ### 10.12 V3 台账导入（V3.0）
 

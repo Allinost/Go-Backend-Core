@@ -7,21 +7,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/Allinost/go-backend-core/internal/services/auth"
 	"github.com/Allinost/go-backend-core/internal/services/crypto"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 type HostService struct {
-	repo   *HostRepository
-	cipher *crypto.AESGCM
+	repo              *HostRepository
+	cipher            *crypto.AESGCM
+	sshVerifyHostKey  bool
+	sshKnownHostsPath string
 }
 
-func NewHostService(repo *HostRepository, cipher *crypto.AESGCM) *HostService {
-	return &HostService{repo: repo, cipher: cipher}
+func NewHostService(repo *HostRepository, cipher *crypto.AESGCM, verifyHostKey bool, knownHostsPath string) *HostService {
+	return &HostService{repo: repo, cipher: cipher, sshVerifyHostKey: verifyHostKey, sshKnownHostsPath: knownHostsPath}
 }
 
 func (s *HostService) List(ctx context.Context, req *ListHostsReq) ([]Host, bool, int, error) {
@@ -222,7 +227,7 @@ func (s *HostService) Test(ctx context.Context, id int64) (*HostTestResult, erro
 		return nil, err
 	}
 	start := time.Now()
-	client, err := dialSSH(ctx, h, secret)
+	client, err := dialSSH(ctx, h, secret, s.sshVerifyHostKey, s.sshKnownHostsPath)
 	if err != nil {
 		_ = s.repo.UpdateStatus(ctx, id, HostStatusOffline, err.Error(), time.Now())
 		return &HostTestResult{Online: false, Status: HostStatusOffline, Error: err.Error(), DurationMS: time.Since(start).Milliseconds()}, nil
@@ -244,7 +249,7 @@ func (s *HostService) Status(ctx context.Context, id int64) (*HostStatusResult, 
 	if err != nil {
 		return nil, err
 	}
-	client, err := dialSSH(ctx, h, secret)
+	client, err := dialSSH(ctx, h, secret, s.sshVerifyHostKey, s.sshKnownHostsPath)
 	if err != nil {
 		_ = s.repo.UpdateStatus(ctx, id, HostStatusOffline, err.Error(), time.Now())
 		return &HostStatusResult{Online: false, Status: HostStatusOffline, Error: err.Error(), CollectedAt: time.Now()}, nil
@@ -275,7 +280,7 @@ func (s *HostService) Status(ctx context.Context, id int64) (*HostStatusResult, 
 	return result, nil
 }
 
-func dialSSH(ctx context.Context, h *Host, secret string) (*ssh.Client, error) {
+func dialSSH(ctx context.Context, h *Host, secret string, verifyHostKey bool, knownHostsPath string) (*ssh.Client, error) {
 	authType := h.AuthType
 	var auth []ssh.AuthMethod
 	if authType == "key" {
@@ -287,10 +292,14 @@ func dialSSH(ctx context.Context, h *Host, secret string) (*ssh.Client, error) {
 	} else {
 		auth = append(auth, ssh.Password(secret))
 	}
+	hostKeyCallback, err := hostKeyCallback(verifyHostKey, knownHostsPath)
+	if err != nil {
+		return nil, err
+	}
 	cfg := &ssh.ClientConfig{
 		User:            h.Username,
 		Auth:            auth,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // V3.0 先不落 known_hosts
+		HostKeyCallback: hostKeyCallback,
 		Timeout:         10 * time.Second,
 	}
 	addr := net.JoinHostPort(h.Address, fmt.Sprint(h.SSHPort))
@@ -305,6 +314,24 @@ func dialSSH(ctx context.Context, h *Host, secret string) (*ssh.Client, error) {
 		return nil, err
 	}
 	return ssh.NewClient(c, chans, reqs), nil
+}
+
+func hostKeyCallback(enabled bool, path string) (ssh.HostKeyCallback, error) {
+	if !enabled {
+		return ssh.InsecureIgnoreHostKey(), nil
+	}
+	if strings.TrimSpace(path) == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("解析 known_hosts 路径失败: %w", err)
+		}
+		path = filepath.Join(home, ".ssh", "known_hosts")
+	}
+	cb, err := knownhosts.New(path)
+	if err != nil {
+		return nil, fmt.Errorf("加载 known_hosts 失败 [%s]: %w", path, err)
+	}
+	return cb, nil
 }
 
 func mustJSON(v any) string {

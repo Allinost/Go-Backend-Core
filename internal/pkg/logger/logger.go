@@ -127,6 +127,18 @@ func SetGlobal(l *Logger) {
 	L = l
 }
 
+// Reconfigure 用新配置重建全局 logger，并关闭旧的文件 writer。
+func Reconfigure(cfg Config) {
+	old := L
+	next := New(cfg)
+	L = next
+	if old != nil {
+		for _, c := range old.closers {
+			_ = c.Close()
+		}
+	}
+}
+
 func Debug() *zerolog.Event {
 	return L.Debug()
 }

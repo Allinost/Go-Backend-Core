@@ -4,6 +4,11 @@
 # V3 新机器默认不加载 V2 MySQL 业务模块（goodser/shopchecker/login3rd/ia）
 legacy_modules_enabled: false
 
+# 运维安全开关
+ops:
+  ssh_known_hosts_enabled: false  # 默认关闭，避免首次部署 known_hosts 不存在导致 SSH 不可用
+  ssh_known_hosts_path: ""        # 空则使用 ~/.ssh/known_hosts
+
 server:
   name: go-backend-core        # 服务名称，用于日志/监控标识
   version: v0.1.0              # 当前版本号

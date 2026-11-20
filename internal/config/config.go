@@ -37,9 +37,15 @@ type Config struct {
 	Crypto      CryptoConfig      `mapstructure:"crypto"`
 	Net         NetConfig         `mapstructure:"net"`
 	Integration IntegrationConfig `mapstructure:"integration"`
+	Ops         OpsConfig         `mapstructure:"ops"`
 	// LegacyModulesEnabled 控制 goodser/shopchecker/login3rd/ia 等 V2 MySQL 模块是否注册。
 	// V3 新机器默认 false，仅 PG-only 模块运行；需要兼容 V2 时显式开启。
 	LegacyModulesEnabled bool `mapstructure:"legacy_modules_enabled"`
+}
+
+type OpsConfig struct {
+	SSHKnownHostsEnabled bool   `mapstructure:"ssh_known_hosts_enabled"`
+	SSHKnownHostsPath    string `mapstructure:"ssh_known_hosts_path"`
 }
 
 type IntegrationConfig struct {

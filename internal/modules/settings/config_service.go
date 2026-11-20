@@ -113,11 +113,25 @@ func applyConfigValues(cfg *config.Config, values map[string]any) {
 	if s, ok := stringValue(values["server.mode"]); ok {
 		cfg.Server.Mode = s
 	}
+	levelChanged := false
+	formatChanged := false
 	if s, ok := stringValue(values["log.level"]); ok {
+		if s != cfg.Log.Level {
+			levelChanged = true
+		}
 		cfg.Log.Level = s
 	}
 	if s, ok := stringValue(values["log.format"]); ok {
+		if s != cfg.Log.Format {
+			formatChanged = true
+		}
 		cfg.Log.Format = s
+	}
+	if levelChanged || formatChanged {
+		logger.Reconfigure(logger.Config{
+			Level: cfg.Log.Level, Format: cfg.Log.Format, Output: cfg.Log.Output,
+			LogDir: cfg.Log.LogDir, MaxSizeMB: cfg.Log.MaxSizeMB, MaxAgeDays: cfg.Log.MaxAgeDays,
+		})
 	}
 	if s, ok := stringValue(values["cache.default_ttl"]); ok {
 		cfg.Cache.DefaultTTL = s
