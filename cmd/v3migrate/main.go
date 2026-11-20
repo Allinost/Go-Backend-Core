@@ -108,10 +108,12 @@ func main() {
 		cmd = flag.Arg(0)
 	}
 	file := ""
+	out := "reports/v3_bootstrap_report.md"
 	schema := "v3_rehearsal"
 	keep := false
 	flagSet := flag.NewFlagSet(cmd, flag.ExitOnError)
 	flagSet.StringVar(&file, "file", "backups/v3_bootstrap.json", "dump/load 文件")
+	flagSet.StringVar(&out, "out", out, "report 输出文件")
 	flagSet.StringVar(&schema, "schema", "v3_rehearsal", "rehearsal 目标 schema")
 	flagSet.BoolVar(&keep, "keep", false, "rehearsal 后保留 schema")
 	_ = flagSet.Parse(flag.Args()[1:])
@@ -157,6 +159,10 @@ func main() {
 		}
 	case "rehearsal":
 		if err := rehearsal(ctx, mysqlPool.DB, cfg, file, schema, keep); err != nil {
+			fail(err.Error())
+		}
+	case "report":
+		if err := report(ctx, mysqlPool.DB, pgPool.SQLDB, out); err != nil {
 			fail(err.Error())
 		}
 	default:
@@ -336,6 +342,44 @@ func loadData(ctx context.Context, pgDB *sql.DB, dumpData map[string][]map[strin
 		_ = resetSequence(ctx, pgDB, spec.Target)
 	}
 	fmt.Printf("导入完成：inserted=%d failed=%d skipped=%d pending=%d\n", inserted, failed, skipped, len(pending))
+	return nil
+}
+
+func report(ctx context.Context, mysqlDB, pgDB *sql.DB, out string) error {
+	var b strings.Builder
+	b.WriteString("# V3 Bootstrap Report\n\n")
+	b.WriteString("Generated: " + time.Now().Format(time.RFC3339) + "\n\n")
+	b.WriteString("| source | target | v2_rows | v3_rows | status |\n")
+	b.WriteString("|---|---|---:|---:|---|\n")
+	var totalV2, totalV3 int64
+	var diffs int
+	for _, spec := range tableSpecs {
+		v2, err := sourceCount(ctx, mysqlDB, spec.Source)
+		if err != nil {
+			b.WriteString(fmt.Sprintf("| %s | %s | - | - | V2_MISSING |\n", spec.Source, spec.Target))
+			continue
+		}
+		v3, err := countRows(ctx, pgDB, `"`+spec.Target+`"`)
+		status := "OK"
+		if err != nil {
+			status = "TARGET_MISSING"
+			diffs++
+		} else if v2 != v3 {
+			status = "DIFF"
+			diffs++
+		}
+		totalV2 += v2
+		totalV3 += v3
+		b.WriteString(fmt.Sprintf("| %s | %s | %d | %d | %s |\n", spec.Source, spec.Target, v2, v3, status))
+	}
+	b.WriteString(fmt.Sprintf("\nTOTAL: v2=%d v3=%d diffs=%d\n", totalV2, totalV3, diffs))
+	if err := os.MkdirAll(dirOf(out), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
+		return err
+	}
+	fmt.Printf("报告已生成：%s (diffs=%d)\n", out, diffs)
 	return nil
 }
 

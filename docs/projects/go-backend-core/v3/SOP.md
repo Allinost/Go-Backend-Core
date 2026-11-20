@@ -558,6 +558,7 @@ go run ./cmd/v3migrate dump -file backups/v3_bootstrap.json
 go run ./cmd/v3migrate load -file backups/v3_bootstrap.json
 go run ./cmd/v3migrate verify
 go run ./cmd/v3migrate rehearsal -file backups/v3_bootstrap.json -schema v3_rehearsal_check
+go run ./cmd/v3migrate report -out reports/v3_bootstrap_report.md
 ```
 
 - `rehearsal` 自动创建临时 schema、执行全部迁移、导入、校验，成功后删除 schema。
