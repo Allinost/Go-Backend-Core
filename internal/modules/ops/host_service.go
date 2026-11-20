@@ -92,6 +92,10 @@ func (s *HostService) Create(ctx context.Context, req *CreateHostReq, actor stri
 }
 
 func (s *HostService) Update(ctx context.Context, id int64, req *UpdateHostReq, actor string) (*Host, error) {
+	existing, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
 	updates := map[string]any{}
 	if req.Name != nil {
 		name := strings.TrimSpace(*req.Name)
@@ -128,10 +132,12 @@ func (s *HostService) Update(ctx context.Context, id int64, req *UpdateHostReq, 
 	if req.Username != nil {
 		updates["username"] = strings.TrimSpace(*req.Username)
 	}
+	authType := existing.AuthType
 	if req.AuthType != nil {
 		if !ValidHostAuthTypes[*req.AuthType] {
 			return nil, hostValidationError("认证方式应为 password/key")
 		}
+		authType = *req.AuthType
 		updates["auth_type"] = *req.AuthType
 	}
 	if req.OS != nil {
@@ -142,10 +148,6 @@ func (s *HostService) Update(ctx context.Context, id int64, req *UpdateHostReq, 
 	}
 	if req.Notes != nil {
 		updates["notes"] = *req.Notes
-	}
-	authType := "password"
-	if v, ok := updates["auth_type"].(string); ok {
-		authType = v
 	}
 	secret := ""
 	if req.Password != nil {
@@ -161,6 +163,8 @@ func (s *HostService) Update(ctx context.Context, id int64, req *UpdateHostReq, 
 		}
 		updates["credential_ciphertext"] = ciphertext
 		updates["credential_hint"] = hint
+	} else if req.AuthType != nil && *req.AuthType != existing.AuthType {
+		return nil, hostValidationError("修改认证方式需同时提供新的密码或私钥")
 	}
 	return s.repo.Update(ctx, id, updates, actor)
 }

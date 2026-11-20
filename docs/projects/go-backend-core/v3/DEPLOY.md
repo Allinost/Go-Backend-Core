@@ -22,6 +22,9 @@ APP_DATABASE_POSTGRES_MAIN_DBNAME=GoBackendCoreDatabase
 APP_DATABASE_POSTGRES_MAIN_SEARCH_PATH=gobackendcore,public
 APP_DATABASE_FAILOVER_MODE=manual
 APP_CRYPTO_MASTER_KEY_HEX=...
+# V3 默认不加载 V2 MySQL 业务模块，也不连接 MySQL
+APP_LEGACY_MODULES_ENABLED=false
+APP_DATABASE_MYSQL_MAIN_ENABLED=false
 ```
 
 - `search_path` 必须包含专用 schema；应用账号无需 `public` 建表权限。

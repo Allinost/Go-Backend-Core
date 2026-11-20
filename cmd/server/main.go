@@ -120,15 +120,19 @@ func main() {
 	modules.Register(netmodule.NewModule())
 	modules.Register(crypto.NewModule())
 	modules.Register(&migrate.Module{})
-	modules.Register(&goodser.Module{})
 	modules.Register(&ops.Module{})
 	modules.Register(&webhook.Module{})
 	modules.Register(&servicenav.Module{})
-	modules.Register(&shopchecker.Module{})
-	modules.Register(&login3rd.Module{})
-	modules.Register(&ia.Module{})
 	modules.Register(&developmentmanager.Module{})
 	modules.Register(&settings.Module{})
+
+	// V2 MySQL 业务模块默认不注册；V3 新机器 PG-only。
+	if cfg.LegacyModulesEnabled {
+		modules.Register(&goodser.Module{})
+		modules.Register(&shopchecker.Module{})
+		modules.Register(&login3rd.Module{})
+		modules.Register(&ia.Module{})
+	}
 
 	// 初始化所有模块（调用 Init，不挂载路由）
 	modules.InitAll(cfg)

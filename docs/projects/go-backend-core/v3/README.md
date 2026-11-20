@@ -145,9 +145,9 @@
 
 | 编号 | 任务 | 类型 | 优先级 | 预估 | 依赖 | 状态 | 验收/备注 |
 |---|---|---|---|---:|---|---|---|
-| V3-SOP-01 | 编写 V3 SOP：AI 流程/PG/模块接入/测试/迁移/部署 | docs | P0 | 1.0 | P0-02 | todo | SOP 可执行 |
-| V3-SOP-02 | AI 上下文包：`aiPrompt/v3/` 模板/规则/评审清单 | docs | P0 | 1.0 | SOP-01 | todo | 上下文包可用 |
-| V3-SOP-03 | AI 试点：用 SOP 完成一个真实任务并复盘 | test | P0 | 1.0 | SOP-02、P1-02 | todo | 试点报告 + 改进项 |
+| V3-SOP-01 | 编写 V3 SOP：AI 流程/PG/模块接入/测试/迁移/部署 | docs | P0 | 1.0 | P0-02 | done | `SOP.md` v1.9 已覆盖 |
+| V3-SOP-02 | AI 上下文包：`aiPrompt/v3/` 模板/规则/评审清单 | docs | P0 | 1.0 | SOP-01 | done | `aiPrompt/v3/` 已可用 |
+| V3-SOP-03 | AI 试点：用 SOP 完成一个真实任务并复盘 | test | P0 | 1.0 | SOP-02、P1-02 | doing | 本轮 PM/bootstrap/auth 已完成试点，复盘待归档 |
 
 ### V3-P6 数据 bootstrap（4 个，4 人日）
 

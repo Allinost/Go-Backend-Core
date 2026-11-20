@@ -1,6 +1,9 @@
 # Go-Backend-Core 全局配置文件
 # 优先级：Docker Secret > 环境变量(APP_*) > 此文件 > 内置默认值
 
+# V3 新机器默认不加载 V2 MySQL 业务模块（goodser/shopchecker/login3rd/ia）
+legacy_modules_enabled: false
+
 server:
   name: go-backend-core        # 服务名称，用于日志/监控标识
   version: v0.1.0              # 当前版本号
@@ -31,7 +34,7 @@ database:
   failover_mode: manual        # manual（默认，维护时显式切 L2）/auto（连接失败自动尝试 fallback）
   mysql:
     main:                      # V2 兼容数据库实例（V3 运行时不使用）
-      enabled: true            # 是否启用 MySQL
+      enabled: false           # V3 默认不连接；v3migrate 仍读取连接信息
       host: localhost          # MySQL 主机地址
       port: 3306               # MySQL 监听端口
       user: root               # 数据库用户名（通过 .env 中 APP_DATABASE_MYSQL_MAIN_* 覆盖）
