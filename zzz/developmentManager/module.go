@@ -252,6 +252,12 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/tasks/:id/assets", need("dm.task", "update"), m.h.AddTaskAsset)
 	r.DELETE("/tasks/:id/assets/:asset_id", need("dm.task", "update"), m.h.RemoveTaskAsset)
 
+	// 仪表盘/看板/路线图/周报
+	r.GET("/projects/:id/dashboard", need("dm.project", "read"), m.h.GetDashboard)
+	r.GET("/projects/:id/board", need("dm.task", "read"), m.h.GetBoard)
+	r.GET("/projects/:id/roadmap", need("dm.milestone", "read"), m.h.GetRoadmap)
+	r.GET("/projects/:id/report/weekly", need("dm.project", "read"), m.h.GetWeeklyReport)
+
 	// 统计与权限元数据
 	r.GET("/stats", need("dm.project", "read"), m.h.Stats)
 	r.GET("/permissions/meta", need("dm.project", "read"), m.h.PermissionMeta)
