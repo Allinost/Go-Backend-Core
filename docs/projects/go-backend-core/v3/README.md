@@ -153,7 +153,7 @@
 
 | 编号 | 任务 | 类型 | 优先级 | 预估 | 依赖 | 状态 | 验收/备注 |
 |---|---|---|---|---:|---|---|---|
-| V3-P6-01 | `cmd/v3migrate`：allowlist/plan/dump/load/verify/report | migration | P0 | 1.0 | P2-01 | todo | 默认拒绝业务模块表 |
+| V3-P6-01 | `cmd/v3migrate`：allowlist/plan/dump/load/verify/report | migration | P0 | 1.0 | P2-01 | doing | plan/dump/load/verify 已实现；真实 V2→V3 演练待做 |
 | V3-P6-02 | 批量加载：COPY/拓扑排序/类型转换/序列重置 | migration | P0 | 1.0 | P6-01 | todo | 可重复执行 |
 | V3-P6-03 | 校验器：行数/主键/FK/JSON/时间/金额/抽样/序列 | test | P0 | 1.0 | P6-02 | todo | 报告可归档 |
 | V3-P6-04 | bootstrap 演练 + 并行切换 Runbook + 签字 | ops | P0 | 1.0 | P6-03 | todo | 窗口预算内；V2 PM 冻结 |

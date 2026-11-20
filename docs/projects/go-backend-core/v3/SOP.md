@@ -547,6 +547,21 @@ go run ./cmd/v3ledger
 - 依赖按任务编号导入，自动跳过不存在/重复/成环依赖。
 - 当前已验证：61 任务、61 依赖入库。
 
+### 10.13 V2→V3 数据 bootstrap（V3.0）
+
+```powershell
+go run ./cmd/v3migrate plan
+go run ./cmd/v3migrate dump -file backups/v3_bootstrap.json
+go run ./cmd/v3migrate load -file backups/v3_bootstrap.json
+go run ./cmd/v3migrate verify
+```
+
+- 只允许 V3.0 基座/公共/PM 表；业务模块表默认拒绝。
+- 自动映射 V2 旧表名：`role_models→roles`、`tasks→scheduler_tasks`、`task_logs→scheduler_task_logs`。
+- 只导出 V2 实际存在的表；缺失表跳过。
+- 导入按 allowlist 顺序，FK 失败行自动重试；完成后重置 identity 序列。
+- 先 `dump` + 空库 `load` + `verify` 演练，再在维护窗口执行正式切换。
+
 ---
 
 ## 11. 项目管控与周报
