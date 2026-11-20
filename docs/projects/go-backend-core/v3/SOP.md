@@ -554,8 +554,11 @@ go run ./cmd/v3migrate plan
 go run ./cmd/v3migrate dump -file backups/v3_bootstrap.json
 go run ./cmd/v3migrate load -file backups/v3_bootstrap.json
 go run ./cmd/v3migrate verify
+go run ./cmd/v3migrate rehearsal -file backups/v3_bootstrap.json -schema v3_rehearsal_check
 ```
 
+- `rehearsal` 自动创建临时 schema、执行全部迁移、导入、校验，成功后删除 schema。
+- 当前演练结果：dump 977 行，导入 969 行，跳过 8 条 V2 孤儿 `user_roles`，行数校验通过。
 - 只允许 V3.0 基座/公共/PM 表；业务模块表默认拒绝。
 - 自动映射 V2 旧表名：`role_models→roles`、`tasks→scheduler_tasks`、`task_logs→scheduler_task_logs`。
 - 只导出 V2 实际存在的表；缺失表跳过。

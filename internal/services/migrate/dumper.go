@@ -68,6 +68,17 @@ func dumpJSON(ctx context.Context, adapter DBAdapter, tables []string, opts Dump
 		*totalRows += int64(len(tableRows))
 	}
 
+	// JSON dump 需要保留文本/JSON 原文；[]byte 默认会被 encoding/json 编成 base64。
+	for _, rows := range result {
+		for _, row := range rows {
+			for k, v := range row {
+				if b, ok := v.([]byte); ok {
+					row[k] = string(b)
+				}
+			}
+		}
+	}
+
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("migrate: JSON 序列化失败: %w", err)
