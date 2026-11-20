@@ -570,6 +570,28 @@ go run ./cmd/v3migrate report -out reports/v3_bootstrap_report.md
 - 导入按 allowlist 顺序，FK 失败行自动重试；完成后重置 identity 序列。
 - 先 `dump` + 空库 `load` + `verify` 演练，再在维护窗口执行正式切换。
 
+### 10.14 文件/图片存储降级（V3.0）
+
+对象存储（RustFS/MinIO）只提供文件与图片能力，**不阻塞后端启动**。
+
+- 启动时 bucket 探测改为后台执行；RustFS 不可达不会 panic，也不会拖慢主流程。
+- 上传优先写对象存储；失败时写入 Redis 暂存区 `v3:storage:stage`，返回 `staged=true`。
+- 后台每 `ops.storage_flush_interval`（默认 `30s`）尝试把暂存对象提交回对象存储；成功后删除 Redis 副本。
+- 暂存期间可通过 `GET /api/v1/ops/rustfs/download` 读取；签名 URL 不可用（返回 `ErrStaged`）。
+- 对象存储恢复后自动提交；也可手动 `POST /api/v1/ops/rustfs/flush`，用 `GET /api/v1/ops/rustfs/staged` 查看积压。
+- 若 Redis 也不可用：模块正常启动，仅文件/图片接口返回存储不可用，其余 API 不受影响。
+- 配置：
+
+| 配置 | 默认 | 说明 |
+| --- | --- | --- |
+| `ops.storage_stage_enabled` | `true` | 是否启用 Redis 暂存 |
+| `ops.storage_stage_ttl` | `24h` | 暂存对象保留时间 |
+| `ops.storage_flush_interval` | `30s` | 后台提交间隔 |
+| `ops.storage_stage_max_mb` | `64` | 单个对象暂存上限；超限且对象存储不可用则报错 |
+
+- 状态接口 `/api/v1/ops/status` 返回 `storage_mode`（`s3+redis` / `s3` / `redis` / `unavailable`）、`staged_files`、`storage_error`。
+- 注意：Redis 暂存会占用内存，仅适合短时故障；长时间故障需先恢复 RustFS 或扩容 Redis。
+
 ---
 
 ## 11. 项目管控与周报

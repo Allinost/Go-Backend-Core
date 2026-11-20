@@ -28,10 +28,17 @@ APP_DATABASE_MYSQL_MAIN_ENABLED=false
 # SSH 指纹校验默认关闭；生产建议开启并维护 known_hosts
 APP_OPS_SSH_KNOWN_HOSTS_ENABLED=false
 APP_OPS_SSH_KNOWN_HOSTS_PATH=
+# RustFS 故障时上传暂存 Redis，恢复后自动提交；Redis 也故障只影响文件接口
+APP_OPS_STORAGE_STAGE_ENABLED=true
+APP_OPS_STORAGE_STAGE_TTL=24h
+APP_OPS_STORAGE_FLUSH_INTERVAL=30s
+APP_OPS_STORAGE_STAGE_MAX_MB=64
 ```
 
 - `search_path` 必须包含专用 schema；应用账号无需 `public` 建表权限。
 - `APP_CRYPTO_MASTER_KEY_HEX` 用于配置中心敏感项和主机凭据；丢失将无法解密。
+- 对象存储（RustFS/MinIO）不阻塞启动；不可用时上传进入 Redis 暂存，恢复后自动提交。Redis 也不可用时仅 `/ops/rustfs/*` 文件接口报错，其余 API 正常。
+- 暂存对象受 `APP_OPS_STORAGE_STAGE_TTL` 和 `APP_OPS_STORAGE_STAGE_MAX_MB` 限制；长时间故障请先恢复 RustFS 或扩容 Redis。
 - L2 使用 `APP_PROFILE=backup`，PG/Redis 指向 `${L2_INTRANET}`。
 - RustFS 始终在 ACloud，不随 L1/L2 切换。
 

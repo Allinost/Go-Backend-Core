@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -137,6 +138,10 @@ func (h *Handler) GetSignedURL(c *gin.Context) {
 			response.Fail(c, ErrFileNotFound)
 			return
 		}
+		if errors.Is(err, storage.ErrStaged) {
+			response.Fail(c, appErr.New(appErr.CodeSystemErr, "文件暂存在 Redis，恢复后自动提交；当前请使用下载接口").WithDetail(err.Error()))
+			return
+		}
 		response.Fail(c, appErr.New(appErr.CodeSystemErr, "获取签名 URL 失败").WithDetail(err.Error()))
 		return
 	}
@@ -145,6 +150,42 @@ func (h *Handler) GetSignedURL(c *gin.Context) {
 		"path":   filePath,
 		"expire": expireSec,
 	})
+}
+
+// StagedFiles 列出 Redis 暂存区文件
+// @Summary      列出暂存文件
+// @Tags         ops-S3
+// @Produce      json
+// @Success      200  {object}  response.Response
+// @Router       /ops/rustfs/staged [get]
+// @Security     BearerAuth
+func (h *Handler) StagedFiles(c *gin.Context) {
+	items, err := h.svc.StagedFiles(c.Request.Context())
+	if err != nil {
+		response.Fail(c, appErr.New(appErr.CodeSystemErr, "读取暂存文件失败").WithDetail(err.Error()))
+		return
+	}
+	response.Success(c, gin.H{"items": items, "total": len(items)})
+}
+
+// FlushStaged 手动提交 Redis 暂存文件
+// @Summary      提交暂存文件
+// @Tags         ops-S3
+// @Produce      json
+// @Success      200  {object}  response.Response
+// @Router       /ops/rustfs/flush [post]
+// @Security     BearerAuth
+func (h *Handler) FlushStaged(c *gin.Context) {
+	count, err := h.svc.FlushStaged(c.Request.Context())
+	if err != nil {
+		if errors.Is(err, storage.ErrUnavailable) {
+			handleS3Unavailable(c)
+			return
+		}
+		response.Fail(c, appErr.New(appErr.CodeSystemErr, "提交暂存文件失败").WithDetail(err.Error()))
+		return
+	}
+	response.Success(c, gin.H{"flushed": count})
 }
 
 // DownloadFile 代理下载文件

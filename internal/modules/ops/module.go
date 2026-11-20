@@ -3,9 +3,7 @@ package ops
 import (
 	"context"
 	"database/sql"
-	"fmt"
-
-	"github.com/minio/minio-go/v7"
+	"time"
 
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/Allinost/go-backend-core/internal/database"
@@ -31,6 +29,8 @@ type Module struct {
 	hostH   *HostHandler
 	authMW  gin.HandlerFunc
 	rbac    *svcAuth.RBACService
+	store   *storage.FallbackStore
+	cancel  context.CancelFunc
 }
 
 func (m *Module) Name() string {
@@ -38,32 +38,52 @@ func (m *Module) Name() string {
 }
 
 func (m *Module) Init(cfg *config.Config) error {
-	// 获取任意可用 S3 客户端
-	var s3Client *minio.Client
+	// 对象存储只是文件/图片能力，不应阻塞整个后端启动。
+	var primary storage.Storage
 	var s3Bucket string
 	var s3Endpoint string
 	var s3UseSSL bool
-	var store storage.Storage
 
 	if c, ok := database.DB.RustFS["rustfs"]; ok {
 		s3Cfg := cfg.Database.S3["rustfs"]
-		s3Client = c.Client
 		s3Bucket = c.Bucket
 		s3Endpoint = s3Cfg.Endpoint
 		s3UseSSL = s3Cfg.UseSSL
-		store = storage.NewS3StoreFromClient(c.Client, c.Bucket)
+		primary = storage.NewS3StoreFromClient(c.Client, c.Bucket)
 		logger.Info().Str("endpoint", s3Endpoint).Msg("ops: 使用 RustFS 作为存储后端")
 	} else if c, ok := database.DB.S3["minio"]; ok {
 		s3Cfg := cfg.Database.S3["minio"]
-		s3Client = c.Client
 		s3Bucket = c.Bucket
 		s3Endpoint = s3Cfg.Endpoint
 		s3UseSSL = s3Cfg.UseSSL
-		store = storage.NewS3StoreFromClient(c.Client, c.Bucket)
+		primary = storage.NewS3StoreFromClient(c.Client, c.Bucket)
 		logger.Warn().Str("endpoint", s3Endpoint).Msg("ops: RustFS 不可用，使用 MinIO 作为存储后端")
 	} else {
-		return fmt.Errorf("ops: 没有可用的 S3 存储")
+		logger.Warn().Msg("ops: 对象存储未初始化，文件/图片功能进入降级模式")
 	}
+
+	var stage storage.Stage
+	if cfg.Ops.StorageStageEnabled {
+		if rdb := database.GetRedis("main"); rdb != nil {
+			ttl := durationOr(cfg.Ops.StorageStageTTL, 24*time.Hour)
+			stage = storage.NewRedisStage(rdb, ttl)
+			logger.Info().Dur("ttl", ttl).Msg("ops: 已启用 Redis 文件暂存")
+		} else {
+			logger.Warn().Msg("ops: Redis 不可用，对象存储故障时文件接口将直接报错")
+		}
+	}
+
+	maxMB := cfg.Ops.StorageStageMaxMB
+	if maxMB <= 0 {
+		maxMB = 64
+	}
+	store := storage.NewFallbackStore(primary, stage, int64(maxMB)<<20)
+	m.store = store
+	ctx, cancel := context.WithCancel(context.Background())
+	m.cancel = cancel
+	store.StartFlushLoop(ctx, durationOr(cfg.Ops.StorageFlushInterval, 30*time.Second), func(err error) {
+		logger.Warn().Err(err).Msg("ops: Redis 暂存文件提交失败，稍后重试")
+	})
 
 	// V3 使用 PostgreSQL 主库
 	var sqlDB *sql.DB
@@ -116,14 +136,35 @@ func (m *Module) Init(cfg *config.Config) error {
 		logger.Warn().Msg("ops: auth 模块不可用，维护 API 未启用")
 	}
 
-	m.svc = NewService(sqlDB, s3Client, s3Bucket, store, s3Endpoint, s3UseSSL, m.refSvc)
+	m.svc = NewService(sqlDB, s3Bucket, store, s3Endpoint, s3UseSSL, m.refSvc)
 	m.h = NewHandler(m.svc)
 
-	logger.Info().Str("endpoint", s3Endpoint).Str("bucket", s3Bucket).Msg("ops: 模块初始化完成")
+	logger.Info().
+		Str("endpoint", s3Endpoint).
+		Str("bucket", s3Bucket).
+		Str("storage_mode", store.Mode()).
+		Msg("ops: 模块初始化完成")
 	return nil
 }
 
+func durationOr(value string, fallback time.Duration) time.Duration {
+	if value == "" {
+		return fallback
+	}
+	parsed, err := time.ParseDuration(value)
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+	return parsed
+}
+
 func (m *Module) Close() error {
+	if m.cancel != nil {
+		m.cancel()
+	}
+	if m.store != nil {
+		return m.store.Close()
+	}
 	return nil
 }
 
@@ -141,6 +182,8 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	rustfs.POST("/upload", m.h.UploadFile)
 	rustfs.DELETE("/delete", m.h.DeleteFile)
 	rustfs.POST("/batch-delete", m.h.BatchDelete)
+	rustfs.GET("/staged", m.h.StagedFiles)
+	rustfs.POST("/flush", m.h.FlushStaged)
 
 	// RustFS 运维管理
 	rustfs.GET("/scan", m.h.ScanFileUsage)

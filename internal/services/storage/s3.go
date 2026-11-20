@@ -58,6 +58,7 @@ func (s *S3Store) Upload(ctx context.Context, filePath string, reader io.Reader,
 		ContentType:  ct,
 		LastModified: info.LastModified,
 		ETag:         info.ETag,
+		Metadata:     o.Metadata,
 	}, nil
 }
 
@@ -77,6 +78,26 @@ func (s *S3Store) Delete(ctx context.Context, filePath string) error {
 		return fmt.Errorf("storage: s3 delete %s failed: %w", filePath, err)
 	}
 	return nil
+}
+
+// Stat 获取 S3 对象元信息
+func (s *S3Store) Stat(ctx context.Context, filePath string) (*FileInfo, error) {
+	obj, err := s.client.StatObject(ctx, s.bucket, filePath, minio.StatObjectOptions{})
+	if err != nil {
+		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("storage: s3 stat %s failed: %w", filePath, err)
+	}
+	return &FileInfo{
+		Name:         path.Base(obj.Key),
+		Path:         obj.Key,
+		Size:         obj.Size,
+		ContentType:  obj.ContentType,
+		LastModified: obj.LastModified,
+		ETag:         obj.ETag,
+		Metadata:     cloneMetadata(obj.UserMetadata),
+	}, nil
 }
 
 // List 按前缀列出 S3 文件
@@ -144,5 +165,20 @@ func (s *S3Store) SignedURL(ctx context.Context, filePath string, expire time.Du
 }
 
 func (s *S3Store) Close() error {
+	return nil
+}
+
+// Health 检查 bucket 是否可访问。
+func (s *S3Store) Health(ctx context.Context) error {
+	if s.client == nil {
+		return fmt.Errorf("storage: s3 客户端未初始化")
+	}
+	exists, err := s.client.BucketExists(ctx, s.bucket)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("storage: bucket %s 不存在", s.bucket)
+	}
 	return nil
 }

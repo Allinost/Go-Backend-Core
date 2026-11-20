@@ -4,14 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
-	"path"
 	"strings"
 	"time"
-
-	"github.com/minio/minio-go/v7"
 
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	"github.com/Allinost/go-backend-core/internal/services/fileref"
@@ -20,24 +18,22 @@ import (
 
 // Service 运维业务逻辑层
 type Service struct {
-	db          *sql.DB
-	minioClient *minio.Client
-	bucket      string
-	store       storage.Storage
-	endpoint    string
-	useSSL      bool
-	refSvc      *fileref.Service
+	db       *sql.DB
+	bucket   string
+	store    storage.Storage
+	endpoint string
+	useSSL   bool
+	refSvc   *fileref.Service
 }
 
-func NewService(db *sql.DB, minioClient *minio.Client, bucket string, store storage.Storage, endpoint string, useSSL bool, refSvc *fileref.Service) *Service {
+func NewService(db *sql.DB, bucket string, store storage.Storage, endpoint string, useSSL bool, refSvc *fileref.Service) *Service {
 	return &Service{
-		db:          db,
-		minioClient: minioClient,
-		bucket:      bucket,
-		store:       store,
-		endpoint:    endpoint,
-		useSSL:      useSSL,
-		refSvc:      refSvc,
+		db:       db,
+		bucket:   bucket,
+		store:    store,
+		endpoint: endpoint,
+		useSSL:   useSSL,
+		refSvc:   refSvc,
 	}
 }
 
@@ -78,25 +74,14 @@ type FileInfoDetail struct {
 
 // GetFileInfo 获取文件详细信息
 func (s *Service) GetFileInfo(ctx context.Context, filePath string) (*FileInfoDetail, error) {
-	obj, err := s.minioClient.StatObject(ctx, s.bucket, filePath, minio.StatObjectOptions{})
+	info, err := s.store.Stat(ctx, filePath)
 	if err != nil {
-		errResp := minio.ToErrorResponse(err)
-		if errResp.Code == "NoSuchKey" {
+		if errors.Is(err, storage.ErrNotFound) {
 			return nil, ErrFileNotFound
 		}
 		return nil, fmt.Errorf("获取文件信息失败: %w", err)
 	}
-	detail := &FileInfoDetail{
-		FileInfo: storage.FileInfo{
-			Name:         path.Base(obj.Key),
-			Path:         obj.Key,
-			Size:         obj.Size,
-			ContentType:  obj.ContentType,
-			LastModified: obj.LastModified,
-			ETag:         obj.ETag,
-		},
-	}
-	return detail, nil
+	return &FileInfoDetail{FileInfo: *info}, nil
 }
 
 // GetSignedURL 获取文件签名 URL
@@ -475,20 +460,60 @@ func (s *Service) GetBucketStats(ctx context.Context) (*BucketStats, error) {
 
 // ComponentStatus 各组件状态
 type ComponentStatus struct {
-	S3Backend   string `json:"s3_backend"`
-	Database    string `json:"database"`
-	FileRefSvc  string `json:"file_ref_service"`
-	RefTable    string `json:"file_references_table"`
-	TargetTable string `json:"scan_targets_table"`
+	S3Backend    string `json:"s3_backend"`
+	StorageMode  string `json:"storage_mode"`
+	StagedFiles  int    `json:"staged_files"`
+	StorageError string `json:"storage_error,omitempty"`
+	Database     string `json:"database"`
+	FileRefSvc   string `json:"file_ref_service"`
+	RefTable     string `json:"file_references_table"`
+	TargetTable  string `json:"scan_targets_table"`
+}
+
+// StagedFiles 列出 Redis 暂存区中的文件。
+func (s *Service) StagedFiles(ctx context.Context) ([]storage.FileInfo, error) {
+	fallback, ok := s.store.(*storage.FallbackStore)
+	if !ok {
+		return []storage.FileInfo{}, nil
+	}
+	return fallback.ListStaged(ctx)
+}
+
+// FlushStaged 手动把 Redis 暂存文件提交到对象存储。
+func (s *Service) FlushStaged(ctx context.Context) (int, error) {
+	fallback, ok := s.store.(*storage.FallbackStore)
+	if !ok {
+		return 0, nil
+	}
+	return fallback.Flush(ctx)
 }
 
 // Status 返回各组件运行状态
 func (s *Service) Status(ctx context.Context) *ComponentStatus {
 	st := &ComponentStatus{
-		S3Backend:  "已连接",
+		S3Backend:  "未初始化",
 		Database:   "未连接",
 		FileRefSvc: "未初始化",
 		RefTable:   "未知",
+	}
+
+	if fallback, ok := s.store.(*storage.FallbackStore); ok {
+		st.StorageMode = fallback.Mode()
+		if fallback.HasPrimary() {
+			if err := fallback.PrimaryHealth(ctx); err != nil {
+				st.S3Backend = "不可用 — 已启用 Redis 暂存"
+				st.StorageError = err.Error()
+			} else {
+				st.S3Backend = "已连接"
+			}
+		} else {
+			st.S3Backend = "未配置 — 文件功能降级"
+		}
+		if count, err := fallback.StagedCount(ctx); err == nil {
+			st.StagedFiles = count
+		} else if st.StorageError == "" {
+			st.StorageError = err.Error()
+		}
 	}
 
 	if s.db != nil {

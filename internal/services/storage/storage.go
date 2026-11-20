@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -10,14 +11,20 @@ import (
 	"time"
 )
 
+// ErrNotFound 表示对象在存储中不存在。
+var ErrNotFound = errors.New("storage: 文件不存在")
+
 // FileInfo 文件元信息
 type FileInfo struct {
-	Name         string    `json:"name"`
-	Path         string    `json:"path"`
-	Size         int64     `json:"size"`
-	ContentType  string    `json:"content_type,omitempty"`
-	LastModified time.Time `json:"last_modified"`
-	ETag         string    `json:"etag,omitempty"`
+	Name         string            `json:"name"`
+	Path         string            `json:"path"`
+	Size         int64             `json:"size"`
+	ContentType  string            `json:"content_type,omitempty"`
+	LastModified time.Time         `json:"last_modified"`
+	ETag         string            `json:"etag,omitempty"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
+	// Staged 表示对象暂存在 Redis，尚未同步到对象存储。
+	Staged bool `json:"staged,omitempty"`
 }
 
 // ListOptions 文件列表查询选项
@@ -32,6 +39,7 @@ type ListOptions struct {
 type Storage interface {
 	Upload(ctx context.Context, filePath string, reader io.Reader, opts ...UploadOption) (*FileInfo, error)
 	Download(ctx context.Context, filePath string) (io.ReadCloser, error)
+	Stat(ctx context.Context, filePath string) (*FileInfo, error)
 	Delete(ctx context.Context, filePath string) error
 	List(ctx context.Context, prefix string, opts ...ListOption) ([]FileInfo, error)
 	Exists(ctx context.Context, filePath string) (bool, error)
@@ -101,6 +109,7 @@ func (m *MemoryStore) Upload(ctx context.Context, filePath string, reader io.Rea
 		Size:         int64(len(data)),
 		ContentType:  o.ContentType,
 		LastModified: time.Now(),
+		Metadata:     o.Metadata,
 	}
 	m.files[filePath] = &memFile{data: data, info: *info}
 	return info, nil
@@ -110,15 +119,26 @@ func (m *MemoryStore) Upload(ctx context.Context, filePath string, reader io.Rea
 func (m *MemoryStore) Download(ctx context.Context, filePath string) (io.ReadCloser, error) {
 	f, ok := m.files[filePath]
 	if !ok {
-		return nil, fmt.Errorf("storage: file %s not found", filePath)
+		return nil, ErrNotFound
 	}
 	return io.NopCloser(bytes.NewReader(f.data)), nil
+}
+
+// Stat 返回内存文件元信息
+func (m *MemoryStore) Stat(ctx context.Context, filePath string) (*FileInfo, error) {
+	f, ok := m.files[filePath]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	info := f.info
+	info.Metadata = cloneMetadata(info.Metadata)
+	return &info, nil
 }
 
 // Delete 从内存删除文件
 func (m *MemoryStore) Delete(ctx context.Context, filePath string) error {
 	if _, ok := m.files[filePath]; !ok {
-		return fmt.Errorf("storage: file %s not found", filePath)
+		return ErrNotFound
 	}
 	delete(m.files, filePath)
 	return nil
@@ -161,4 +181,15 @@ func (m *MemoryStore) SignedURL(ctx context.Context, filePath string, expire tim
 func (m *MemoryStore) Close() error {
 	m.files = make(map[string]*memFile)
 	return nil
+}
+
+func cloneMetadata(md map[string]string) map[string]string {
+	if len(md) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(md))
+	for k, v := range md {
+		out[k] = v
+	}
+	return out
 }

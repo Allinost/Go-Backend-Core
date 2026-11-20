@@ -30,15 +30,17 @@ func NewClient(cfg config.S3Config) (*Client, error) {
 		return nil, fmt.Errorf("rustfs 创建客户端失败 [%s]: %w", cfg.Endpoint, err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 32*time.Second)
-	defer cancel()
-
-	exists, err := client.BucketExists(ctx, cfg.Bucket)
-	if err != nil {
-		log.Printf("[rustfs] 检查 bucket 失败 [%s/%s] (降级为警告): %v", cfg.Endpoint, cfg.Bucket, err)
-	} else if !exists {
-		log.Printf("[rustfs] bucket 不存在 [%s/%s] (降级为警告)", cfg.Endpoint, cfg.Bucket)
-	}
+	// 对象存储只是图片/文件能力，bucket 探测放到后台，避免拖慢后端启动。
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		exists, err := client.BucketExists(ctx, cfg.Bucket)
+		if err != nil {
+			log.Printf("[rustfs] 检查 bucket 失败 [%s/%s]（允许为空，后续可恢复）: %v", cfg.Endpoint, cfg.Bucket, err)
+		} else if !exists {
+			log.Printf("[rustfs] bucket 不存在 [%s/%s]（允许为空，后续可恢复）", cfg.Endpoint, cfg.Bucket)
+		}
+	}()
 
 	return &Client{
 		Client:   client,

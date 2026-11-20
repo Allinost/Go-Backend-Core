@@ -8,6 +8,11 @@ legacy_modules_enabled: false
 ops:
   ssh_known_hosts_enabled: false  # 默认关闭，避免首次部署 known_hosts 不存在导致 SSH 不可用
   ssh_known_hosts_path: ""        # 空则使用 ~/.ssh/known_hosts
+  # 对象存储故障时把上传暂存 Redis，恢复后自动提交；两者都不可用只影响文件接口
+  storage_stage_enabled: true
+  storage_stage_ttl: "24h"
+  storage_flush_interval: "30s"
+  storage_stage_max_mb: 64
 
 server:
   name: go-backend-core        # 服务名称，用于日志/监控标识
