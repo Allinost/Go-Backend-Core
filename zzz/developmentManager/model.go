@@ -231,4 +231,13 @@ type StatsResp struct {
 	ProjectsByStatus map[string]int `json:"projects_by_status"`
 	RelationsActive  int            `json:"relations_active"`
 	AssetsTotal      int            `json:"assets_total"`
+
+	TasksTotal       int `json:"tasks_total"`
+	TasksDone        int `json:"tasks_done"`
+	TasksDoing       int `json:"tasks_doing"`
+	TasksBlocked     int `json:"tasks_blocked"`
+	MilestonesActive int `json:"milestones_active"`
+	RisksOpen        int `json:"risks_open"`
+	ReleasesTotal    int `json:"releases_total"`
+	ReleasesDeployed int `json:"releases_deployed"`
 }

@@ -613,5 +613,48 @@ func (r *Repository) Stats(ctx context.Context) (*StatsResp, error) {
 		"SELECT COUNT(*) FROM "+tableAsset+" WHERE deleted=false").Scan(&resp.AssetsTotal); err != nil {
 		return nil, err
 	}
+
+	taskRows, err := r.query(ctx,
+		"SELECT status, COUNT(*) FROM "+tableTask+" WHERE deleted=false GROUP BY status")
+	if err != nil {
+		return nil, err
+	}
+	defer taskRows.Close()
+	for taskRows.Next() {
+		var status string
+		var n int
+		if err := taskRows.Scan(&status, &n); err != nil {
+			return nil, err
+		}
+		resp.TasksTotal += n
+		switch status {
+		case "done":
+			resp.TasksDone += n
+		case "doing":
+			resp.TasksDoing += n
+		case "blocked":
+			resp.TasksBlocked += n
+		}
+	}
+	if err := taskRows.Err(); err != nil {
+		return nil, err
+	}
+
+	if err := r.queryRow(ctx,
+		"SELECT COUNT(*) FROM "+tableMilestone+" WHERE deleted=false AND status='active'").Scan(&resp.MilestonesActive); err != nil {
+		return nil, err
+	}
+	if err := r.queryRow(ctx,
+		"SELECT COUNT(*) FROM "+tableRisk+" WHERE deleted=false AND status IN ('open','mitigating')").Scan(&resp.RisksOpen); err != nil {
+		return nil, err
+	}
+	if err := r.queryRow(ctx,
+		"SELECT COUNT(*) FROM "+tableRelease+" WHERE deleted=false").Scan(&resp.ReleasesTotal); err != nil {
+		return nil, err
+	}
+	if err := r.queryRow(ctx,
+		"SELECT COUNT(*) FROM "+tableRelease+" WHERE deleted=false AND status='deployed'").Scan(&resp.ReleasesDeployed); err != nil {
+		return nil, err
+	}
 	return resp, nil
 }
