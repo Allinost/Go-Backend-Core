@@ -54,7 +54,9 @@ func (m *Module) Init(cfg *config.Config) error {
 		if m.user == nil {
 			if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
 				if store, err := auth.NewMySQLUserStore(pool.DB); err == nil {
-					_ = store.AutoMigrate()
+					if cfg.Database.AutoMigrate {
+						_ = store.AutoMigrate()
+					}
 					m.user = store
 				}
 			}
@@ -87,7 +89,9 @@ func (m *Module) Init(cfg *config.Config) error {
 		if rbacStore == nil {
 			if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
 				if store, err := auth.NewMySQLRBACStore(pool.DB); err == nil {
-					_ = store.AutoMigrate()
+					if cfg.Database.AutoMigrate {
+						_ = store.AutoMigrate()
+					}
 					_ = store.EnsureDefaultPermissions()
 					rbacStore = store
 				}
@@ -110,7 +114,9 @@ func (m *Module) Init(cfg *config.Config) error {
 		if apikeyStore == nil {
 			if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
 				if store, err := auth.NewMySQLApiKeyStore(pool.DB); err == nil {
-					_ = store.AutoMigrate()
+					if cfg.Database.AutoMigrate {
+						_ = store.AutoMigrate()
+					}
 					apikeyStore = store
 				}
 			}

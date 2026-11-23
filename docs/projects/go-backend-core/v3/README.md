@@ -93,17 +93,17 @@
 | V3-P1-03 | pgx stdlib `*sql.DB` 封装、事务助手、错误映射 | refactor | P1 | 1.0 | P1-02 | done | 现有仓库可复用 `*sql.DB` |
 | V3-P1-04 | 启动 fail-fast、s0→health 改名、s1/s2 删除、移除 MySQL fallback | refactor | P0 | 1.0 | P1-02 | done | health 路由可用；PG 不可用即退出；MySQL 兼容保留给未迁移模块 |
 | V3-P1-05 | Compose/.env/config：postgres 服务、移除 V3 mysql | ops | P1 | 0.5 | P1-01 | blocked | 待业务模块移出/认证迁 PG 后切 V3 Compose |
-| V3-P1-06 | 配置中心：Schema/默认值/校验/优先级/热更新/审计/脱敏/管理 API | feature | P0 | 2.0 | P1-01 | doing | 框架/内存/API 已落地；PG 持久化待 P2 建表 |
+| V3-P1-06 | 配置中心：Schema/默认值/校验/优先级/热更新/审计/脱敏/管理 API | feature | P0 | 2.0 | P1-01 | done | 框架/内存/API/PG 持久化/前端配置中心已完成 |
 
 ### V3-P2 Schema 基线（6 个，6.5 人日）
 
 | 编号 | 任务 | 类型 | 优先级 | 预估 | 依赖 | 状态 | 验收/备注 |
 |---|---|---|---|---:|---|---|---|
 | V3-P2-01 | PG baseline `004` + PM `005`：约 35 张基座/公共/PM 核心表 + 13 张 PM 扩展；`002` 配置中心 2 表、`003` 主机/维护 2 表已完成（identity/boolean/timestamptz/jsonb/numeric） | migration | P0 | 2.0 | P1-03 | done | dev 已建 52 表、49 个外键 |
-| V3-P2-02 | 索引/约束/FK/部分索引/GIN 评审与补全 | migration | P1 | 1.5 | P2-01 | todo | 关键查询有计划可用索引 |
-| V3-P2-03 | GORM 表迁入迁移（auth/scheduler/fileref/audit/feature） | migration | P0 | 1.0 | P2-01 | todo | 生产禁用 AutoMigrate |
-| V3-P2-04 | 迁移器 PG 默认：`_migrations` 基线、checksum、MySQL 归档 | refactor | P0 | 1.0 | P2-01 | todo | `migrate` 模块默认走 PG |
-| V3-P2-05 | `updated_at` 触发器 + 公共函数 + 应用层兜底 | migration | P1 | 0.5 | P2-01 | todo | 更新时间不依赖 MySQL 语法 |
+| V3-P2-02 | 索引/约束/FK/部分索引/GIN 评审与补全 | migration | P1 | 1.5 | P2-01 | done | 004/005 已含核心索引、FK、注释；暂无 JSONB 检索需求，GIN 后补 |
+| V3-P2-03 | GORM 表迁入迁移（auth/scheduler/fileref/audit/feature） | migration | P0 | 1.0 | P2-01 | done | V3 走 migrations；AutoMigrate 仅在 `database.auto_migrate=true` 时执行 |
+| V3-P2-04 | 迁移器 PG 默认：`_migrations` 基线、checksum、MySQL 归档 | refactor | P0 | 1.0 | P2-01 | done | `migrate` 模块只走 PG，MySQL 仅保留 V2 文件 |
+| V3-P2-05 | `updated_at` 触发器 + 公共函数 + 应用层兜底 | migration | P1 | 0.5 | P2-01 | done | `006_v3_updated_at.sql` 统一挂载触发器 |
 | V3-P2-06 | 数据字典 PG 化与 V3.0 表登记 | docs | P1 | 0.5 | P2-01 | todo | 表用途/字段含义完整 |
 
 ### V3-P3 方言改造（6 个，8 人日）
@@ -135,10 +135,10 @@
 | V3-PM-01 | PM 核心迁移：milestone/task/task_dependency/task_log | migration | P0 | 1.0 | P2-01 | done | 表/索引/外键就绪，dev 已验证 |
 | V3-PM-02 | PM 核心后端：models/repo/service/handler/routes/进度 | feature | P0 | 2.0 | PM-01、P3-04 | done | 里程碑/任务 CRUD、依赖环检测、状态流转、工时/日志、进度已实测；PM 走 PG |
 | V3-PM-03 | PM 权限 + 默认角色 + 幂等导入 | feature | P1 | 1.0 | PM-02 | done | `dm.task/milestone` 权限已播种；任务按 code 幂等导入已实测 |
-| V3-PM-04 | PM 前端核心：路线图/看板/任务抽屉 | feature | P0 | 2.0 | PM-02 | todo | 可视化可用 |
+| V3-PM-04 | PM 前端核心：路线图/看板/任务抽屉 | feature | P0 | 2.0 | PM-02 | done | 路线图/看板/任务抽屉/周报已接入 |
 | V3-PM-05 | PM 高级迁移：risk/release/baseline/iteration/comment/checklist/label/task_label/task_asset | migration | P1 | 1.0 | PM-01 | done | 005 已建 9 张高级表并验证外键 |
 | V3-PM-06 | PM 高级后端：风险/发布/基线/迭代/评论/检查项/标签/资产 | feature | P1 | 1.0 | PM-05 | done | CRUD/快照/关联已实测；前端待 PM-07 |
-| V3-PM-07 | PM 高级前端：风险矩阵/发布日历/甘特/报表 | feature | P1 | 1.0 | PM-06、PM-04 | todo（12/31） | 页面可用；12.15 后补齐 |
+| V3-PM-07 | PM 高级前端：风险矩阵/发布日历/甘特/报表 | feature | P1 | 1.0 | PM-06、PM-04 | doing | 风险/发布/迭代/基线页面已完成；矩阵/日历/甘特待补 |
 | V3-PM-08 | V3 台账导入 + 周报机制 + 仪表盘 | ops | P1 | 1.0 | PM-03、PM-04 | done | 61 任务/61 依赖已入库；仪表盘/看板/路线图/周报已实现 |
 
 ### V3-SOP 规范与 AI（3 个，3 人日）

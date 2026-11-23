@@ -38,13 +38,12 @@ func primarySchema(searchPath string) string {
 
 func (m *Module) Init(cfg *config.Config) error {
 	if database.DB != nil {
-		// V3 默认 PG；MySQL 仅作 V2 兼容兜底。
+		// V3 schema 只由 PostgreSQL migrations 管理，MySQL 仅保留 V2 迁移文件。
 		if pool, ok := database.DB.Postgres["main"]; ok && pool.Pool != nil {
 			m.adapter = svc.NewPostgresAdapter(pool.Pool)
 			m.migrateDir = "migrations/postgres"
-		} else if pool, ok := database.DB.MySQL["main"]; ok && pool.DB != nil {
-			m.adapter = svc.NewMySQLAdapter(pool.DB)
-			m.migrateDir = "migrations/mysql"
+		} else {
+			logger.Warn().Msg("migrate: PostgreSQL 不可用，迁移功能禁用")
 		}
 	}
 

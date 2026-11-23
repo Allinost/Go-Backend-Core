@@ -339,3 +339,37 @@ func TestExtractTableFromInsert(t *testing.T) {
 	assert.Equal(t, "users", extractTableFromInsert("INSERT INTO users (id) VALUES (1)"))
 	assert.Equal(t, "users", extractTableFromInsert("INSERT INTO `users` (id) VALUES (1)"))
 }
+
+func TestSplitSQL_DollarQuotedBlocks(t *testing.T) {
+	sql := `
+CREATE FUNCTION set_updated_at() RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_test_updated_at
+BEFORE UPDATE ON test_table
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+`
+	statements := splitSQL(sql)
+	require.Len(t, statements, 2)
+	assert.Contains(t, statements[0], "NEW.updated_at = now();")
+	assert.Contains(t, statements[1], "CREATE TRIGGER")
+}
+
+func TestSplitSQL_IgnoresQuotesAndComments(t *testing.T) {
+	sql := `
+INSERT INTO t (name) VALUES ('a;b');
+-- comment; not a statement
+INSERT INTO t (name) VALUES ("c;d");
+/* block; comment */
+UPDATE t SET name = 'x''y;z' WHERE id = 1;
+`
+	statements := splitSQL(sql)
+	require.Len(t, statements, 3)
+	assert.Contains(t, statements[0], "'a;b'")
+	assert.Contains(t, statements[1], `"c;d"`)
+	assert.Contains(t, statements[2], "'x''y;z'")
+}

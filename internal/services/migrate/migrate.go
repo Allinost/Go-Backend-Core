@@ -161,16 +161,114 @@ func mysqlTypeToPostgres(mysqlType string) string {
 	}
 }
 
+// splitSQL 按分号拆分 SQL，但会跳过引号、注释和 PostgreSQL dollar-quoted 块。
 func splitSQL(sql string) []string {
-	statements := strings.Split(sql, ";")
 	var result []string
-	for _, stmt := range statements {
-		stmt = strings.TrimSpace(stmt)
+	var buf strings.Builder
+
+	var quote byte
+	inLineComment := false
+	inBlockComment := false
+	dollarTag := ""
+
+	flush := func() {
+		stmt := strings.TrimSpace(buf.String())
 		if stmt != "" {
 			result = append(result, stmt)
 		}
+		buf.Reset()
 	}
+
+	for i := 0; i < len(sql); i++ {
+		ch := sql[i]
+
+		if inLineComment {
+			buf.WriteByte(ch)
+			if ch == '\n' {
+				inLineComment = false
+			}
+			continue
+		}
+		if inBlockComment {
+			buf.WriteByte(ch)
+			if ch == '*' && i+1 < len(sql) && sql[i+1] == '/' {
+				buf.WriteByte('/')
+				i++
+				inBlockComment = false
+			}
+			continue
+		}
+		if dollarTag != "" {
+			if strings.HasPrefix(sql[i:], dollarTag) {
+				buf.WriteString(dollarTag)
+				i += len(dollarTag) - 1
+				dollarTag = ""
+				continue
+			}
+			buf.WriteByte(ch)
+			continue
+		}
+		if quote != 0 {
+			buf.WriteByte(ch)
+			if ch == quote {
+				if i+1 < len(sql) && sql[i+1] == quote {
+					buf.WriteByte(quote)
+					i++
+					continue
+				}
+				quote = 0
+			} else if ch == '\\' && quote == '\'' && i+1 < len(sql) {
+				buf.WriteByte(sql[i+1])
+				i++
+			}
+			continue
+		}
+
+		switch {
+		case ch == '-' && i+1 < len(sql) && sql[i+1] == '-':
+			buf.WriteString("--")
+			i++
+			inLineComment = true
+		case ch == '/' && i+1 < len(sql) && sql[i+1] == '*':
+			buf.WriteString("/*")
+			i++
+			inBlockComment = true
+		case ch == '\'' || ch == '"' || ch == '`':
+			quote = ch
+			buf.WriteByte(ch)
+		case ch == '$':
+			if tag, ok := dollarQuoteTag(sql[i:]); ok {
+				dollarTag = tag
+				buf.WriteString(tag)
+				i += len(tag) - 1
+			} else {
+				buf.WriteByte(ch)
+			}
+		case ch == ';':
+			flush()
+		default:
+			buf.WriteByte(ch)
+		}
+	}
+	flush()
 	return result
+}
+
+// dollarQuoteTag 识别 $tag$ / $$ 形式的 PostgreSQL dollar quote 起始标记。
+func dollarQuoteTag(s string) (string, bool) {
+	if len(s) < 2 || s[0] != '$' {
+		return "", false
+	}
+	for i := 1; i < len(s); i++ {
+		ch := s[i]
+		if ch == '$' {
+			return s[:i+1], true
+		}
+		if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9') && ch != '_' {
+			return "", false
+		}
+	}
+	return "", false
 }
 
 func detectFormat(data []byte) Format {

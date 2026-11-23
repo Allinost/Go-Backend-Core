@@ -22,6 +22,7 @@ APP_DATABASE_POSTGRES_MAIN_SEARCH_PATH=gobackendcore,public
 | 003 | `003_v3_ops.sql` | 主机台账、L1/L2 维护状态 |
 | 004 | `004_v3_baseline.sql` | V3 基座/公共/PM 核心表 |
 | 005 | `005_v3_pm_full.sql` | 里程碑/任务/依赖/风险/发布/基线/迭代等 |
+| 006 | `006_v3_updated_at.sql` | 全表 `updated_at` 触发器（数据库时间兜底） |
 
 ## 执行
 

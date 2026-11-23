@@ -45,8 +45,10 @@ func (m *Module) Init(cfg *config.Config) error {
 			if err != nil {
 				return fmt.Errorf("scheduler: DB 初始化失败: %w", err)
 			}
-			if err := store.(*MySQLStore).AutoMigrate(); err != nil {
-				return fmt.Errorf("scheduler: 自动迁移失败: %w", err)
+			if cfg.Database.AutoMigrate {
+				if err := store.(*MySQLStore).AutoMigrate(); err != nil {
+					return fmt.Errorf("scheduler: 自动迁移失败: %w", err)
+				}
 			}
 		}
 	}
