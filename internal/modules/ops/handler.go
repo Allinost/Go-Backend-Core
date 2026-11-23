@@ -49,6 +49,18 @@ func (h *Handler) ListFiles(c *gin.Context) {
 
 	allFiles, err := h.svc.ListFile(c.Request.Context(), prefix, offset, limit)
 	if err != nil {
+		if errors.Is(err, storage.ErrUnavailable) {
+			response.Success(c, gin.H{
+				"files":    []storage.FileInfo{},
+				"dirs":     []string{},
+				"offset":   offset,
+				"limit":    limit,
+				"total":    0,
+				"degraded": true,
+				"message":  "对象存储不可用，文件功能已降级",
+			})
+			return
+		}
 		response.Fail(c, appErr.New(appErr.CodeSystemErr, "获取文件列表失败").WithDetail(err.Error()))
 		return
 	}
