@@ -61,7 +61,11 @@ func (r *PMRepository) Board(ctx context.Context, projectID int64) ([]BoardColum
 	}
 	columns := make([]BoardColumn, 0, len(order))
 	for _, status := range order {
-		columns = append(columns, BoardColumn{Status: status, Tasks: group[status]})
+		tasks := group[status]
+		if tasks == nil {
+			tasks = []Task{}
+		}
+		columns = append(columns, BoardColumn{Status: status, Tasks: tasks})
 	}
 	return columns, nil
 }

@@ -16,7 +16,7 @@ const (
 	tableRelation = "zzz_development_manager_project_relation"
 	tableAsset    = "zzz_development_manager_project_asset"
 
-	projectColumns = "id, project_key, name, type, description, repo_url, repo_path, default_branch, " +
+	projectColumns = "id, project_key, name, type, COALESCE(description, '') AS description, repo_url, repo_path, default_branch, " +
 		"tech_stack, status, deleted, deleted_at, created_by, updated_by, created_at, updated_at"
 
 	relationColumns = "id, from_project_id, to_project_id, relation_type, note, deleted, deleted_at, " +
