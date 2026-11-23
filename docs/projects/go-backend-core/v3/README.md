@@ -104,7 +104,7 @@
 | V3-P2-03 | GORM 表迁入迁移（auth/scheduler/fileref/audit/feature） | migration | P0 | 1.0 | P2-01 | done | V3 走 migrations；AutoMigrate 仅在 `database.auto_migrate=true` 时执行 |
 | V3-P2-04 | 迁移器 PG 默认：`_migrations` 基线、checksum、MySQL 归档 | refactor | P0 | 1.0 | P2-01 | done | `migrate` 模块只走 PG，MySQL 仅保留 V2 文件 |
 | V3-P2-05 | `updated_at` 触发器 + 公共函数 + 应用层兜底 | migration | P1 | 0.5 | P2-01 | done | `006_v3_updated_at.sql` 统一挂载触发器 |
-| V3-P2-06 | 数据字典 PG 化与 V3.0 表登记 | docs | P1 | 0.5 | P2-01 | todo | 表用途/字段含义完整 |
+| V3-P2-06 | 数据字典 PG 化与 V3.0 表登记 | docs | P1 | 0.5 | P2-01 | done | `007_v3_table_comments.sql` 补 34 张表及核心字段注释 |
 
 ### V3-P3 方言改造（6 个，8 人日）
 

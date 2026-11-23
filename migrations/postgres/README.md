@@ -23,6 +23,7 @@ APP_DATABASE_POSTGRES_MAIN_SEARCH_PATH=gobackendcore,public
 | 004 | `004_v3_baseline.sql` | V3 基座/公共/PM 核心表 |
 | 005 | `005_v3_pm_full.sql` | 里程碑/任务/依赖/风险/发布/基线/迭代等 |
 | 006 | `006_v3_updated_at.sql` | 全表 `updated_at` 触发器（数据库时间兜底） |
+| 007 | `007_v3_table_comments.sql` | 基座/公共表注释与核心字段注释 |
 
 ## 执行
 
