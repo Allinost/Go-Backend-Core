@@ -138,7 +138,7 @@
 | V3-PM-04 | PM 前端核心：路线图/看板/任务抽屉 | feature | P0 | 2.0 | PM-02 | done | 路线图/看板/任务抽屉/周报已接入 |
 | V3-PM-05 | PM 高级迁移：risk/release/baseline/iteration/comment/checklist/label/task_label/task_asset | migration | P1 | 1.0 | PM-01 | done | 005 已建 9 张高级表并验证外键 |
 | V3-PM-06 | PM 高级后端：风险/发布/基线/迭代/评论/检查项/标签/资产 | feature | P1 | 1.0 | PM-05 | done | CRUD/快照/关联已实测；前端待 PM-07 |
-| V3-PM-07 | PM 高级前端：风险矩阵/发布日历/甘特/报表 | feature | P1 | 1.0 | PM-06、PM-04 | doing | 风险/发布/迭代/基线、风险矩阵、甘特已完成；发布日历待补 |
+| V3-PM-07 | PM 高级前端：风险矩阵/发布日历/甘特/报表 | feature | P1 | 1.0 | PM-06、PM-04 | done | 风险矩阵/发布日历/甘特/周报已完成 |
 | V3-PM-08 | V3 台账导入 + 周报机制 + 仪表盘 | ops | P1 | 1.0 | PM-03、PM-04 | done | 61 任务/61 依赖已入库；仪表盘/看板/路线图/周报已实现 |
 
 ### V3-SOP 规范与 AI（3 个，3 人日）
