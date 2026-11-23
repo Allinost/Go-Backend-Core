@@ -4,7 +4,9 @@
 > 人类阅读看本文件；机器导入看文末「导入映射」。
 > 主规划：[docs/plans/V3-postgres-refactor-2026-11-18.md](../../../plans/V3-postgres-refactor-2026-11-18.md)
 > V3 SOP：[SOP.md](SOP.md)
-> 状态：**V3.0 范围/上线窗口已确认（2026-12-15），待 P0 启动** · 更新日期：2026-11-18
+> 架构说明：[ARCHITECTURE.md](ARCHITECTURE.md)
+> 数据模型：[DATA_MODEL.md](DATA_MODEL.md)
+> 状态：**V3.0 开发中（PM 高级前端已完成）** · 更新日期：2026-11-23
 
 ---
 
@@ -174,7 +176,7 @@
 |---|---|---|---|---:|---|---|---|
 | V3-P8-01 | 新机器部署：Compose/env/PG 卷/健康检查/密钥 | ops | P0 | 1.5 | P1-05、P4-05 | todo | 新机器可起 |
 | V3-P8-02 | 备份恢复：`pg_dump/pg_restore`/保留策略/演练 | ops | P0 | 1.0 | P8-01 | doing | 备份/恢复脚本与 Runbook 已就绪；真实恢复演练待做 |
-| V3-P8-03 | 文档：架构/技术选型/数据模型/部署/README/模块文档 | docs | P1 | 1.0 | P4-05 | doing | 部署手册已补；架构/数据模型文档待收口 |
+| V3-P8-03 | 文档：架构/技术选型/数据模型/部署/README/模块文档 | docs | P1 | 1.0 | P4-05 | done | ARCHITECTURE/DATA_MODEL/DEPLOY/SOP/UAT/README 已齐 |
 | V3-P8-04 | 监控：PG exporter/面板/告警（连接/慢查询/复制） | ops | P1 | 0.5 | P8-01 | todo | 面板可用 |
 | V3-P8-05 | UAT 脚本与检查表 | docs | P1 | 0.5 | P8-03 | done | `UAT.md` 检查表已就绪，待实际执行 |
 | V3-P8-06 | 公网反代/证书：新二级域名（待定）站点/证书/HTTPS/反代本机 V3:80；转发头/限流/安全头/WS/上传 | ops | P0 | 1.0 | P1-05、P4-06 | todo | 域名就绪后配置；不阻塞 P0/P1；真实 IP 正确 |
