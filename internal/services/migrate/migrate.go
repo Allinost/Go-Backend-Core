@@ -161,6 +161,11 @@ func mysqlTypeToPostgres(mysqlType string) string {
 	}
 }
 
+// SplitSQL 导出给测试/工具复用，按分号拆分 SQL，跳过引号、注释和 dollar-quoted 块。
+func SplitSQL(sql string) []string {
+	return splitSQL(sql)
+}
+
 // splitSQL 按分号拆分 SQL，但会跳过引号、注释和 PostgreSQL dollar-quoted 块。
 func splitSQL(sql string) []string {
 	var result []string

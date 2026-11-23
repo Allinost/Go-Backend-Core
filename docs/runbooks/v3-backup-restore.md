@@ -38,6 +38,20 @@ $BACKUP_DIR/...dump.sha256
 15 3 * * * cd /opt/go-backend-core && . ./.env && ./scripts/pg-backup.sh >> logs/pg-backup.log 2>&1
 ```
 
+## 恢复演练
+
+建议每月至少一次，恢复到临时库后自动删除，不影响生产库：
+
+```bash
+CONFIRM_RESTORE_DRILL=YES ./scripts/pg-restore-drill.sh /data/backups/postgres/xxx.dump
+```
+
+- 自动创建 `${PGDATABASE}_drill_<ts>` 临时库
+- 校验 sha256（存在时）
+- 执行 `pg_restore`
+- 检查表数量、`_migrations` 版本、`users` 行数
+- 默认自动 `dropdb`；设置 `PGDRILL_KEEP=YES` 可保留临时库排查
+
 ## 恢复
 
 危险操作，必须显式确认：

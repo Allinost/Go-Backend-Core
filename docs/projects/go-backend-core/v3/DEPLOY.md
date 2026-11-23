@@ -105,7 +105,15 @@ GET /api/v1/health/modules
 
 ```bash
 export PGHOST=... PGPORT=... PGUSER=... PGDATABASE=... PGPASSWORD=...
+
+# 冷备份
 ./scripts/pg-backup.sh
+
+# 恢复演练：恢复到临时库，校验后自动删除
+CONFIRM_RESTORE_DRILL=YES ./scripts/pg-restore-drill.sh backups/postgres/xxx.dump
+
+# 正式恢复（危险）
+CONFIRM_RESTORE=YES ./scripts/pg-restore.sh backups/postgres/xxx.dump
 ```
 
 详见 `docs/runbooks/v3-backup-restore.md`。

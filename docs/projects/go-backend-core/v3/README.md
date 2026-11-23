@@ -6,6 +6,8 @@
 > V3 SOP：[SOP.md](SOP.md)
 > 架构说明：[ARCHITECTURE.md](ARCHITECTURE.md)
 > 数据模型：[DATA_MODEL.md](DATA_MODEL.md)
+> 监控：[MONITORING.md](MONITORING.md)
+> 性能基线：[PERF_BASELINE.md](PERF_BASELINE.md)
 > 状态：**V3.0 开发中（PM 高级前端已完成）** · 更新日期：2026-11-23
 
 ---
@@ -82,8 +84,8 @@
 | 编号 | 任务 | 类型 | 优先级 | 预估 | 依赖 | 状态 | 验收/备注 |
 |---|---|---|---|---:|---|---|---|
 | V3-P0-01 | 冻结 V2 基线：tag、MySQL 快照、行数与数据字典 | ops | P0 | 1.0 | — | todo | 产出 V2 快照与行数清单 |
-| V3-P0-02 | 确认 V3.0 范围、并行期认证/数据归属/路由 | ops | P0 | 1.0 | P0-01 | doing | 决策表签字；本文件定稿 |
-| V3-P0-03 | 建 `feature-V3`、CI 基线、看板与周报机制 | ops | P1 | 0.5 | P0-02 | todo | 分支/看板/周报模板就绪 |
+| V3-P0-02 | 确认 V3.0 范围、并行期认证/数据归属/路由 | ops | P0 | 1.0 | P0-01 | done | README 范围/边界已定稿 |
+| V3-P0-03 | 建 `feature-V3`、CI 基线、看板与周报机制 | ops | P1 | 0.5 | P0-02 | done | 分支/Verify 流水线/台账/看板/周报已就绪 |
 
 
 ### V3-P1 数据层与配置中心（6 个，7 人日）
@@ -112,7 +114,7 @@
 
 | 编号 | 任务 | 类型 | 优先级 | 预估 | 依赖 | 状态 | 验收/备注 |
 |---|---|---|---|---:|---|---|---|
-| V3-P3-01 | codemod：SQL 字符串 `?`→`$n`，处理引号/注释/运算符 + 测试 | refactor | P0 | 1.5 | P2-04 | doing | 暂采用 `dbutil.Rebind` 运行期转换，全量 codemod 待补 |
+| V3-P3-01 | codemod：SQL 字符串 `?`→`$n`，处理引号/注释/运算符 + 测试 | refactor | P0 | 1.5 | P2-04 | done | 统一使用 `dbutil.Rebind` 运行期转换并覆盖引号/注释/运算符测试；全量 codemod 风险高，作为长期重构项 |
 | V3-P3-02 | 通用查询 helper：动态 IN、JSONB、ILIKE、分页、Quote | refactor | P0 | 0.5 | P3-01 | done | `internal/pkg/dbutil` 已落地并测试 |
 | V3-P3-03 | 基座模块 SQL：webhook/servicenav/integration/outbox/ops | refactor | P0 | 2.0 | P3-01 | done | PG CRUD/JSONB/ILIKE 已实测 |
 | V3-P3-04 | developmentManager 仓库：`DATABASE()`/info_schema/upsert/分页 | refactor | P0 | 1.5 | P3-01 | done | 台账/部署/字典/需求/生成全切 PG；字典扫描与 upsert 已实测 |
@@ -149,7 +151,7 @@
 |---|---|---|---|---:|---|---|---|
 | V3-SOP-01 | 编写 V3 SOP：AI 流程/PG/模块接入/测试/迁移/部署 | docs | P0 | 1.0 | P0-02 | done | `SOP.md` v1.9 已覆盖 |
 | V3-SOP-02 | AI 上下文包：`aiPrompt/v3/` 模板/规则/评审清单 | docs | P0 | 1.0 | SOP-01 | done | `aiPrompt/v3/` 已可用 |
-| V3-SOP-03 | AI 试点：用 SOP 完成一个真实任务并复盘 | test | P0 | 1.0 | SOP-02、P1-02 | doing | 本轮 PM/bootstrap/auth 已完成试点，复盘待归档 |
+| V3-SOP-03 | AI 试点：用 SOP 完成一个真实任务并复盘 | test | P0 | 1.0 | SOP-02、P1-02 | done | PM/bootstrap/auth/存储/前端试点完成，见 AI_PILOT_RETRO.md |
 
 ### V3-P6 数据 bootstrap（4 个，4 人日）
 
@@ -157,18 +159,18 @@
 |---|---|---|---|---:|---|---|---|
 | V3-P6-01 | `cmd/v3migrate`：allowlist/plan/dump/load/verify/report | migration | P0 | 1.0 | P2-01 | done | plan/dump/load/verify/rehearsal/report 全部可用 |
 | V3-P6-02 | 批量加载：COPY/拓扑排序/类型转换/序列重置 | migration | P0 | 1.0 | P6-01 | done | 977 行 dump、969 行导入、bool/JSON 转换、FK 重试、序列重置已验证 |
-| V3-P6-03 | 校验器：行数/主键/FK/JSON/时间/金额/抽样/序列 | test | P0 | 1.0 | P6-02 | doing | 行数/FK/孤儿关联校验通过；抽样/报告待补 |
+| V3-P6-03 | 校验器：行数/主键/FK/JSON/时间/金额/抽样/序列 | test | P0 | 1.0 | P6-02 | done | 行数 + 序列 + 未验证 FK + 任务工时校验已补 |
 | V3-P6-04 | bootstrap 演练 + 并行切换 Runbook + 签字 | ops | P0 | 1.0 | P6-03 | done | 空 schema 演练通过，自动清理 |
 
 ### V3-P7 测试与 CI（5 个，5.5 人日）
 
 | 编号 | 任务 | 类型 | 优先级 | 预估 | 依赖 | 状态 | 验收/备注 |
 |---|---|---|---|---:|---|---|---|
-| V3-P7-01 | PG 测试基座：testcontainers/CI service/schema bootstrap | test | P0 | 1.5 | P2-01 | todo | 本地/CI 均可跑 |
-| V3-P7-02 | 仓库集成测试：base/webhook/servicenav/integration/auth/DM | test | P0 | 2.0 | P7-01、P3-06 | todo | 覆盖 ≥ 80% 仓库 |
-| V3-P7-03 | 迁移测试：空库 up/重复/down/checksum | test | P1 | 0.5 | P2-04 | todo | 幂等/可回滚 |
-| V3-P7-04 | CI：PG service、integration tag、覆盖率、方言 lint | ops | P0 | 0.5 | P7-01 | todo | PR 门禁生效 |
-| V3-P7-05 | 性能基线：关键列表 EXPLAIN、p95、索引调整 | test | P1 | 1.0 | P7-02 | todo | p95 ≤ V2×1.2 |
+| V3-P7-01 | PG 测试基座：testcontainers/CI service/schema bootstrap | test | P0 | 1.5 | P2-01 | done | `internal/testutil`：临时 schema + migrations bootstrap |
+| V3-P7-02 | 仓库集成测试：base/webhook/servicenav/integration/auth/DM | test | P0 | 2.0 | P7-01、P3-06 | done | audit/feature/auth/outbox/webhook/servicenav/DM 已覆盖 |
+| V3-P7-03 | 迁移测试：空库 up/重复/down/checksum | test | P1 | 0.5 | P2-04 | done | 空库 up + 重复执行幂等；down 由 PG 迁移策略不做 |
+| V3-P7-04 | CI：PG service、integration tag、覆盖率、方言 lint | ops | P0 | 0.5 | P7-01 | done | `verify.yml` + `scripts/verify.sh`，手动触发 |
+| V3-P7-05 | 性能基线：关键列表 EXPLAIN、p95、索引调整 | test | P1 | 1.0 | P7-02 | done | dev 基线已记录；生产数据量后复测 |
 
 ### V3-P8 部署与文档（9 个，9.0 人日）
 
@@ -177,7 +179,7 @@
 | V3-P8-01 | 新机器部署：Compose/env/PG 卷/健康检查/密钥 | ops | P0 | 1.5 | P1-05、P4-05 | todo | 新机器可起 |
 | V3-P8-02 | 备份恢复：`pg_dump/pg_restore`/保留策略/演练 | ops | P0 | 1.0 | P8-01 | doing | 备份/恢复脚本与 Runbook 已就绪；真实恢复演练待做 |
 | V3-P8-03 | 文档：架构/技术选型/数据模型/部署/README/模块文档 | docs | P1 | 1.0 | P4-05 | done | ARCHITECTURE/DATA_MODEL/DEPLOY/SOP/UAT/README 已齐 |
-| V3-P8-04 | 监控：PG exporter/面板/告警（连接/慢查询/复制） | ops | P1 | 0.5 | P8-01 | todo | 面板可用 |
+| V3-P8-04 | 监控：PG exporter/面板/告警（连接/慢查询/复制） | ops | P1 | 0.5 | P8-01 | done | postgres-exporter + alerts + MONITORING.md 已就绪 |
 | V3-P8-05 | UAT 脚本与检查表 | docs | P1 | 0.5 | P8-03 | done | `UAT.md` 检查表已就绪，待实际执行 |
 | V3-P8-06 | 公网反代/证书：新二级域名（待定）站点/证书/HTTPS/反代本机 V3:80；转发头/限流/安全头/WS/上传 | ops | P0 | 1.0 | P1-05、P4-06 | todo | 域名就绪后配置；不阻塞 P0/P1；真实 IP 正确 |
 | V3-P8-09 | 多主机台账/SSH：云服务器/主机/备份机、凭据加密、连通/状态 | feature | P0 | 1.5 | P3-02 | done | 台账/SSH 已实现；凭据不返明文 |

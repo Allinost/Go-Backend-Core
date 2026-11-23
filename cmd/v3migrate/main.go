@@ -482,7 +482,82 @@ func verify(ctx context.Context, mysqlDB, pgDB *sql.DB) error {
 		fmt.Printf("校验失败：%d 张表不一致\n", bad)
 		return fmt.Errorf("verify failed")
 	}
-	fmt.Println("校验通过：所有 allowlist 表行数一致（孤儿关联已排除）")
+	if err := verifyPGSequences(ctx, pgDB); err != nil {
+		fmt.Printf("SEQUENCE %v\n", err)
+		bad++
+	}
+	if err := verifyUnvalidatedFKs(ctx, pgDB); err != nil {
+		fmt.Printf("CONSTRAINT %v\n", err)
+		bad++
+	}
+	if err := verifyTaskNumbers(ctx, pgDB); err != nil {
+		fmt.Printf("DATA     %v\n", err)
+		bad++
+	}
+	if bad > 0 {
+		return fmt.Errorf("verify failed")
+	}
+	fmt.Println("校验通过：allowlist 行数、序列、外键约束、任务工时均正常")
+	return nil
+}
+
+// verifyPGSequences 检查 identity/sequence 是否落后于表内最大 ID。
+func verifyPGSequences(ctx context.Context, db *sql.DB) error {
+	var issues []string
+	for _, spec := range tableSpecs {
+		var seq sql.NullString
+		if err := db.QueryRowContext(ctx, "SELECT pg_get_serial_sequence($1, 'id')", spec.Target).Scan(&seq); err != nil || !seq.Valid || seq.String == "" {
+			continue
+		}
+		var maxID int64
+		if err := db.QueryRowContext(ctx, fmt.Sprintf("SELECT COALESCE(MAX(id), 0) FROM %q", spec.Target)).Scan(&maxID); err != nil {
+			continue
+		}
+		var lastValue int64
+		if err := db.QueryRowContext(ctx, "SELECT COALESCE(last_value, 0) FROM "+seq.String).Scan(&lastValue); err != nil {
+			continue
+		}
+		if lastValue < maxID {
+			issues = append(issues, fmt.Sprintf("%s(max=%d,seq=%d)", spec.Target, maxID, lastValue))
+		}
+	}
+	if len(issues) > 0 {
+		return fmt.Errorf("序列落后：%s", strings.Join(issues, ", "))
+	}
+	return nil
+}
+
+// verifyUnvalidatedFKs 检查是否存在未验证的外键约束。
+func verifyUnvalidatedFKs(ctx context.Context, db *sql.DB) error {
+	var n int
+	if err := db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM pg_constraint
+		WHERE contype = 'f'
+		  AND connamespace = current_schema()::regnamespace
+		  AND NOT convalidated`).Scan(&n); err != nil {
+		return err
+	}
+	if n > 0 {
+		return fmt.Errorf("存在 %d 个未验证外键", n)
+	}
+	return nil
+}
+
+// verifyTaskNumbers 检查任务工时是否为负数。
+func verifyTaskNumbers(ctx context.Context, db *sql.DB) error {
+	var exists sql.NullString
+	if err := db.QueryRowContext(ctx, "SELECT to_regclass('zzz_development_manager_task')").Scan(&exists); err != nil || !exists.Valid {
+		return nil
+	}
+	var n int
+	if err := db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM zzz_development_manager_task
+		WHERE deleted = false AND (estimate_hours < 0 OR actual_hours < 0)`).Scan(&n); err != nil {
+		return err
+	}
+	if n > 0 {
+		return fmt.Errorf("发现 %d 条任务工时为负数", n)
+	}
 	return nil
 }
 
