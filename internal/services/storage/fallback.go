@@ -200,9 +200,10 @@ func (s *RedisStage) Close() error { return nil }
 // FallbackStore 优先写对象存储；对象存储不可用时把对象暂存 Redis，
 // 恢复后由 Flush 或后台任务提交。两者都不可用时只让文件接口报错。
 type FallbackStore struct {
-	primary       Storage
-	stage         Stage
-	maxStageBytes int64
+	primary        Storage
+	stage          Stage
+	maxStageBytes  int64
+	primaryTimeout time.Duration
 
 	flushMu sync.Mutex
 }
@@ -211,7 +212,23 @@ func NewFallbackStore(primary Storage, stage Stage, maxStageBytes int64) *Fallba
 	if maxStageBytes <= 0 {
 		maxStageBytes = defaultMaxStageBytes
 	}
-	return &FallbackStore{primary: primary, stage: stage, maxStageBytes: maxStageBytes}
+	return &FallbackStore{
+		primary:        primary,
+		stage:          stage,
+		maxStageBytes:  maxStageBytes,
+		primaryTimeout: 10 * time.Second,
+	}
+}
+
+// SetPrimaryTimeout 设置单次对象存储操作超时，避免故障时请求长时间挂起。
+func (f *FallbackStore) SetPrimaryTimeout(timeout time.Duration) {
+	if timeout > 0 {
+		f.primaryTimeout = timeout
+	}
+}
+
+func (f *FallbackStore) primaryCtx(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, f.primaryTimeout)
 }
 
 func (f *FallbackStore) HasPrimary() bool { return f.primary != nil }
@@ -222,12 +239,14 @@ func (f *FallbackStore) PrimaryHealth(ctx context.Context) error {
 	if f.primary == nil {
 		return ErrUnavailable
 	}
+	checkCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
 	if checker, ok := f.primary.(interface {
 		Health(context.Context) error
 	}); ok {
-		return checker.Health(ctx)
+		return checker.Health(checkCtx)
 	}
-	_, err := f.primary.List(ctx, "", WithLimit(1))
+	_, err := f.primary.List(checkCtx, "", WithLimit(1))
 	return err
 }
 
@@ -246,6 +265,9 @@ func (f *FallbackStore) Mode() string {
 }
 
 func (f *FallbackStore) Upload(ctx context.Context, filePath string, reader io.Reader, opts ...UploadOption) (*FileInfo, error) {
+	if f.primary == nil && f.stage == nil {
+		return nil, ErrUnavailable
+	}
 	var o UploadOptions
 	for _, opt := range opts {
 		opt(&o)
@@ -263,7 +285,9 @@ func (f *FallbackStore) Upload(ctx context.Context, filePath string, reader io.R
 		if tooLarge {
 			src = io.MultiReader(bytes.NewReader(data), reader)
 		}
-		info, err := f.primary.Upload(ctx, filePath, src, opts...)
+		pctx, cancel := f.primaryCtx(ctx)
+		info, err := f.primary.Upload(pctx, filePath, src, opts...)
+		cancel()
 		if err == nil {
 			return info, nil
 		}
@@ -324,7 +348,9 @@ func (f *FallbackStore) Download(ctx context.Context, filePath string) (io.ReadC
 func (f *FallbackStore) Stat(ctx context.Context, filePath string) (*FileInfo, error) {
 	var primaryErr error
 	if f.primary != nil {
-		info, err := f.primary.Stat(ctx, filePath)
+		pctx, cancel := f.primaryCtx(ctx)
+		info, err := f.primary.Stat(pctx, filePath)
+		cancel()
 		if err == nil {
 			return info, nil
 		}
@@ -357,7 +383,9 @@ func (f *FallbackStore) Exists(ctx context.Context, filePath string) (bool, erro
 	}
 	var primaryErr error
 	if f.primary != nil {
-		exists, err := f.primary.Exists(ctx, filePath)
+		pctx, cancel := f.primaryCtx(ctx)
+		exists, err := f.primary.Exists(pctx, filePath)
+		cancel()
 		if err == nil && exists {
 			return true, nil
 		}
@@ -383,7 +411,10 @@ func (f *FallbackStore) Exists(ctx context.Context, filePath string) (bool, erro
 func (f *FallbackStore) Delete(ctx context.Context, filePath string) error {
 	var primaryErr error
 	if f.primary != nil {
-		if err := f.primary.Delete(ctx, filePath); err == nil {
+		pctx, cancel := f.primaryCtx(ctx)
+		err := f.primary.Delete(pctx, filePath)
+		cancel()
+		if err == nil {
 			if f.stage != nil {
 				_ = f.stage.Delete(ctx, filePath)
 			}
@@ -412,7 +443,9 @@ func (f *FallbackStore) List(ctx context.Context, prefix string, opts ...ListOpt
 	var primaryItems []FileInfo
 	var primaryErr error
 	if f.primary != nil {
-		primaryItems, primaryErr = f.primary.List(ctx, prefix, opts...)
+		pctx, cancel := f.primaryCtx(ctx)
+		primaryItems, primaryErr = f.primary.List(pctx, prefix, opts...)
+		cancel()
 	}
 	if f.stage == nil {
 		if primaryErr != nil {
@@ -461,7 +494,9 @@ func (f *FallbackStore) SignedURL(ctx context.Context, filePath string, expire t
 	if f.primary == nil {
 		return "", ErrUnavailable
 	}
-	return f.primary.SignedURL(ctx, filePath, expire)
+	pctx, cancel := f.primaryCtx(ctx)
+	defer cancel()
+	return f.primary.SignedURL(pctx, filePath, expire)
 }
 
 func (f *FallbackStore) Close() error {
@@ -524,7 +559,9 @@ func (f *FallbackStore) Flush(ctx context.Context) (int, error) {
 		if len(info.Metadata) > 0 {
 			opts = append(opts, WithMetadata(info.Metadata))
 		}
-		_, uploadErr := f.primary.Upload(ctx, item.Path, reader, opts...)
+		pctx, cancel := f.primaryCtx(ctx)
+		_, uploadErr := f.primary.Upload(pctx, item.Path, reader, opts...)
+		cancel()
 		_ = reader.Close()
 		if uploadErr != nil {
 			return flushed, uploadErr

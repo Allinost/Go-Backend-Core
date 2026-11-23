@@ -78,6 +78,7 @@ func (m *Module) Init(cfg *config.Config) error {
 		maxMB = 64
 	}
 	store := storage.NewFallbackStore(primary, stage, int64(maxMB)<<20)
+	store.SetPrimaryTimeout(durationOr(cfg.Ops.StoragePrimaryTimeout, 10*time.Second))
 	m.store = store
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel

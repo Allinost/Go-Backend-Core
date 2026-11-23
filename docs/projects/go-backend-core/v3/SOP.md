@@ -588,6 +588,7 @@ go run ./cmd/v3migrate report -out reports/v3_bootstrap_report.md
 | `ops.storage_stage_ttl` | `24h` | 暂存对象保留时间 |
 | `ops.storage_flush_interval` | `30s` | 后台提交间隔 |
 | `ops.storage_stage_max_mb` | `64` | 单个对象暂存上限；超限且对象存储不可用则报错 |
+| `ops.storage_primary_timeout` | `10s` | 单次对象存储操作超时，超时后快速转 Redis 或报错 |
 
 - 状态接口 `/api/v1/ops/status` 返回 `storage_mode`（`s3+redis` / `s3` / `redis` / `unavailable`）、`staged_files`、`storage_error`。
 - 注意：Redis 暂存会占用内存，仅适合短时故障；长时间故障需先恢复 RustFS 或扩容 Redis。

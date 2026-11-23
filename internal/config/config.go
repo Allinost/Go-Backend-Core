@@ -47,10 +47,11 @@ type OpsConfig struct {
 	SSHKnownHostsEnabled bool   `mapstructure:"ssh_known_hosts_enabled"`
 	SSHKnownHostsPath    string `mapstructure:"ssh_known_hosts_path"`
 	// 对象存储故障时的 Redis 暂存策略
-	StorageStageEnabled  bool   `mapstructure:"storage_stage_enabled"`
-	StorageStageTTL      string `mapstructure:"storage_stage_ttl"`
-	StorageFlushInterval string `mapstructure:"storage_flush_interval"`
-	StorageStageMaxMB    int    `mapstructure:"storage_stage_max_mb"`
+	StorageStageEnabled   bool   `mapstructure:"storage_stage_enabled"`
+	StorageStageTTL       string `mapstructure:"storage_stage_ttl"`
+	StorageFlushInterval  string `mapstructure:"storage_flush_interval"`
+	StorageStageMaxMB     int    `mapstructure:"storage_stage_max_mb"`
+	StoragePrimaryTimeout string `mapstructure:"storage_primary_timeout"`
 }
 
 type IntegrationConfig struct {

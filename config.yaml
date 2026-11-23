@@ -13,6 +13,7 @@ ops:
   storage_stage_ttl: "24h"
   storage_flush_interval: "30s"
   storage_stage_max_mb: 64
+  storage_primary_timeout: "10s"
 
 server:
   name: go-backend-core        # 服务名称，用于日志/监控标识

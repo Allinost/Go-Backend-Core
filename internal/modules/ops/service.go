@@ -501,7 +501,11 @@ func (s *Service) Status(ctx context.Context) *ComponentStatus {
 		st.StorageMode = fallback.Mode()
 		if fallback.HasPrimary() {
 			if err := fallback.PrimaryHealth(ctx); err != nil {
-				st.S3Backend = "不可用 — 已启用 Redis 暂存"
+				if fallback.HasStage() {
+					st.S3Backend = "不可用 — 已启用 Redis 暂存"
+				} else {
+					st.S3Backend = "不可用 — 文件接口将报错"
+				}
 				st.StorageError = err.Error()
 			} else {
 				st.S3Backend = "已连接"
