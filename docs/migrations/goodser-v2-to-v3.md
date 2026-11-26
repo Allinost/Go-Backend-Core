@@ -15,7 +15,7 @@ cd Go-Backend-Core
 # V3 PostgreSQL（目标）
 #   APP_DATABASE_POSTGRES_MAIN_*
 
-go run ./cmd/v3migrate plan
+go run ./cmd/v3migrate plan -scope goodser
 ```
 
 `plan` 会列出 allowlist 中每张表的 V2/V3 行数。Goodser 的 19 张表在清单末尾：
@@ -43,6 +43,9 @@ zzz_goodser_stock_movements
 ```
 
 > 表名 V2 与 V3 一致，无需映射。V2 不存在的表会显示 `(V2 不存在)` 并在导出时自动跳过。
+>
+> `-scope goodser` 只处理这 19 张表，不会触碰 users / projects 等其他模块的表；
+> 后续做整库迁移时不传 `-scope`（默认 `all`）即可。
 
 ---
 
@@ -51,7 +54,7 @@ zzz_goodser_stock_movements
 维护窗口内停止 V2 Goodser 写入（Web / Android / 小程序），然后：
 
 ```bash
-go run ./cmd/v3migrate dump -file backups/goodser.json
+go run ./cmd/v3migrate dump -scope goodser -file backups/goodser.json
 ```
 
 输出示例：
@@ -70,6 +73,7 @@ go run ./cmd/v3migrate dump -file backups/goodser.json
 
 ```bash
 go run ./cmd/v3migrate rehearsal \
+  -scope goodser \
   -file backups/goodser.json \
   -schema v3_rehearsal_goodser
 ```
@@ -89,8 +93,8 @@ go run ./cmd/v3migrate rehearsal \
 ## 4. 正式导入
 
 ```bash
-go run ./cmd/v3migrate load -file backups/goodser.json
-go run ./cmd/v3migrate verify
+go run ./cmd/v3migrate load -scope goodser -file backups/goodser.json
+go run ./cmd/v3migrate verify -scope goodser
 ```
 
 `load` 行为：

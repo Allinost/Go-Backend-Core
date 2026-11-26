@@ -35,6 +35,24 @@ func TestGoodserTableSpecs(t *testing.T) {
 	}
 }
 
+func TestScopedTableSpecs(t *testing.T) {
+	if got := len(scopedTableSpecs("all")); got != len(tableSpecs) {
+		t.Fatalf("scope=all 应返回全部 %d 张表, 实际 %d", len(tableSpecs), got)
+	}
+	goodser := scopedTableSpecs("goodser")
+	if len(goodser) != 19 {
+		t.Fatalf("scope=goodser 应返回 19 张表, 实际 %d", len(goodser))
+	}
+	for _, spec := range goodser {
+		if !strings.HasPrefix(spec.Target, "zzz_goodser_") {
+			t.Fatalf("scope=goodser 混入非 Goodser 表: %s", spec.Target)
+		}
+	}
+	if scopedTableSpecs("unknown") != nil {
+		t.Fatal("未知 scope 应返回 nil")
+	}
+}
+
 func TestGoodserTargetsExistInMigration(t *testing.T) {
 	path := filepath.Join("..", "..", "migrations", "postgres", "008_goodser.sql")
 	data, err := os.ReadFile(path)
@@ -189,7 +207,7 @@ func TestLoadGoodserRows(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, loadData(context.Background(), db, dump))
+	require.NoError(t, loadData(context.Background(), db, dump, scopedTableSpecs("goodser")))
 
 	// MySQL 10:00 (+08) → timestamptz 02:00Z
 	var createdAt time.Time

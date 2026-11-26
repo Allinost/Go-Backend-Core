@@ -109,3 +109,82 @@ func (h *Handler) DeleteExport(c *gin.Context) {
 	}
 	response.Success(c, gin.H{"deleted": true})
 }
+
+// ListExportTemplates 查询导出模板。
+// @Summary      导出模板列表
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        inventory_id  query  string  false  "库存目录 ID；为空返回全部"
+// @Success      200  {object}  response.Response{data=[]ExportTemplate}
+// @Router       /zzz-goodser/export-templates [get]
+func (h *Handler) ListExportTemplates(c *gin.Context) {
+	items, err := h.svc.ListExportTemplates(c.Request.Context(), c.Query("inventory_id"))
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	if items == nil {
+		items = []ExportTemplate{}
+	}
+	response.Success(c, items)
+}
+
+// CreateExportTemplate 新建导出模板。
+// @Summary      新建导出模板
+// @Tags         zzz-goodser
+// @Accept       json
+// @Produce      json
+// @Param        body  body  ExportTemplateRequest  true  "模板"
+// @Success      200  {object}  response.Response{data=ExportTemplate}
+// @Router       /zzz-goodser/export-templates [post]
+func (h *Handler) CreateExportTemplate(c *gin.Context) {
+	var req ExportTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	tpl, err := h.svc.CreateExportTemplate(c.Request.Context(), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, tpl)
+}
+
+// UpdateExportTemplate 更新导出模板。
+// @Summary      更新导出模板
+// @Tags         zzz-goodser
+// @Accept       json
+// @Produce      json
+// @Param        tid   path  string                true  "模板 ID"
+// @Param        body  body  ExportTemplateRequest true  "模板"
+// @Success      200  {object}  response.Response{data=ExportTemplate}
+// @Router       /zzz-goodser/export-templates/{tid} [put]
+func (h *Handler) UpdateExportTemplate(c *gin.Context) {
+	var req ExportTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamErr(c, "参数错误")
+		return
+	}
+	tpl, err := h.svc.UpdateExportTemplate(c.Request.Context(), c.Param("tid"), &req)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, tpl)
+}
+
+// DeleteExportTemplate 删除导出模板。
+// @Summary      删除导出模板
+// @Tags         zzz-goodser
+// @Produce      json
+// @Param        tid  path  string  true  "模板 ID"
+// @Success      200  {object}  response.Response
+// @Router       /zzz-goodser/export-templates/{tid} [delete]
+func (h *Handler) DeleteExportTemplate(c *gin.Context) {
+	if err := h.svc.DeleteExportTemplate(c.Request.Context(), c.Param("tid")); err != nil {
+		h.handleError(c, err)
+		return
+	}
+	response.Success(c, gin.H{"deleted": true})
+}

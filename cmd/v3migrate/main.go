@@ -82,10 +82,10 @@ var tableSpecs = []tableSpec{
 	{"zzz_goodser_stock_movements", "zzz_goodser_stock_movements"},
 }
 
-func sourceTables() []string {
+func sourceTables(specs []tableSpec) []string {
 	seen := make(map[string]bool)
 	var out []string
-	for _, s := range tableSpecs {
+	for _, s := range specs {
 		if !seen[s.Source] {
 			seen[s.Source] = true
 			out = append(out, s.Source)
@@ -94,7 +94,25 @@ func sourceTables() []string {
 	return out
 }
 
-func existingSourceTables(ctx context.Context, db *sql.DB) ([]string, error) {
+// scopedTableSpecs 按迁移范围筛选表；scope=goodser 只处理 zzz_goodser_*。
+func scopedTableSpecs(scope string) []tableSpec {
+	switch strings.ToLower(strings.TrimSpace(scope)) {
+	case "", "all":
+		return tableSpecs
+	case "goodser":
+		out := make([]tableSpec, 0, 24)
+		for _, spec := range tableSpecs {
+			if strings.HasPrefix(spec.Target, "zzz_goodser_") {
+				out = append(out, spec)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func existingSourceTables(ctx context.Context, db *sql.DB, specs []tableSpec) ([]string, error) {
 	rows, err := db.QueryContext(ctx, `SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()`)
 	if err != nil {
 		return nil, err
@@ -112,7 +130,7 @@ func existingSourceTables(ctx context.Context, db *sql.DB) ([]string, error) {
 		return nil, err
 	}
 	var out []string
-	for _, name := range sourceTables() {
+	for _, name := range sourceTables(specs) {
 		if have[strings.ToLower(name)] {
 			out = append(out, name)
 		}
@@ -134,17 +152,23 @@ func main() {
 	schema := "v3_rehearsal"
 	keep := false
 	sourceTZ := ""
+	scope := "all"
 	flagSet := flag.NewFlagSet(cmd, flag.ExitOnError)
 	flagSet.StringVar(&file, "file", "backups/v3_bootstrap.json", "dump/load 文件")
 	flagSet.StringVar(&out, "out", out, "report 输出文件")
 	flagSet.StringVar(&schema, "schema", "v3_rehearsal", "rehearsal 目标 schema")
 	flagSet.BoolVar(&keep, "keep", false, "rehearsal 后保留 schema")
 	flagSet.StringVar(&sourceTZ, "source-tz", "Asia/Shanghai", "V2 MySQL DATETIME 时区")
+	flagSet.StringVar(&scope, "scope", "all", "迁移范围：all | goodser")
 	_ = flagSet.Parse(flag.Args()[1:])
 	if sourceTZ != "" {
 		if loc, err := time.LoadLocation(sourceTZ); err == nil {
 			sourceLocation = loc
 		}
+	}
+	specs := scopedTableSpecs(scope)
+	if len(specs) == 0 {
+		fail("未知 -scope: " + scope + "（仅支持 all / goodser）")
 	}
 
 	cfg, err := config.Load("config.yaml")
@@ -171,27 +195,27 @@ func main() {
 
 	switch cmd {
 	case "plan":
-		if err := plan(ctx, mysqlPool.DB, pgPool.SQLDB); err != nil {
+		if err := plan(ctx, mysqlPool.DB, pgPool.SQLDB, specs); err != nil {
 			fail(err.Error())
 		}
 	case "dump":
-		if err := dump(ctx, mysqlPool.DB, file); err != nil {
+		if err := dump(ctx, mysqlPool.DB, file, specs); err != nil {
 			fail(err.Error())
 		}
 	case "load":
-		if err := load(ctx, pgPool.SQLDB, file); err != nil {
+		if err := load(ctx, pgPool.SQLDB, file, specs); err != nil {
 			fail(err.Error())
 		}
 	case "verify":
-		if err := verify(ctx, mysqlPool.DB, pgPool.SQLDB); err != nil {
+		if err := verify(ctx, mysqlPool.DB, pgPool.SQLDB, specs); err != nil {
 			fail(err.Error())
 		}
 	case "rehearsal":
-		if err := rehearsal(ctx, mysqlPool.DB, cfg, file, schema, keep); err != nil {
+		if err := rehearsal(ctx, mysqlPool.DB, cfg, file, schema, keep, specs); err != nil {
 			fail(err.Error())
 		}
 	case "report":
-		if err := report(ctx, mysqlPool.DB, pgPool.SQLDB, out); err != nil {
+		if err := report(ctx, mysqlPool.DB, pgPool.SQLDB, out, specs); err != nil {
 			fail(err.Error())
 		}
 	default:
@@ -199,10 +223,10 @@ func main() {
 	}
 }
 
-func plan(ctx context.Context, mysqlDB, pgDB *sql.DB) error {
+func plan(ctx context.Context, mysqlDB, pgDB *sql.DB, specs []tableSpec) error {
 	fmt.Printf("%-46s %-46s %10s %10s\n", "source", "target", "v2_rows", "v3_rows")
 	var totalV2, totalV3 int64
-	for _, spec := range tableSpecs {
+	for _, spec := range specs {
 		v2, err := countRows(ctx, mysqlDB, "`"+spec.Source+"`")
 		if err != nil {
 			fmt.Printf("%-46s %-46s %10s %10s  (V2 不存在)\n", spec.Source, spec.Target, "-", "-")
@@ -217,8 +241,8 @@ func plan(ctx context.Context, mysqlDB, pgDB *sql.DB) error {
 	return nil
 }
 
-func dump(ctx context.Context, mysqlDB *sql.DB, file string) error {
-	tables, err := existingSourceTables(ctx, mysqlDB)
+func dump(ctx context.Context, mysqlDB *sql.DB, file string, specs []tableSpec) error {
+	tables, err := existingSourceTables(ctx, mysqlDB, specs)
 	if err != nil {
 		return fmt.Errorf("读取 V2 表清单失败: %w", err)
 	}
@@ -242,7 +266,7 @@ func dump(ctx context.Context, mysqlDB *sql.DB, file string) error {
 	return nil
 }
 
-func load(ctx context.Context, pgDB *sql.DB, file string) error {
+func load(ctx context.Context, pgDB *sql.DB, file string, specs []tableSpec) error {
 	data, err := os.ReadFile(file)
 	if err != nil {
 		return fmt.Errorf("读取 dump 失败: %w", err)
@@ -251,10 +275,10 @@ func load(ctx context.Context, pgDB *sql.DB, file string) error {
 	if err := json.Unmarshal(data, &dumpData); err != nil {
 		return fmt.Errorf("解析 dump 失败: %w", err)
 	}
-	return loadData(ctx, pgDB, dumpData)
+	return loadData(ctx, pgDB, dumpData, specs)
 }
 
-func loadData(ctx context.Context, pgDB *sql.DB, dumpData map[string][]map[string]any) error {
+func loadData(ctx context.Context, pgDB *sql.DB, dumpData map[string][]map[string]any, specs []tableSpec) error {
 	type pendingRow struct {
 		table string
 		row   map[string]any
@@ -270,7 +294,7 @@ func loadData(ctx context.Context, pgDB *sql.DB, dumpData map[string][]map[strin
 	skipped := 0
 	typeCache := make(map[string]colMeta)
 
-	for _, spec := range tableSpecs {
+	for _, spec := range specs {
 		for _, row := range dumpData[spec.Source] {
 			if dependent[spec.Target] {
 				dependentRows = append(dependentRows, pendingRow{table: spec.Target, row: row})
@@ -367,14 +391,14 @@ func loadData(ctx context.Context, pgDB *sql.DB, dumpData map[string][]map[strin
 			}
 		}
 	}
-	for _, spec := range tableSpecs {
+	for _, spec := range specs {
 		_ = resetSequence(ctx, pgDB, spec.Target)
 	}
 	fmt.Printf("导入完成：inserted=%d failed=%d skipped=%d pending=%d\n", inserted, failed, skipped, len(pending))
 	return nil
 }
 
-func report(ctx context.Context, mysqlDB, pgDB *sql.DB, out string) error {
+func report(ctx context.Context, mysqlDB, pgDB *sql.DB, out string, specs []tableSpec) error {
 	var b strings.Builder
 	b.WriteString("# V3 Bootstrap Report\n\n")
 	b.WriteString("Generated: " + time.Now().Format(time.RFC3339) + "\n\n")
@@ -382,7 +406,7 @@ func report(ctx context.Context, mysqlDB, pgDB *sql.DB, out string) error {
 	b.WriteString("|---|---|---:|---:|---|\n")
 	var totalV2, totalV3 int64
 	var diffs int
-	for _, spec := range tableSpecs {
+	for _, spec := range specs {
 		v2, err := sourceCount(ctx, mysqlDB, spec.Source)
 		if err != nil {
 			b.WriteString(fmt.Sprintf("| %s | %s | - | - | V2_MISSING |\n", spec.Source, spec.Target))
@@ -412,7 +436,7 @@ func report(ctx context.Context, mysqlDB, pgDB *sql.DB, out string) error {
 	return nil
 }
 
-func rehearsal(ctx context.Context, mysqlDB *sql.DB, cfg *config.Config, file, schema string, keep bool) error {
+func rehearsal(ctx context.Context, mysqlDB *sql.DB, cfg *config.Config, file, schema string, keep bool, specs []tableSpec) error {
 	if schema == "public" || !strings.HasPrefix(schema, "v3_rehearsal") || !isIdent(schema) {
 		return fmt.Errorf("rehearsal schema 必须是 v3_rehearsal* 的安全标识符")
 	}
@@ -450,10 +474,10 @@ func rehearsal(ctx context.Context, mysqlDB *sql.DB, cfg *config.Config, file, s
 	}
 	fmt.Printf("rehearsal schema=%s migrations=%d\n", schema, len(applied))
 
-	if err := loadData(ctx, pool.SQLDB, dumpData); err != nil {
+	if err := loadData(ctx, pool.SQLDB, dumpData, specs); err != nil {
 		return err
 	}
-	if err := verify(ctx, mysqlDB, pool.SQLDB); err != nil {
+	if err := verify(ctx, mysqlDB, pool.SQLDB, specs); err != nil {
 		return err
 	}
 	if keep {
@@ -480,14 +504,14 @@ func isIdent(s string) bool {
 	return true
 }
 
-func verify(ctx context.Context, mysqlDB, pgDB *sql.DB) error {
+func verify(ctx context.Context, mysqlDB, pgDB *sql.DB, specs []tableSpec) error {
 	var bad int
 	// 这些表在 V3 启动后会由种子/管理员新增行，允许 target >= source。
 	allowTargetExtra := map[string]bool{
 		"users": true, "roles": true, "permissions": true, "role_permissions": true,
 		"api_keys": true, "scheduler_tasks": true, "feature_flags": true,
 	}
-	for _, spec := range tableSpecs {
+	for _, spec := range specs {
 		v2, err := sourceCount(ctx, mysqlDB, spec.Source)
 		if err != nil {
 			continue
@@ -511,7 +535,7 @@ func verify(ctx context.Context, mysqlDB, pgDB *sql.DB) error {
 		fmt.Printf("校验失败：%d 张表不一致\n", bad)
 		return fmt.Errorf("verify failed")
 	}
-	if err := verifyPGSequences(ctx, pgDB); err != nil {
+	if err := verifyPGSequences(ctx, pgDB, specs); err != nil {
 		fmt.Printf("SEQUENCE %v\n", err)
 		bad++
 	}
@@ -535,9 +559,9 @@ func verify(ctx context.Context, mysqlDB, pgDB *sql.DB) error {
 }
 
 // verifyPGSequences 检查 identity/sequence 是否落后于表内最大 ID。
-func verifyPGSequences(ctx context.Context, db *sql.DB) error {
+func verifyPGSequences(ctx context.Context, db *sql.DB, specs []tableSpec) error {
 	var issues []string
-	for _, spec := range tableSpecs {
+	for _, spec := range specs {
 		var seq sql.NullString
 		if err := db.QueryRowContext(ctx, "SELECT pg_get_serial_sequence($1, 'id')", spec.Target).Scan(&seq); err != nil || !seq.Valid || seq.String == "" {
 			continue

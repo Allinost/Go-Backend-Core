@@ -8,6 +8,7 @@ import (
 )
 
 const tableExportJobs = "zzz_goodser_export_jobs"
+const tableExportTemplates = "zzz_goodser_export_templates"
 
 // CreateExportJob 写入导出任务。
 func (r *Repository) CreateExportJob(ctx context.Context, job *ExportJob) error {
@@ -120,4 +121,108 @@ func scanExportJob(row exportRowScanner) (*ExportJob, error) {
 		job.ExpiresAt = &expiresAt.Time
 	}
 	return &job, nil
+}
+
+// --- 导出模板 ---
+
+// CreateExportTemplate 新建模板。
+func (r *Repository) CreateExportTemplate(ctx context.Context, tpl *ExportTemplate) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO `+tableExportTemplates+`
+		 (id, inventory_id, name, config, is_default, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		tpl.ID, tpl.InventoryID, tpl.Name, string(tpl.Config), tpl.IsDefault, tpl.CreatedAt, tpl.UpdatedAt)
+	return err
+}
+
+// UpdateExportTemplate 更新模板。
+func (r *Repository) UpdateExportTemplate(ctx context.Context, tpl *ExportTemplate) error {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE `+tableExportTemplates+`
+		 SET inventory_id = ?, name = ?, config = ?, is_default = ?, updated_at = ?
+		 WHERE id = ?`,
+		tpl.InventoryID, tpl.Name, string(tpl.Config), tpl.IsDefault, tpl.UpdatedAt, tpl.ID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// GetExportTemplate 读取单个模板。
+func (r *Repository) GetExportTemplate(ctx context.Context, id string) (*ExportTemplate, error) {
+	row := r.db.QueryRowContext(ctx,
+		`SELECT id, inventory_id, name, config, is_default, created_at, updated_at
+		 FROM `+tableExportTemplates+` WHERE id = ?`, id)
+	return scanExportTemplate(row)
+}
+
+// ListExportTemplates 查询模板；inventoryID 为空时返回全部。
+func (r *Repository) ListExportTemplates(ctx context.Context, inventoryID string) ([]ExportTemplate, error) {
+	query := `SELECT id, inventory_id, name, config, is_default, created_at, updated_at
+	          FROM ` + tableExportTemplates
+	args := make([]any, 0, 1)
+	if inventoryID != "" {
+		query += ` WHERE inventory_id = ? OR inventory_id IS NULL`
+		args = append(args, inventoryID)
+	}
+	query += ` ORDER BY is_default DESC, updated_at DESC, id DESC`
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]ExportTemplate, 0)
+	for rows.Next() {
+		tpl, err := scanExportTemplate(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *tpl)
+	}
+	return items, rows.Err()
+}
+
+// DeleteExportTemplate 删除模板。
+func (r *Repository) DeleteExportTemplate(ctx context.Context, id string) error {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM `+tableExportTemplates+` WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// ClearDefaultExportTemplates 清除同一库存目录（或全局）下的默认标记。
+func (r *Repository) ClearDefaultExportTemplates(ctx context.Context, inventoryID string) error {
+	if inventoryID == "" {
+		_, err := r.db.ExecContext(ctx,
+			`UPDATE `+tableExportTemplates+` SET is_default = false, updated_at = now()
+			 WHERE is_default = true AND inventory_id IS NULL`)
+		return err
+	}
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE `+tableExportTemplates+` SET is_default = false, updated_at = now()
+		 WHERE is_default = true AND inventory_id = ?`, inventoryID)
+	return err
+}
+
+func scanExportTemplate(row exportRowScanner) (*ExportTemplate, error) {
+	var (
+		tpl    ExportTemplate
+		inv    sql.NullString
+		config []byte
+	)
+	if err := row.Scan(&tpl.ID, &inv, &tpl.Name, &config, &tpl.IsDefault, &tpl.CreatedAt, &tpl.UpdatedAt); err != nil {
+		return nil, err
+	}
+	if inv.Valid {
+		tpl.InventoryID = &inv.String
+	}
+	tpl.Config = json.RawMessage(config)
+	return &tpl, nil
 }

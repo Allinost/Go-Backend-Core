@@ -968,7 +968,7 @@ goodser:
 - 独立开关：`modules_goodser_enabled` / `APP_MODULES_GOODSER_ENABLED`，与 `legacy_modules_enabled` 解耦。
 - 方言门禁：`zzz/goodser` 已加入 `internal/pkg/dbutil/dialect_gate_test.go`。
 - PG 集成测试：`zzz/goodser/repository_integration_test.go`（库存 CRUD、序号计数器、jsonb 标签与 ILIKE、成本价、库存统计、按天统计、HAVING），已在 dev PG 实测通过。
-- 迁移工具：`cmd/v3migrate` 已加入 19 表 allowlist；`DATETIME` 按 `-source-tz`（默认 `Asia/Shanghai`）换算到 `timestamptz`；预签名图片 URL 去签名；identity 序列自动重置。
+- 迁移工具：`cmd/v3migrate` 已加入 19 表 allowlist；新增 `-scope goodser` 只迁移这 19 张表，不影响 users / projects 等其他模块；`DATETIME` 按 `-source-tz`（默认 `Asia/Shanghai`）换算到 `timestamptz`；预签名图片 URL 去签名；identity 序列自动重置。
 - 迁移校验：`verify` 增加 Goodser 业务检查（负库存、负流水、jsonb 数组结构、图片签名残留、序列落后）。
 - 迁移测试：合成 dump 的 `loadData` 集成测试已在 dev PG 通过（时区、图片 URL、jsonb、identity 序列、业务校验）。
 
@@ -997,6 +997,7 @@ Runbook：[goodser-v2-to-v3.md](../migrations/goodser-v2-to-v3.md)
 - 任务：写入 `zzz_goodser_export_jobs`；≤30 项同步返回，>30 项后台任务，状态 `pending/processing/succeeded/failed`。
 - 输出：PNG（支持透明）/ JPEG（透明自动压白底），上传 RustFS，返回 7 天有效公开 URL。
 - Web：商品列表多选 → 导出面板（背景/列数/格式/显示开关/价格口径/标题）、实时价格预览、生成下载与最近导出历史；支持在面板内搜索商品、添加组合包/捆（前端提交 `60bf889`）。
+- 导出模板：`zzz_goodser_export_templates` CRUD（列表/新建/更新/删除，同目录默认互斥）；Web 面板支持选择应用、保存、删除。
 
 API：
 
@@ -1029,7 +1030,6 @@ goodser:
 待完成：
 
 - Android 多选 + 保存/分享。
-- 导出模板 CRUD（表已建，接口未实现）。
 
 ---
 

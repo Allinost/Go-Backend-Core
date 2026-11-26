@@ -186,6 +186,25 @@ type ExportOptions struct {
 	Timeout        time.Duration
 }
 
+// ExportTemplate 导出模板：只保存样式配置，不含商品明细。
+type ExportTemplate struct {
+	ID          string          `json:"id"`
+	InventoryID *string         `json:"inventory_id,omitempty"`
+	Name        string          `json:"name"`
+	Config      json.RawMessage `json:"config"`
+	IsDefault   bool            `json:"is_default"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+}
+
+// ExportTemplateRequest 新建/更新导出模板。
+type ExportTemplateRequest struct {
+	InventoryID string          `json:"inventory_id"`
+	Name        string          `json:"name"`
+	Config      json.RawMessage `json:"config"`
+	IsDefault   bool            `json:"is_default"`
+}
+
 // normalize 约束导出参数，配置缺省时使用安全默认值。
 func (o ExportOptions) normalize() ExportOptions {
 	if o.MaxItems <= 0 || o.MaxItems > 500 {

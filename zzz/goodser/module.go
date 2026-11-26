@@ -247,6 +247,12 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/exports/:eid", read, m.h.GetExport)
 	r.DELETE("/exports/:eid", write, m.h.DeleteExport)
 
+	// 导出模板
+	r.GET("/export-templates", read, m.h.ListExportTemplates)
+	r.POST("/export-templates", write, m.h.CreateExportTemplate)
+	r.PUT("/export-templates/:tid", write, m.h.UpdateExportTemplate)
+	r.DELETE("/export-templates/:tid", write, m.h.DeleteExportTemplate)
+
 	// 受控维度、系列视图与组合包
 	inv.GET("/series", read, m.h.ListSeriesSummaryREST)
 	inv.GET("/stats", read, m.h.GetInventoryStatsREST)
