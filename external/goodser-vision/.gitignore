@@ -2,7 +2,10 @@ __pycache__/
 *.pyc
 .venv/
 .env
+env.real
 .pytest_cache/
 data/
+hf-cache/
+paddle-cache/
 models/*
 !models/.gitkeep

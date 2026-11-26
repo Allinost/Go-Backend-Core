@@ -1,0 +1,17 @@
+# 构建上下文排除项：模型与缓存通过 volume 挂载，不打进镜像
+.git
+.gitignore
+.dockerignore
+**/__pycache__
+*.pyc
+.venv
+.pytest_cache
+.ruff_cache
+.mypy_cache
+env.real
+.env
+data
+hf-cache
+paddle-cache
+models
+*.log

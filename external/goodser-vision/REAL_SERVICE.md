@@ -65,9 +65,21 @@ external/goodser-vision/
 ```bash
 cd external/goodser-vision
 cp env.real.example env.real
-# 按需修改模型路径、并发、显存比例
+# 按需修改模型路径、并发、显存比例、VLM 主备 Key
 docker compose --env-file env.real -f docker-compose.real.yml up -d --build
 ```
+
+> `docker-compose.real.yml` 的 `environment` 全部使用 `${变量:-默认值}` 形式，
+> 因此 `env.real` 里的值（尤其 VLM 的 `*_API_KEY`）会真正注入容器；不传 `--env-file` 时使用默认值。
+> `env.real` 已被 `.gitignore` 排除，不要提交。
+>
+> `GOODSER_VISION_OCR_DEVICE=gpu` 时若 Paddle GPU 轮子与 CUDA 12.8/Blackwell 不兼容，
+> 运行时会自动回退 CPU；要彻底避免 GPU 依赖，可用下面的 CPU 构建：
+>
+> ```bash
+> PADDLE_REQUIREMENTS=requirements-real-cpu.txt \
+> docker compose --env-file env.real -f docker-compose.real.yml up -d --build
+> ```
 
 GPU / PyTorch 兼容性检查：
 
@@ -290,6 +302,7 @@ GOODSER_VISION_OCR_LANG=ch
 - 编码类文本容易混淆：`O/0`、`I/1`、`S/5`、`B/8`、`Z/2`，需要后端做格式校验和字符纠正。
 - 小字/反光/遮挡会降低准确率；建议对裁剪图适当放大，并使用 PP-OCRv4/v5 server 模型。
 - 若中英文都需要最高准确率，可后续加载 `ch` + `en` 双模型合并；当前单 `ch` 模型对首期足够，且更省显存。
+- 代码同时兼容 PaddleOCR 2.x（`use_gpu`/`show_log` + `[[box,(text,score)]]`）与 3.x（`device` + `rec_texts`/`rec_polys`），安装哪个版本都能跑。
 
 > PaddlePaddle 的 GPU 支持与 PyTorch 的 CUDA 支持是两套体系；PyTorch 2.7.1+cu128 可用不代表 Paddle GPU 可用。
 > 因此默认 GPU，但保留自动回退和手动开关。

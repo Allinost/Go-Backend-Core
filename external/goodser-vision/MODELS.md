@@ -113,7 +113,7 @@ CPU OCR 会慢一些，但省显存；适合和 TTS/embedding 紧共享。
 | Python | 3.11（镜像内置） |
 | Ultralytics | `>=8.3.40` |
 | Transformers | `>=4.46.3` |
-| PaddleOCR | `>=2.9.1` |
+| PaddleOCR | `>=2.9.1`（代码兼容 2.x / 3.x） |
 | PaddlePaddle | GPU：`paddlepaddle-gpu`；CPU 回退：`2.6.2` |
 | pgvector | 0.8+（如启用） |
 
