@@ -21,8 +21,8 @@ import (
 	"github.com/Allinost/go-backend-core/internal/middleware"
 	"github.com/Allinost/go-backend-core/internal/modules"
 	"github.com/Allinost/go-backend-core/internal/modules/auth"
-	"github.com/Allinost/go-backend-core/internal/modules/health"
 	"github.com/Allinost/go-backend-core/internal/modules/goodsercatalog"
+	"github.com/Allinost/go-backend-core/internal/modules/health"
 	"github.com/Allinost/go-backend-core/internal/modules/integration"
 	"github.com/Allinost/go-backend-core/internal/modules/migrate"
 	"github.com/Allinost/go-backend-core/internal/modules/servicenav"
@@ -128,9 +128,13 @@ func main() {
 	modules.Register(&settings.Module{})
 	modules.Register(&goodsercatalog.Module{})
 
+	// V3 PG 版 Goodser 独立开关；与 V2 MySQL 模块解耦。
+	if cfg.GoodserEnabled {
+		modules.Register(&goodser.Module{})
+	}
+
 	// V2 MySQL 业务模块默认不注册；V3 新机器 PG-only。
 	if cfg.LegacyModulesEnabled {
-		modules.Register(&goodser.Module{})
 		modules.Register(&shopchecker.Module{})
 		modules.Register(&login3rd.Module{})
 		modules.Register(&ia.Module{})

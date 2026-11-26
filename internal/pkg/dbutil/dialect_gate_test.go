@@ -32,6 +32,7 @@ func TestV3DialectGate(t *testing.T) {
 		"internal/services/configcenter",
 		"internal/services/migrate",
 		"zzz/developmentManager",
+		"zzz/goodser",
 	}
 
 	allowed := map[string]bool{

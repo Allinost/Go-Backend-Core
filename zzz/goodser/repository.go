@@ -30,11 +30,19 @@ const (
 )
 
 type Repository struct {
-	db *sql.DB
+	db *rebindDB
 }
 
 func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{db: &rebindDB{DB: db}}
+}
+
+// imageURLValue 把可空图片地址转成 PG 列要求的非空字符串（image_url NOT NULL DEFAULT ”）。
+func imageURLValue(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
 }
 
 // --- Inventories ---
@@ -169,7 +177,7 @@ func (r *Repository) SearchProductsPaginated(ctx context.Context, req *QueryProd
 	args = append(args, req.InventoryID)
 
 	if req.Keyword != "" {
-		conditions = append(conditions, "(name LIKE ? OR code LIKE ? OR remark LIKE ?)")
+		conditions = append(conditions, "(name ILIKE ? OR code ILIKE ? OR remark ILIKE ?)")
 		kw := "%" + req.Keyword + "%"
 		args = append(args, kw, kw, kw)
 	}
@@ -182,7 +190,7 @@ func (r *Repository) SearchProductsPaginated(ctx context.Context, req *QueryProd
 		args = append(args, req.StatusCode)
 	}
 	if req.TagID != "" {
-		conditions = append(conditions, "JSON_CONTAINS(tags, ?)")
+		conditions = append(conditions, "tags @> ?::jsonb")
 		tagJSON, _ := json.Marshal(req.TagID)
 		args = append(args, string(tagJSON))
 	}
@@ -329,7 +337,7 @@ func scanProductRow(scanner interface {
 
 // --- Seq Counters & Recycled ---
 
-func (r *Repository) PeekRecycledSeq(ctx context.Context, tx *sql.Tx, inventoryID, mainZone, subZone string) (int, error) {
+func (r *Repository) PeekRecycledSeq(ctx context.Context, tx *rebindTx, inventoryID, mainZone, subZone string) (int, error) {
 	var seq int
 	err := tx.QueryRowContext(ctx,
 		`SELECT seq_number FROM `+tableRecycledSeq+
@@ -340,18 +348,19 @@ func (r *Repository) PeekRecycledSeq(ctx context.Context, tx *sql.Tx, inventoryI
 }
 
 // ConsumeRecycledSeq 仅在序号真正被使用后调用，避免入库校验失败导致序号泄漏
-func (r *Repository) ConsumeRecycledSeq(ctx context.Context, tx *sql.Tx, inventoryID, mainZone, subZone string, seq int) error {
+func (r *Repository) ConsumeRecycledSeq(ctx context.Context, tx *rebindTx, inventoryID, mainZone, subZone string, seq int) error {
 	_, err := tx.ExecContext(ctx,
 		`DELETE FROM `+tableRecycledSeq+` WHERE inventory_id = ? AND main_zone = ? AND sub_zone = ? AND seq_number = ?`,
 		inventoryID, mainZone, subZone, seq)
 	return err
 }
 
-func (r *Repository) IncrementSeqCounter(ctx context.Context, tx *sql.Tx, inventoryID, mainZone, subZone string) (int, error) {
+func (r *Repository) IncrementSeqCounter(ctx context.Context, tx *rebindTx, inventoryID, mainZone, subZone string) (int, error) {
 	_, err := tx.ExecContext(ctx,
 		`INSERT INTO `+tableSeqCounters+` (id, inventory_id, main_zone, sub_zone, current_max)
 		 VALUES (?, ?, ?, ?, 1)
-		 ON DUPLICATE KEY UPDATE current_max = current_max + 1`,
+		 ON CONFLICT (inventory_id, main_zone, sub_zone)
+		 DO UPDATE SET current_max = `+tableSeqCounters+`.current_max + 1`,
 		uuid.New().String(), inventoryID, mainZone, subZone)
 	if err != nil {
 		return 0, err
@@ -365,11 +374,12 @@ func (r *Repository) IncrementSeqCounter(ctx context.Context, tx *sql.Tx, invent
 }
 
 // EnsureSeqCounter 确保计数器不低于指定序号，用于 inboundSingle/inboundBatch 创建新商品后同步计数器
-func (r *Repository) EnsureSeqCounter(ctx context.Context, tx *sql.Tx, inventoryID, mainZone, subZone string, seqNumber int) error {
+func (r *Repository) EnsureSeqCounter(ctx context.Context, tx *rebindTx, inventoryID, mainZone, subZone string, seqNumber int) error {
 	_, err := tx.ExecContext(ctx,
 		`INSERT INTO `+tableSeqCounters+` (id, inventory_id, main_zone, sub_zone, current_max)
 		 VALUES (?, ?, ?, ?, ?)
-		 ON DUPLICATE KEY UPDATE current_max = GREATEST(current_max, VALUES(current_max))`,
+		 ON CONFLICT (inventory_id, main_zone, sub_zone)
+		 DO UPDATE SET current_max = GREATEST(`+tableSeqCounters+`.current_max, EXCLUDED.current_max)`,
 		uuid.New().String(), inventoryID, mainZone, subZone, seqNumber)
 	return err
 }
@@ -395,7 +405,7 @@ func (r *Repository) ListOutboundOrdersPaginated(ctx context.Context, inventoryI
 	args := []any{inventoryID}
 	if keyword != "" {
 		like := "%" + keyword + "%"
-		where += ` AND (order_no LIKE ? OR order_info LIKE ? OR remark LIKE ?)`
+		where += ` AND (order_no ILIKE ? OR order_info ILIKE ? OR remark ILIKE ?)`
 		args = append(args, like, like, like)
 	}
 	var total int
@@ -571,7 +581,7 @@ func (r *Repository) DeleteInboundLog(ctx context.Context, id string) error {
 
 // UpdateProductTx 更新商品基础信息。
 // 库存数量变更由调用方写入 stock_movements，避免手工改数无法追溯。
-func (r *Repository) UpdateProductTx(ctx context.Context, tx *sql.Tx, req *UpdateProductReq) (*Product, error) {
+func (r *Repository) UpdateProductTx(ctx context.Context, tx *rebindTx, req *UpdateProductReq) (*Product, error) {
 	product, err := r.GetProductForUpdateTx(ctx, tx, req.ID)
 	if err != nil {
 		return nil, err
@@ -594,7 +604,7 @@ func (r *Repository) UpdateProductTx(ctx context.Context, tx *sql.Tx, req *Updat
 		product.Quantity, product.ReservedQuantity, product.StatusCode, product.Name,
 		product.SeriesID, product.SetTypeID, product.ProductTypeID,
 		product.OriginalPrice, product.MarketPrice, product.ExpectedPrice, product.CostPrice,
-		product.Remark, product.StorageLocation, product.ImageURL, product.Images, product.Tags,
+		product.Remark, product.StorageLocation, imageURLValue(product.ImageURL), product.Images, product.Tags,
 		product.UpdatedAt, product.ID)
 	if err != nil {
 		return nil, err
@@ -670,7 +680,7 @@ func (r *Repository) DeleteProduct(ctx context.Context, id string) error {
 	return err
 }
 
-func (r *Repository) DeleteProductTx(ctx context.Context, tx *sql.Tx, id string) error {
+func (r *Repository) DeleteProductTx(ctx context.Context, tx *rebindTx, id string) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM `+tableProductCharacters+` WHERE product_id = ?`, id); err != nil {
 		return err
 	}
@@ -842,13 +852,13 @@ func (r *Repository) ListStatusCodes(ctx context.Context) ([]StatusCode, error) 
 
 // --- Transaction ---
 
-func (r *Repository) BeginTx(ctx context.Context) (*sql.Tx, error) {
-	return r.db.BeginTx(ctx, nil)
+func (r *Repository) BeginTx(ctx context.Context) (*rebindTx, error) {
+	return r.db.beginTx(ctx)
 }
 
 // --- Transaction helpers ---
 
-func (r *Repository) CreateProductTx(ctx context.Context, tx *sql.Tx, req *CreateProductReq) (*Product, error) {
+func (r *Repository) CreateProductTx(ctx context.Context, tx *rebindTx, req *CreateProductReq) (*Product, error) {
 	now := time.Now()
 	qty := 0
 	if req.Quantity != nil {
@@ -877,6 +887,7 @@ func (r *Repository) CreateProductTx(ctx context.Context, tx *sql.Tx, req *Creat
 		OriginalPrice:    req.OriginalPrice,
 		MarketPrice:      req.MarketPrice,
 		ExpectedPrice:    req.ExpectedPrice,
+		CostPrice:        req.CostPrice,
 		Remark:           req.Remark,
 		StorageLocation:  req.StorageLocation,
 		ImageURL:         req.ImageURL,
@@ -903,7 +914,7 @@ func (r *Repository) CreateProductTx(ctx context.Context, tx *sql.Tx, req *Creat
 		p.Quantity, p.ReservedQuantity, p.StatusCode, p.Name,
 		p.SeriesID, p.SetTypeID, p.ProductTypeID,
 		p.OriginalPrice, p.MarketPrice, p.ExpectedPrice, p.CostPrice,
-		p.Remark, p.StorageLocation, p.ImageURL, p.Images, p.Tags,
+		p.Remark, p.StorageLocation, imageURLValue(p.ImageURL), p.Images, p.Tags,
 		p.CreatedAt, p.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -912,14 +923,14 @@ func (r *Repository) CreateProductTx(ctx context.Context, tx *sql.Tx, req *Creat
 	return p, nil
 }
 
-func (r *Repository) AddProductQuantityTx(ctx context.Context, tx *sql.Tx, productID string, quantity int) error {
+func (r *Repository) AddProductQuantityTx(ctx context.Context, tx *rebindTx, productID string, quantity int) error {
 	_, err := tx.ExecContext(ctx,
 		`UPDATE `+tableProducts+` SET quantity = quantity + ?, updated_at = ? WHERE id = ?`,
 		quantity, time.Now(), productID)
 	return err
 }
 
-func (r *Repository) UpdateProductReservedTx(ctx context.Context, tx *sql.Tx, productID string, deltaQty, deltaReserved int) error {
+func (r *Repository) UpdateProductReservedTx(ctx context.Context, tx *rebindTx, productID string, deltaQty, deltaReserved int) error {
 	res, err := tx.ExecContext(ctx,
 		`UPDATE `+tableProducts+`
 		 SET quantity = quantity + ?, reserved_quantity = reserved_quantity + ?, updated_at = ?
@@ -940,7 +951,7 @@ func (r *Repository) UpdateProductReservedTx(ctx context.Context, tx *sql.Tx, pr
 
 // ApplyStockDeltaTx 原子调整可用库存与锁定库存，并返回调整后的商品。
 // 条件更新保证任何一方都不会变成负数，并发下不会超卖。
-func (r *Repository) ApplyStockDeltaTx(ctx context.Context, tx *sql.Tx, productID string, deltaQty, deltaReserved int) (*Product, error) {
+func (r *Repository) ApplyStockDeltaTx(ctx context.Context, tx *rebindTx, productID string, deltaQty, deltaReserved int) (*Product, error) {
 	res, err := tx.ExecContext(ctx,
 		`UPDATE `+tableProducts+`
 		 SET quantity = quantity + ?, reserved_quantity = reserved_quantity + ?, updated_at = ?
@@ -960,7 +971,7 @@ func (r *Repository) ApplyStockDeltaTx(ctx context.Context, tx *sql.Tx, productI
 }
 
 // AddStockMovementTx 写入库存流水
-func (r *Repository) AddStockMovementTx(ctx context.Context, tx *sql.Tx, m *StockMovement) error {
+func (r *Repository) AddStockMovementTx(ctx context.Context, tx *rebindTx, m *StockMovement) error {
 	if m.CreatedAt.IsZero() {
 		m.CreatedAt = time.Now()
 	}
@@ -975,7 +986,7 @@ func (r *Repository) AddStockMovementTx(ctx context.Context, tx *sql.Tx, m *Stoc
 	return err
 }
 
-func (r *Repository) GetProductForUpdateTx(ctx context.Context, tx *sql.Tx, productID string) (*Product, error) {
+func (r *Repository) GetProductForUpdateTx(ctx context.Context, tx *rebindTx, productID string) (*Product, error) {
 	row := tx.QueryRowContext(ctx,
 		`SELECT id, inventory_id, code, main_zone, sub_zone, seq_number,
 		        quantity, reserved_quantity, status_code, name, series_id, set_type_id, product_type_id,
@@ -986,7 +997,7 @@ func (r *Repository) GetProductForUpdateTx(ctx context.Context, tx *sql.Tx, prod
 	return scanProduct(row)
 }
 
-func (r *Repository) CreateOutboundOrderTx(ctx context.Context, tx *sql.Tx, req *CreateOutboundReq) (*OutboundOrder, error) {
+func (r *Repository) CreateOutboundOrderTx(ctx context.Context, tx *rebindTx, req *CreateOutboundReq) (*OutboundOrder, error) {
 	now := time.Now()
 	itemsJSON, _ := json.Marshal(req.Items)
 	orderType := "outbound"
@@ -1042,7 +1053,7 @@ func (r *Repository) GetOutboundOrder(ctx context.Context, orderID string) (*Out
 	return scanOrderRow(row)
 }
 
-func (r *Repository) GetOutboundOrderForUpdateTx(ctx context.Context, tx *sql.Tx, orderID string) (*OutboundOrder, error) {
+func (r *Repository) GetOutboundOrderForUpdateTx(ctx context.Context, tx *rebindTx, orderID string) (*OutboundOrder, error) {
 	row := tx.QueryRowContext(ctx,
 		`SELECT id, inventory_id, order_no, type, status, order_info, remark, items,
 		        source_reserve_id, created_at, updated_at, confirmed_at, cancelled_at,
@@ -1053,7 +1064,7 @@ func (r *Repository) GetOutboundOrderForUpdateTx(ctx context.Context, tx *sql.Tx
 }
 
 // FindChildOutboundTx 查询由某张预留单转出的出库单，用于转单幂等
-func (r *Repository) FindChildOutboundTx(ctx context.Context, tx *sql.Tx, reserveID string) (*OutboundOrder, error) {
+func (r *Repository) FindChildOutboundTx(ctx context.Context, tx *rebindTx, reserveID string) (*OutboundOrder, error) {
 	row := tx.QueryRowContext(ctx,
 		`SELECT id, inventory_id, order_no, type, status, order_info, remark, items,
 		        source_reserve_id, created_at, updated_at, confirmed_at, cancelled_at,
@@ -1082,7 +1093,7 @@ func scanOrderRow(row *sql.Row) (*OutboundOrder, error) {
 	return &item, nil
 }
 
-func (r *Repository) UpdateOutboundOrderStatusTx(ctx context.Context, tx *sql.Tx, orderID, status string, confirmedAt, cancelledAt, convertedAt, returnedAt *time.Time) error {
+func (r *Repository) UpdateOutboundOrderStatusTx(ctx context.Context, tx *rebindTx, orderID, status string, confirmedAt, cancelledAt, convertedAt, returnedAt *time.Time) error {
 	_, err := tx.ExecContext(ctx,
 		`UPDATE `+tableOutboundOrders+`
 		 SET status = ?, confirmed_at = ?, cancelled_at = ?, converted_at = ?, returned_at = ?, updated_at = ?
@@ -1091,7 +1102,7 @@ func (r *Repository) UpdateOutboundOrderStatusTx(ctx context.Context, tx *sql.Tx
 	return err
 }
 
-func (r *Repository) CreateInboundLogItemTx(ctx context.Context, tx *sql.Tx, inventoryID, logType string, items json.RawMessage) (*InboundLog, error) {
+func (r *Repository) CreateInboundLogItemTx(ctx context.Context, tx *rebindTx, inventoryID, logType string, items json.RawMessage) (*InboundLog, error) {
 	now := time.Now()
 	item := &InboundLog{
 		ID:          uuid.New().String(),
@@ -1110,7 +1121,7 @@ func (r *Repository) CreateInboundLogItemTx(ctx context.Context, tx *sql.Tx, inv
 	return item, nil
 }
 
-func (r *Repository) AddRecycledSeqTx(ctx context.Context, tx *sql.Tx, inventoryID, mainZone, subZone string, seqNumber int) error {
+func (r *Repository) AddRecycledSeqTx(ctx context.Context, tx *rebindTx, inventoryID, mainZone, subZone string, seqNumber int) error {
 	_, err := tx.ExecContext(ctx,
 		`INSERT INTO `+tableRecycledSeq+` (id, inventory_id, main_zone, sub_zone, seq_number, recycled_at)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
@@ -1120,7 +1131,7 @@ func (r *Repository) AddRecycledSeqTx(ctx context.Context, tx *sql.Tx, inventory
 
 // --- Returns ---
 
-func (r *Repository) CreateReturnTx(ctx context.Context, tx *sql.Tx, ret *ReturnOrder) error {
+func (r *Repository) CreateReturnTx(ctx context.Context, tx *rebindTx, ret *ReturnOrder) error {
 	now := time.Now()
 	if ret.CreatedAt.IsZero() {
 		ret.CreatedAt = now
@@ -1144,7 +1155,7 @@ func (r *Repository) GetReturn(ctx context.Context, id string) (*ReturnOrder, er
 	return scanReturnRow(row)
 }
 
-func (r *Repository) GetReturnForUpdateTx(ctx context.Context, tx *sql.Tx, id string) (*ReturnOrder, error) {
+func (r *Repository) GetReturnForUpdateTx(ctx context.Context, tx *rebindTx, id string) (*ReturnOrder, error) {
 	row := tx.QueryRowContext(ctx,
 		`SELECT id, inventory_id, outbound_order_id, order_no, status, reason, remark, items,
 		        created_at, updated_at, confirmed_at, cancelled_at
@@ -1178,7 +1189,7 @@ func (r *Repository) ListReturns(ctx context.Context, inventoryID, outboundOrder
 	return items, rows.Err()
 }
 
-func (r *Repository) UpdateReturnStatusTx(ctx context.Context, tx *sql.Tx, id, status string, confirmedAt, cancelledAt *time.Time) error {
+func (r *Repository) UpdateReturnStatusTx(ctx context.Context, tx *rebindTx, id, status string, confirmedAt, cancelledAt *time.Time) error {
 	_, err := tx.ExecContext(ctx,
 		`UPDATE `+tableReturns+`
 		 SET status = ?, confirmed_at = ?, cancelled_at = ?, updated_at = ?
@@ -1189,7 +1200,7 @@ func (r *Repository) UpdateReturnStatusTx(ctx context.Context, tx *sql.Tx, id, s
 
 // SumReturnedQtyTx 统计某出库单在指定状态退货单中的已退数量，按商品聚合。
 // 创建退货时把 pending 也计入，防止并发提交超过可退数量。
-func (r *Repository) SumReturnedQtyTx(ctx context.Context, tx *sql.Tx, outboundOrderID string, statuses []string) (map[string]int, error) {
+func (r *Repository) SumReturnedQtyTx(ctx context.Context, tx *rebindTx, outboundOrderID string, statuses []string) (map[string]int, error) {
 	result := make(map[string]int)
 	if len(statuses) == 0 {
 		return result, nil

@@ -38,14 +38,10 @@ func (m *Module) Name() string {
 func (m *Module) Init(cfg *config.Config) error {
 	m.cfg = cfg
 
-	// 获取 Goodser 专用 MySQL 连接，优先使用 goodser 实例，回退到 main
-	pool := database.DB.MySQL["goodser"]
+	// V3 PG-only：Goodser 统一使用 PostgreSQL main 库
+	pool := database.Main()
 	if pool == nil {
-		pool = database.DB.MySQL["main"]
-		if pool == nil {
-			return fmt.Errorf("goodser: MySQL 连接不可用")
-		}
-		logger.Warn().Msg("goodser: 使用 main 数据库实例替代 zzz_goodser")
+		return fmt.Errorf("goodser: PostgreSQL main 连接不可用")
 	}
 
 	// 初始化图片存储（优先使用 RustFS）— must be before NewService
@@ -56,7 +52,7 @@ func (m *Module) Init(cfg *config.Config) error {
 		logger.Warn().Msg("goodser: RustFS 不可用，图片上传将不可用")
 	}
 
-	m.repo = NewRepository(pool.DB)
+	m.repo = NewRepository(pool)
 	m.svc = NewService(m.repo, m.store)
 	m.wireIntegration()
 

@@ -61,7 +61,7 @@ func (r *Repository) GetBundle(ctx context.Context, id string) (*Bundle, error) 
 	return &item, nil
 }
 
-func (r *Repository) getBundleForUpdateTx(ctx context.Context, tx *sql.Tx, id string) (*Bundle, error) {
+func (r *Repository) getBundleForUpdateTx(ctx context.Context, tx *rebindTx, id string) (*Bundle, error) {
 	row := tx.QueryRowContext(ctx, `SELECT id, inventory_id, code, name, description, status, main_filter, pool_id,
 		min_main_quantity, min_main_amount, min_sub_quantity, max_sub_quantity, min_sub_amount,
 		price_mode, fixed_price, created_at, updated_at
@@ -129,7 +129,7 @@ func (r *Repository) LoadBundleSubProducts(ctx context.Context, bundleID, keywor
 		WHERE sp.bundle_id = ?`
 	args := []any{bundleID}
 	if kw := strings.TrimSpace(keyword); kw != "" {
-		query += " AND (p.name LIKE ? OR p.code LIKE ?)"
+		query += " AND (p.name ILIKE ? OR p.code ILIKE ?)"
 		like := "%" + kw + "%"
 		args = append(args, like, like)
 	}
@@ -189,7 +189,7 @@ func (r *Repository) ListBundleMainCandidates(ctx context.Context, inventoryID s
 		kw = strings.TrimSpace(keyword)
 	}
 	if kw != "" {
-		query += " AND (p.name LIKE ? OR p.code LIKE ?)"
+		query += " AND (p.name ILIKE ? OR p.code ILIKE ?)"
 		like := "%" + kw + "%"
 		args = append(args, like, like)
 	}
@@ -284,7 +284,7 @@ func scanBundleMainProducts(rows *sql.Rows) ([]BundleMainProduct, error) {
 
 // CreateBundle 创建捆模板及主/副商品配置
 func (r *Repository) CreateBundle(ctx context.Context, req *CreateBundleReq) (*Bundle, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.beginTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +347,7 @@ func (r *Repository) CreateBundle(ctx context.Context, req *CreateBundleReq) (*B
 
 // UpdateBundle 更新捆模板及主/副商品配置
 func (r *Repository) UpdateBundle(ctx context.Context, req *UpdateBundleReq) (*Bundle, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.beginTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +428,7 @@ func (r *Repository) UpdateBundle(ctx context.Context, req *UpdateBundleReq) (*B
 
 // DeleteBundle 删除捆模板及其配置
 func (r *Repository) DeleteBundle(ctx context.Context, id string) error {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.beginTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -481,7 +481,7 @@ func (r *Repository) CountBundlesByProduct(ctx context.Context, productID string
 	return r.CountProductBundleRefs(ctx, productID)
 }
 
-func replaceBundleMainProductsTx(ctx context.Context, tx *sql.Tx, bundleID string, productIDs []string) error {
+func replaceBundleMainProductsTx(ctx context.Context, tx *rebindTx, bundleID string, productIDs []string) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM `+tableBundleMainProducts+` WHERE bundle_id = ?`, bundleID); err != nil {
 		return err
 	}
@@ -503,7 +503,7 @@ func replaceBundleMainProductsTx(ctx context.Context, tx *sql.Tx, bundleID strin
 	return nil
 }
 
-func replaceBundleSubProductsTx(ctx context.Context, tx *sql.Tx, bundleID string, items []BundleSubItemReq) error {
+func replaceBundleSubProductsTx(ctx context.Context, tx *rebindTx, bundleID string, items []BundleSubItemReq) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM `+tableBundleSubProducts+` WHERE bundle_id = ?`, bundleID); err != nil {
 		return err
 	}

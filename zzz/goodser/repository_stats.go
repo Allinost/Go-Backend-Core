@@ -57,12 +57,12 @@ func (r *Repository) StatsOrderCounts(ctx context.Context, inventoryID string, s
 // StatsTrend 按天汇总出库确认量与退货回库量。
 func (r *Repository) StatsTrend(ctx context.Context, inventoryID string, since time.Time) ([]StatsTrendPoint, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT DATE(created_at) AS day,
+		`SELECT (created_at AT TIME ZONE 'Asia/Shanghai')::date AS day,
 		        COALESCE(SUM(CASE WHEN reason = ? THEN -reserved_delta ELSE 0 END), 0),
 		        COALESCE(SUM(CASE WHEN reason = ? THEN quantity_delta ELSE 0 END), 0)
 		 FROM `+tableStockMovements+`
 		 WHERE inventory_id = ? AND created_at >= ?
-		 GROUP BY DATE(created_at)
+		 GROUP BY (created_at AT TIME ZONE 'Asia/Shanghai')::date
 		 ORDER BY day`, StockReasonOutboundConfirm, StockReasonReturnRestock, inventoryID, since)
 	if err != nil {
 		return nil, err
@@ -136,9 +136,10 @@ func (r *Repository) StatsProfit(ctx context.Context, inventoryID string, since 
 		 LEFT JOIN `+tableProducts+` p ON p.id = m.product_id
 		 WHERE m.inventory_id = ? AND m.created_at >= ? AND m.reason IN (?, ?)
 		 GROUP BY m.product_id, p.name, p.code, p.expected_price, p.market_price, p.cost_price, p.original_price
-		 HAVING outbound_qty > 0`,
+		 HAVING COALESCE(SUM(CASE WHEN m.reason = ? THEN -m.reserved_delta ELSE 0 END), 0) > 0`,
 		StockReasonOutboundConfirm, StockReasonReturnRestock,
-		inventoryID, since, StockReasonOutboundConfirm, StockReasonReturnRestock)
+		inventoryID, since, StockReasonOutboundConfirm, StockReasonReturnRestock,
+		StockReasonOutboundConfirm)
 	if err != nil {
 		return nil, err
 	}

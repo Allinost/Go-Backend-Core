@@ -950,6 +950,31 @@ goodser:
 
 > 当前 Go 图鉴服务调用 `/v1/segment`；真实服务启动后即可做单图多柄图切割。
 
+### 7.7 Goodser PG 化进度（2026-11-26）
+
+已完成（`feature-V3`）：
+
+- 连接层：`zzz/goodser/module.go` 从 MySQL 切到 PostgreSQL `main`（`database.Main()`），运行时不依赖 MySQL。
+- 占位符：新增 `zzz/goodser/db.go`，`rebindDB` / `rebindTx` 统一把 `?` 改写为 `$n`，`*sql.DB` 与事务内查询都生效。
+- 方言替换：
+  - `JSON_CONTAINS(tags, ?)` → `tags @> ?::jsonb`
+  - `ON DUPLICATE KEY UPDATE` → `ON CONFLICT (inventory_id, main_zone, sub_zone) DO UPDATE`
+  - 关键字 `LIKE` → `ILIKE`
+  - 统计按天 → `(created_at AT TIME ZONE 'Asia/Shanghai')::date`，避免 UTC 跨日
+  - `HAVING` 不再引用 SELECT 别名（PG 不支持）
+- 缺陷修复：
+  - `CreateProductTx` 漏写 `cost_price`，成本价会丢失；
+  - `image_url` 为 PG `NOT NULL`，写入时对 `nil` 兜底为空串。
+- 独立开关：`modules_goodser_enabled` / `APP_MODULES_GOODSER_ENABLED`，与 `legacy_modules_enabled` 解耦。
+- 方言门禁：`zzz/goodser` 已加入 `internal/pkg/dbutil/dialect_gate_test.go`。
+- PG 集成测试：`zzz/goodser/repository_integration_test.go`（库存 CRUD、序号计数器、jsonb 标签与 ILIKE、成本价、库存统计、按天统计、HAVING），已在 dev PG 实测通过。
+
+未完成：
+
+- `cmd/v3migrate` 的 19 表 allowlist、类型转换、行数/金额校验与序列重置。
+- Web 10 个 Tab 联调冒烟与正式路由切换窗口。
+- 识别/导出 Go API（表已建，接口未实现）。
+
 ---
 
 ## 8. 里程碑与任务拆分

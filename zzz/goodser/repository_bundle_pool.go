@@ -113,7 +113,7 @@ func (r *Repository) loadBundlePoolItems(ctx context.Context, poolID string) ([]
 
 // CreateBundlePool 创建捆物池及成员
 func (r *Repository) CreateBundlePool(ctx context.Context, req *CreateBundlePoolReq) (*BundlePool, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.beginTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func (r *Repository) CreateBundlePool(ctx context.Context, req *CreateBundlePool
 
 // UpdateBundlePool 更新捆物池及成员
 func (r *Repository) UpdateBundlePool(ctx context.Context, req *UpdateBundlePoolReq) (*BundlePool, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.beginTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +204,7 @@ func (r *Repository) UpdateBundlePool(ctx context.Context, req *UpdateBundlePool
 
 // DeleteBundlePool 删除捆物池
 func (r *Repository) DeleteBundlePool(ctx context.Context, id string) error {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.beginTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (r *Repository) DeleteBundlePool(ctx context.Context, id string) error {
 	return tx.Commit()
 }
 
-func getBundlePoolForUpdateTx(ctx context.Context, tx *sql.Tx, id string) (*BundlePool, error) {
+func getBundlePoolForUpdateTx(ctx context.Context, tx *rebindTx, id string) (*BundlePool, error) {
 	row := tx.QueryRowContext(ctx, `SELECT id, inventory_id, code, name, description, status, min_item_count, min_amount,
 		created_at, updated_at FROM `+tableBundlePools+` WHERE id = ? FOR UPDATE`, id)
 	item, err := scanBundlePool(row)
@@ -247,7 +247,7 @@ func getBundlePoolForUpdateTx(ctx context.Context, tx *sql.Tx, id string) (*Bund
 	return &item, nil
 }
 
-func replaceBundlePoolItemsTx(ctx context.Context, tx *sql.Tx, poolID string, items []BundlePoolItemReq) error {
+func replaceBundlePoolItemsTx(ctx context.Context, tx *rebindTx, poolID string, items []BundlePoolItemReq) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM `+tableBundlePoolItems+` WHERE pool_id = ?`, poolID); err != nil {
 		return err
 	}

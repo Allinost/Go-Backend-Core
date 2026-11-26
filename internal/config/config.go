@@ -38,9 +38,12 @@ type Config struct {
 	Net         NetConfig         `mapstructure:"net"`
 	Integration IntegrationConfig `mapstructure:"integration"`
 	Ops         OpsConfig         `mapstructure:"ops"`
-	// LegacyModulesEnabled 控制 goodser/shopchecker/login3rd/ia 等 V2 MySQL 模块是否注册。
+	// LegacyModulesEnabled 控制 shopchecker/login3rd/ia 等 V2 MySQL 模块是否注册。
 	// V3 新机器默认 false，仅 PG-only 模块运行；需要兼容 V2 时显式开启。
 	LegacyModulesEnabled bool `mapstructure:"legacy_modules_enabled"`
+	// GoodserEnabled 控制 V3 PG 版 Goodser 业务模块是否注册（独立于 LegacyModulesEnabled）。
+	// 对应环境变量 APP_MODULES_GOODSER_ENABLED。
+	GoodserEnabled bool `mapstructure:"modules_goodser_enabled"`
 }
 
 type OpsConfig struct {

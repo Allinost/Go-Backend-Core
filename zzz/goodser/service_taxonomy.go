@@ -145,7 +145,7 @@ func (s *Service) validateProductDimensions(ctx context.Context, seriesID, setTy
 	return nil
 }
 
-func (s *Service) syncProductCharactersTx(ctx context.Context, tx *sql.Tx, productID string, characterIDs *[]string) error {
+func (s *Service) syncProductCharactersTx(ctx context.Context, tx *rebindTx, productID string, characterIDs *[]string) error {
 	if characterIDs == nil {
 		return nil
 	}

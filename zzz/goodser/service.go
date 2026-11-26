@@ -1527,7 +1527,7 @@ func (s *Service) CancelReturn(ctx context.Context, req *CancelReturnReq) (*Retu
 }
 
 // refreshOrderReturnStatus 根据已确认退货数量刷新出库单退货状态
-func (s *Service) refreshOrderReturnStatus(ctx context.Context, tx *sql.Tx, order *OutboundOrder, now time.Time) error {
+func (s *Service) refreshOrderReturnStatus(ctx context.Context, tx *rebindTx, order *OutboundOrder, now time.Time) error {
 	var orderItems []OrderItem
 	if err := json.Unmarshal(order.Items, &orderItems); err != nil {
 		return err
@@ -1595,7 +1595,7 @@ func generateOrderNo(t OrderType) string {
 
 // prepareOrderItems 校验并聚合单据明细，同时锁定商品行。
 // 商品名/编码/图片以数据库为准，避免客户端伪造。
-func (s *Service) prepareOrderItems(ctx context.Context, tx *sql.Tx, inventoryID string, items []OrderItem) ([]OrderItem, error) {
+func (s *Service) prepareOrderItems(ctx context.Context, tx *rebindTx, inventoryID string, items []OrderItem) ([]OrderItem, error) {
 	if len(items) == 0 {
 		return nil, NewGoodserError(ErrOrderItemsRequired)
 	}
@@ -1641,7 +1641,7 @@ func (s *Service) prepareOrderItems(ctx context.Context, tx *sql.Tx, inventoryID
 
 // resolveInboundSeq 解析入库序号：显式序号 > 回收序号 > 递增计数器。
 // 回收序号只窥视不删除，真正使用后再由调用方 Consume，避免校验失败导致序号泄漏。
-func (s *Service) resolveInboundSeq(ctx context.Context, tx *sql.Tx, inventoryID, mainZone, subZone string, requested int) (int, bool, error) {
+func (s *Service) resolveInboundSeq(ctx context.Context, tx *rebindTx, inventoryID, mainZone, subZone string, requested int) (int, bool, error) {
 	if requested > 0 {
 		return requested, false, nil
 	}

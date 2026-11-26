@@ -309,7 +309,7 @@ func (r *Repository) ListProductCharacterIDs(ctx context.Context, productIDs []s
 	return result, rows.Err()
 }
 
-func (r *Repository) ReplaceProductCharactersTx(ctx context.Context, tx *sql.Tx, productID string, characterIDs []string) error {
+func (r *Repository) ReplaceProductCharactersTx(ctx context.Context, tx *rebindTx, productID string, characterIDs []string) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM `+tableProductCharacters+` WHERE product_id = ?`, productID); err != nil {
 		return err
 	}
@@ -454,7 +454,7 @@ func (r *Repository) loadComboItems(ctx context.Context, comboID string) ([]Comb
 }
 
 func (r *Repository) CreateCombo(ctx context.Context, req *CreateComboReq) (*Combo, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.beginTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -494,7 +494,7 @@ func (r *Repository) CreateCombo(ctx context.Context, req *CreateComboReq) (*Com
 }
 
 func (r *Repository) UpdateCombo(ctx context.Context, req *UpdateComboReq) (*Combo, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.beginTx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -542,7 +542,7 @@ func (r *Repository) UpdateCombo(ctx context.Context, req *UpdateComboReq) (*Com
 }
 
 func (r *Repository) DeleteCombo(ctx context.Context, id string) error {
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.db.beginTx(ctx)
 	if err != nil {
 		return err
 	}
@@ -565,7 +565,7 @@ func (r *Repository) DeleteCombo(ctx context.Context, id string) error {
 	return tx.Commit()
 }
 
-func (r *Repository) getComboForUpdateTx(ctx context.Context, tx *sql.Tx, id string) (*Combo, error) {
+func (r *Repository) getComboForUpdateTx(ctx context.Context, tx *rebindTx, id string) (*Combo, error) {
 	row := tx.QueryRowContext(ctx, `SELECT id, inventory_id, code, name, description, image_url, price, status,
 		created_at, updated_at FROM `+tableCombos+` WHERE id = ? FOR UPDATE`, id)
 	var combo Combo
@@ -579,7 +579,7 @@ func (r *Repository) getComboForUpdateTx(ctx context.Context, tx *sql.Tx, id str
 	return &combo, nil
 }
 
-func replaceComboItemsTx(ctx context.Context, tx *sql.Tx, comboID string, items []ComboItemReq) error {
+func replaceComboItemsTx(ctx context.Context, tx *rebindTx, comboID string, items []ComboItemReq) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM `+tableComboItems+` WHERE combo_id = ?`, comboID); err != nil {
 		return err
 	}

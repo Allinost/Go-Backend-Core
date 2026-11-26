@@ -542,7 +542,7 @@ func (s *Service) PreviewBundle(ctx context.Context, bundleID string, req *Bundl
 }
 
 // prepareBundleOrder 在出库事务中展开捆明细
-func (s *Service) prepareBundleOrder(ctx context.Context, tx *sql.Tx, inventoryID string, selection *BundleOrderSelection) ([]OrderItem, *BundleOrderSnapshot, error) {
+func (s *Service) prepareBundleOrder(ctx context.Context, tx *rebindTx, inventoryID string, selection *BundleOrderSelection) ([]OrderItem, *BundleOrderSnapshot, error) {
 	if selection == nil {
 		return nil, nil, NewGoodserError(ErrBundleNotFound)
 	}
