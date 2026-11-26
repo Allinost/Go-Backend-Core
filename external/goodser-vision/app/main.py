@@ -35,6 +35,38 @@ _started_at = time.time()
 _metrics: Counter[str] = Counter()
 
 
+@app.on_event("startup")
+async def _configure_gpu() -> None:
+    if settings.device != "cuda":
+        return
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.set_per_process_memory_fraction(max(0.1, min(0.95, settings.gpu_memory_fraction)))
+            torch.cuda.empty_cache()
+    except Exception:
+        # 没有 torch/CUDA 时保持 fallback，不阻塞服务启动
+        pass
+
+
+def _ensure_gpu_headroom() -> None:
+    if settings.device != "cuda":
+        return
+    try:
+        import torch
+
+        if not torch.cuda.is_available():
+            return
+        free, _total = torch.cuda.mem_get_info()
+        if free < settings.gpu_headroom_mb * 1024 * 1024:
+            raise HTTPException(status_code=503, detail="GPU 显存余量不足，请稍后重试")
+    except HTTPException:
+        raise
+    except Exception:
+        return
+
+
 def _now_ms() -> int:
     return int((time.time() - _started_at) * 1000)
 
@@ -94,6 +126,7 @@ async def models() -> ModelsResponse:
 
 @app.post("/v1/embed", response_model=EmbedResponse)
 async def embed(image: UploadFile = File(...)) -> EmbedResponse:
+    _ensure_gpu_headroom()
     async with _semaphore:
         img = await _load_image(image)
         vector = await asyncio.to_thread(_embedder.embed, img)
@@ -103,6 +136,7 @@ async def embed(image: UploadFile = File(...)) -> EmbedResponse:
 
 @app.post("/v1/embed/batch", response_model=list[EmbedResponse])
 async def embed_batch(images: list[UploadFile] = File(...)) -> list[EmbedResponse]:
+    _ensure_gpu_headroom()
     if len(images) > 50:
         raise HTTPException(status_code=400, detail="单次最多 50 张")
     out: list[EmbedResponse] = []
@@ -121,6 +155,7 @@ async def analyze(
     mode: str = Form("multi"),
     top_k: int = Form(5),
 ) -> AnalyzeResponse:
+    _ensure_gpu_headroom()
     started = time.perf_counter()
     async with _semaphore:
         img = await _load_image(image)
@@ -156,6 +191,7 @@ async def analyze(
 
 @app.post("/v1/segment", response_model=SegmentResponse)
 async def segment(image: UploadFile = File(...)) -> SegmentResponse:
+    _ensure_gpu_headroom()
     started = time.perf_counter()
     async with _semaphore:
         img = await _load_image(image)

@@ -22,6 +22,7 @@ import (
 	"github.com/Allinost/go-backend-core/internal/modules"
 	"github.com/Allinost/go-backend-core/internal/modules/auth"
 	"github.com/Allinost/go-backend-core/internal/modules/health"
+	"github.com/Allinost/go-backend-core/internal/modules/goodsercatalog"
 	"github.com/Allinost/go-backend-core/internal/modules/integration"
 	"github.com/Allinost/go-backend-core/internal/modules/migrate"
 	"github.com/Allinost/go-backend-core/internal/modules/servicenav"
@@ -125,6 +126,7 @@ func main() {
 	modules.Register(&servicenav.Module{})
 	modules.Register(&developmentmanager.Module{})
 	modules.Register(&settings.Module{})
+	modules.Register(&goodsercatalog.Module{})
 
 	// V2 MySQL 业务模块默认不注册；V3 新机器 PG-only。
 	if cfg.LegacyModulesEnabled {

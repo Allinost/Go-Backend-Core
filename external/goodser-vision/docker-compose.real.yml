@@ -1,0 +1,41 @@
+services:
+  goodser-vision:
+    build:
+      context: .
+      dockerfile: Dockerfile.real
+    image: goodser-vision:0.1.0-gpu
+    container_name: goodser-vision
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DEVICE: cuda
+      GOODSER_VISION_EMBEDDER: clip
+      GOODSER_VISION_DETECTOR: yolo
+      GOODSER_VISION_EMBED_DIM: "512"
+      GOODSER_VISION_MAX_CONCURRENCY: "1"
+      GOODSER_VISION_MAX_IMAGE_SIDE: "1920"
+      GOODSER_VISION_MODEL_DIR: /app/models
+      GOODSER_VISION_GPU_MEMORY_FRACTION: "0.5"
+      GOODSER_VISION_GPU_HEADROOM_MB: "1024"
+      HF_HOME: /app/hf-cache
+      PADDLEOCR_HOME: /app/paddle-cache
+      PYTORCH_CUDA_ALLOC_CONF: max_split_size_mb:128
+    volumes:
+      - ./models:/app/models
+      - ./hf-cache:/app/hf-cache
+      - ./paddle-cache:/app/paddle-cache
+    shm_size: "2gb"
+    networks:
+      - goodser-internal
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+networks:
+  goodser-internal:
+    name: goodser-internal

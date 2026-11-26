@@ -1,6 +1,6 @@
 # Goodser V3 迁移与增强规划
 
-> 版本：v0.6（导航与图鉴需求已落地/登记）
+> 版本：v0.7（图鉴 API/Web、视觉手册、导航草稿式编辑）
 > 日期：2026-11-26
 > 分支建议：`v3/goodser-plan` → `feature-V3`
 > 关联文档：
@@ -932,7 +932,23 @@ goodser:
 
 - PG 009 已建 `catalogs/catalog_images/catalog_items`、识别/导出表、向量元数据表（迁移已应用）。
 - `external/goodser-vision` 已提供 `/v1/segment`（当前 fallback 整图单框，YOLO 接入后多框）。
-- Go 图鉴 API / Web Tab / Android 图鉴入口待下一批实现（任务 `V3.3-GDS-51..56`）。
+- Go 图鉴 API 已实现：`goodser-catalog` 模块（PG）提供图鉴 CRUD、原图上传、`image_url` 添加、切割、柄图 CRUD。
+- Web「谷子图鉴」Tab 已实现：列表、新建、详情、上传原图、URL 添加、自动切割、柄图编辑/删除。
+- 真实视觉服务部署手册：[external/goodser-vision/REAL_SERVICE.md](../../external/goodser-vision/REAL_SERVICE.md)（含 `docker-compose.real.yml`、GPU/显存/模型配置）。
+- Android 图鉴入口与识别联调待后续任务（GDS-54/56）。
+
+### 7.6 真实视觉服务接入（手册）
+
+已提供 `external/goodser-vision/REAL_SERVICE.md`：
+
+- `docker-compose.real.yml`：CUDA + Chinese-CLIP + YOLO + PaddleOCR；
+- `Dockerfile.real` / `requirements-real.txt`；
+- `.env.real.example`：设备、模型目录、并发、显存比例、缓存目录；
+- 显存策略：`GOODSER_VISION_GPU_MEMORY_FRACTION=0.5`、`GPU_HEADROOM_MB=1024`、并发 1；
+- Go 后端通过 `GOODSER_VISION_URL` 接入；
+- 回滚：切回 `docker-compose.yml` fallback/CPU。
+
+> 当前 Go 图鉴服务调用 `/v1/segment`；真实服务启动后即可做单图多柄图切割。
 
 ---
 
@@ -1151,7 +1167,10 @@ http://localhost:3000/modules/zzz/developmentmanager/9?tab=plan
 > - 导航层级增删/图标/视觉优化（前端 `35a08de`，NKUI `33b3d56`）。
 > - PG `008_goodser.sql`、`009_goodser_catalog.sql` 已编写并成功应用（9/9）。
 > - `external/goodser-vision` 脚手架（FastAPI、embed/analyze/segment、Dockerfile、compose）。
-> - Android CameraX 扫码页、识别 API/Repository、权限与入口（`feature-go-backend` 工作区）。
+> - Android CameraX 扫码页、识别 API/Repository、权限与入口（`feature/goodser-scan` 工作区）。
+> - 图鉴 Go API（`goodser-catalog`）与 Web「谷子图鉴」Tab。
+> - 真实视觉服务手册 `external/goodser-vision/REAL_SERVICE.md` + `docker-compose.real.yml`。
+> - 编辑导航改为草稿式确认/取消；层级默认折叠；支持保存为默认。
 
 ---
 
@@ -1165,3 +1184,4 @@ http://localhost:3000/modules/zzz/developmentmanager/9?tab=plan
 | 2026-11-26 | v0.4：确认 Android 先行、停机 2–4h、透明描边、捆选择按需；登记 V3.3 里程碑（ID 7）、32 任务、37 依赖；修复需求编号 PG 方言 | Tom / AI |
 | 2026-11-26 | v0.5：需求 RQM-0014/15/16 入库并关联任务；修复需求版本 Rebind、execTx 递归、项目列表 COALESCE；前端代理切 29095 | Tom / AI |
 | 2026-11-26 | v0.6：新增导航层级管理（RQM-0017）与谷子图鉴（RQM-0018）；PG 008/009 应用；视觉容器脚手架；Android 扫码页；任务增至 43 | Tom / AI |
+| 2026-11-26 | v0.7：图鉴 Go API + Web Tab；真实视觉服务 docker-compose 手册；编辑导航草稿式保存/取消、默认折叠、保存为默认 | Tom / AI |

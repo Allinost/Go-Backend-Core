@@ -10,6 +10,8 @@ Goodser V3.3 的独立视觉容器项目，负责：
 
 > 代码位于 `Go-Backend-Core/external/goodser-vision`，但独立构建镜像、独立部署。
 > Go 后端只通过 HTTP 调用，不共享 Python 依赖。
+>
+> 真实模型（CLIP/YOLO/OCR）部署见 [REAL_SERVICE.md](./REAL_SERVICE.md)。
 
 ## 快速启动
 

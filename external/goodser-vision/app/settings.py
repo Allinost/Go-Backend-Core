@@ -19,6 +19,8 @@ class Settings:
     max_image_side: int = int(_env("GOODSER_VISION_MAX_IMAGE_SIDE", "1920"))
     max_concurrency: int = int(_env("GOODSER_VISION_MAX_CONCURRENCY", "2"))
     model_dir: str = _env("GOODSER_VISION_MODEL_DIR", "models")
+    gpu_memory_fraction: float = float(_env("GOODSER_VISION_GPU_MEMORY_FRACTION", "0.5"))
+    gpu_headroom_mb: int = int(_env("GOODSER_VISION_GPU_HEADROOM_MB", "1024"))
 
 
 settings = Settings()
