@@ -1,6 +1,6 @@
 # Goodser V3 迁移与增强规划
 
-> 版本：v0.1（规划稿）
+> 版本：v0.2（决策已确认）
 > 日期：2026-11-26
 > 分支建议：`v3/goodser-plan` → `feature-V3`
 > 关联文档：
@@ -24,10 +24,21 @@
 2. **PG-only**：19 张 `zzz_goodser_*` 表迁到 PostgreSQL，运行时不再依赖 MySQL。
 3. **独立开关**：新增 `modules.goodser.enabled`（或 `APP_MODULES_GOODSER_ENABLED`），不再借用 `LegacyModulesEnabled`。
 4. **数据迁移**：V2 MySQL 快照 → `cmd/v3migrate` allowlist → PG，行数/主键/JSON/金额/图片 URL 全量校验。
-5. **识别 MVP 先做单商品相似检索**：Android 拍照 → Top-K 相似商品 → 人工确认；多商品检测/计数作为第二阶段。
+5. **识别首期直接做多商品检测 + 计数**：Android 拍照 → 检测框 → 逐框相似匹配 → 同款聚类计数 → 人工复核；单图相似检索作为其中一种模式保留。
 6. **平铺图导出走服务端渲染**：Web/Android 只提交商品与数量，Go 端合成 PNG/JPEG，保证两端一致。
 
-### 0.2 关键判断
+### 0.2 已确认决策（2026-11-26）
+
+| 事项 | 决策 |
+|---|---|
+| 启动方式 | **立即并行做完整迁移**，不等 V3.0 稳定；生产切路由仍需独立窗口与回滚点 |
+| 数据归属 | **单 owner，首期共享**；schema 预留 `owner_user_id`，后续再按用户隔离 |
+| 识别范围 | **多商品检测 + 计数 + 手工确认**；不是只做单商品相似检索 |
+| 模型服务 | **独立容器项目 `goodser-vision`**，独立仓库/镜像/API 版本，不塞进 Go 主进程 |
+| GPU | **RTX 5060 Ti 16GB**，需与 embedding / TTS 等服务共享显存；视觉服务预算建议 ≤ 8GB |
+| 平铺导出 | 服务端 Go 渲染，Web/Android 共用同一套输出 |
+
+### 0.3 关键判断
 
 | 事项 | 结论 |
 |---|---|
@@ -37,17 +48,18 @@
 | Web 前端 | 已有 V3 Goodser 页面，切换 API 层即可，不重做 |
 | Android | 升级现有 Compose App，保留 legacy 调用兼容 |
 | 小程序 | 保留 legacy/REST 兼容，不强制首期改版 |
-| 识别服务 | 独立 Docker `goodser-vision`，本地部署，默认 CPU |
+| 识别服务 | 独立 Docker `goodser-vision`，本地部署，GPU 共享 + CPU 降级 |
 | 平铺导出 | 服务端 Go 渲染，异步任务，结果进 RustFS |
-| 迁移工期 | 核心迁移约 13 人日；识别 + 导出约 13 人日；建议 5–7 周并行完成 |
+| 迁移工期 | 核心迁移约 18 人日；识别 + 导出约 22 人日；建议 5–6 周并行完成 |
 
-### 0.3 与 V3.0 的关系
+### 0.4 与 V3.0 的关系
 
-V3.0 规划明确「业务模块暂不迁移，V3.3 再做 Goodser」。因此：
+V3.0 规划原本写的是「业务模块暂不迁移，V3.3 再做 Goodser」；本次已确认 **立即并行启动完整迁移**，因此：
 
-- **可以现在启动**：需求冻结、数据映射、迁移脚本、视觉服务 POC、Android 相机原型，这些不阻塞 V3.0。
-- **生产切路由建议在 V3.0 稳定后**（12.15 之后），避免与公网/反代/认证上线叠加风险。
-- 如业务上必须提前使用 Goodser，可临时打开 V2 MySQL 模块，但需明确这是过渡态，不作为 V3 最终形态。
+- Goodser 迁移作为独立工作流推进，不等 12.15。
+- 与 V3.0 共用的部分（PG 主库、auth/RBAC、RustFS、CI、迁移工具）直接复用，不重复建设。
+- 生产切路由仍单独安排窗口，避开公网/反代/认证上线当天；切换前必须有快照、校验报告和 30 分钟回滚方案。
+- 若与 V3.0 发布冲突，优先保证 V3.0 核心上线，Goodser 切换顺延，但开发和迁移演练不停。
 
 ---
 
@@ -101,7 +113,7 @@ V3.0 规划明确「业务模块暂不迁移，V3.3 再做 Goodser」。因此�
 1. Goodser 在 V3 新机器上 **PG-only** 运行，不连接 MySQL。
 2. 现有 Web / Android / 小程序功能不回归；legacy 契约保持。
 3. 完成 V2 数据迁移与回滚演练。
-4. Android 增加拍照/相册扫描，识别「是否与库中商品相似」。
+4. Android 增加拍照/相册扫描，支持一张图多个商品检测、相似匹配与计数。
 5. Web + Android 增加平铺图拼接导出（商品图 + 数量）。
 6. 所有新能力遵守 V3 SOP：迁移可回滚、PG 集成测试、权限/审计、文档与台账同步。
 
@@ -287,18 +299,19 @@ CREATE EXTENSION IF NOT EXISTS vector;
 - 拿起手机拍一件谷子，立即判断「库里是否已有同款/相似款」。
 - 有相似款：显示 Top-K 候选、库存、编码，可直接查看/入库。
 - 没有相似款：一键新建商品，自动带入照片。
-- 第二阶段：一张图多个谷子，自动框选、计数、批量入库。
+- 一张图多个谷子：自动框选、同款聚类、计数、批量复核入库。
 
 ### 5.2 分阶段范围
 
 | 阶段 | 能力 | 说明 |
 |---|---|---|
-| R1（MVP） | 单图单商品相似检索 | 拍照/相册 → Top-K → 人工确认 |
-| R2 | 多商品检测 + 计数 | 检测框、裁剪、同款聚类、数量 |
-| R3 | OCR 强匹配 + VLM 复核 | 编码/名称识别，低置信度复核 |
-| R4 | 盘点/出库场景 | 识别结果与库存对比 |
+| R1（MVP，本次） | **多商品检测 + 相似匹配 + 计数** | 拍照/相册 → 检测框 → 每框 Top-K → 同款聚类 → 人工确认 |
+| R2 | OCR 强匹配 + VLM 复核 | 编码/名称识别；低置信度用 VLM 复核（共享显存，可选） |
+| R3 | 盘点/出库场景 | 识别结果与当前库存对比，生成差异草稿 |
+| R4 | 批量/视频抽帧 | 后续按需 |
 
-> 首期只做 R1，避免检测模型标注与调参拖慢上线。
+> 首期直接做 R1。单商品相似检索保留为 `mode=similarity` 的轻量模式，Android 可切换。
+> 一张图多个商品的核心链路：检测 → 裁剪 → 向量召回 → 同款聚类 → 数量汇总 → 人工复核 → 入库草稿。
 
 ### 5.3 数据模型
 
@@ -364,38 +377,102 @@ CREATE TABLE zzz_goodser_recognition_feedback (
 
 > `pgvector` 不可用时：向量改存 `bytea`，由 `goodser-vision` 维护 FAISS 索引；接口不变，内部切换。
 
-### 5.4 视觉服务 `goodser-vision`
+### 5.4 视觉服务 `goodser-vision`（独立容器项目）
 
-**技术栈**：Python 3.11 + FastAPI + ONNX Runtime；CPU 默认，GPU 可选。
+**定位**：独立仓库/独立镜像/独立发布节奏，Go 后端只通过 HTTP 调用；不与主进程共享 Python 依赖，也不把模型文件打进 Go 镜像。
 
-**首期模型**：
+**建议仓库结构**：
 
-| 能力 | 模型 | 备注 |
-|---|---|---|
-| 图像向量 | Chinese-CLIP ViT-B/16 | 512 维，中文谷子/包装友好 |
-| 备用向量 | SigLIP / DINOv2 | 对比评估 |
-| OCR（R3） | PaddleOCR 中文 | 编码/名称 |
-| 检测（R2） | YOLO11n/s 或 Grounding DINO + SAM2 | 需少量标注/零样本 |
-| VLM 复核（R3） | Qwen2.5-VL-7B 4bit | 16GB GPU，可选 |
+```text
+goodser-vision/
+├── app/
+│   ├── main.py              # FastAPI 入口
+│   ├── api/                 # analyze / embed / detect / ocr / health
+│   ├── services/
+│   │   ├── detector.py      # YOLO / Grounding DINO
+│   │   ├── embedder.py      # Chinese-CLIP
+│   │   ├── ocr.py           # PaddleOCR（R2）
+│   │   ├── matcher.py       # 同款聚类/计数
+│   │   └── vlm.py           # 可选复核，按需加载
+│   ├── schemas.py
+│   └── settings.py
+├── models/                  # 模型下载脚本 + 版本清单
+├── tests/
+├── Dockerfile
+├── docker-compose.yml
+├── Makefile
+└── README.md
+```
 
-**API**：
+**技术栈**：Python 3.11 + FastAPI + ONNX Runtime（优先）/ PyTorch + CUDA；CPU 可降级。
+
+**首期模型与显存预算（RTX 5060 Ti 16GB 共享）**：
+
+| 能力 | 首期模型 | FP16/INT8 显存 | 说明 |
+|---|---|---:|---|
+| 目标检测 | YOLO11s（或 YOLO11m） | 1.0–1.8GB | 谷子平铺/叠放检测；需 100–300 张标注 |
+| 备用检测 | Grounding DINO + SAM2 | 3–5GB | 零样本，显存占用高，按需切换 |
+| 图像向量 | Chinese-CLIP ViT-B/16 | 0.6–1.0GB | 512 维，中文包装/角色友好 |
+| OCR（R2） | PaddleOCR 中文 | 1.0–1.5GB | 编码/名称强匹配 |
+| VLM 复核（R2，可选） | Qwen2.5-VL-3B 4bit | 3–4GB | 7B 4bit 约 6GB，按显存决定 |
+| CUDA/运行时开销 | — | 1.5–2GB | 预留 |
+
+**显存策略（关键）**：
+
+- 视觉服务预算 **≤ 8GB**，给 embedding/TTS 等留出另一半显存。
+- 默认只加载 **YOLO + CLIP + OCR**（约 5–6GB）。
+- VLM **懒加载**：首次复核请求才加载，空闲 5–10 分钟卸载；并发限制 1。
+- 单请求并发 1–2，超出排队；拒绝时返回 429，不 OOM。
+- 使用 FP16/INT8、TensorRT engine 缓存；启动时记录模型版本与显存占用。
+- 通过 `torch.cuda.set_per_process_memory_fraction(0.5)` / `PYTORCH_CUDA_ALLOC_CONF` 限制进程显存。
+- 暴露 `/metrics`：GPU 显存、队列长度、推理耗时、失败率。
+
+**API（v1）**：
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/healthz` | 健康检查 |
-| POST | `/v1/embed` | multipart 图片 → `{model, dim, vector}` |
-| POST | `/v1/embed/batch` | URL/文件批量 → 向量 |
-| POST | `/v1/detect` | 多商品检测（R2） |
-| POST | `/v1/ocr` | OCR（R3） |
-| GET | `/v1/models` | 模型与版本信息 |
+| GET | `/healthz` | 存活/模型加载状态 |
+| GET | `/metrics` | Prometheus 指标 |
+| GET | `/v1/models` | 模型名称/版本/维度/设备 |
+| POST | `/v1/analyze` | **主接口**：multipart 图片 → 检测框 + 每框 Top-K + 聚类数量 + 耗时 |
+| POST | `/v1/embed` | 单图向量 |
+| POST | `/v1/embed/batch` | 批量向量（建索引/回填） |
+| POST | `/v1/detect` | 仅检测（调试/标注） |
+| POST | `/v1/ocr` | OCR（R2） |
+| POST | `/v1/verify` | VLM 复核 Top-K（R2，可选） |
+
+`/v1/analyze` 响应示例：
+
+```json
+{
+  "model": {"detector":"yolo11s-v1","embedder":"chinese-clip-vit-b16-v1","dim":512},
+  "elapsed_ms": 820,
+  "items": [
+    {"box":[120,80,260,240],"crop_url":"...","candidates":[{"product_id":"p1","score":0.93}]}
+  ],
+  "groups": [
+    {"product_id":"p1","quantity":3,"score":0.92,"item_indexes":[0,2,5]}
+  ]
+}
+```
 
 **部署**：
 
-- `deploy/goodser-vision/Dockerfile`：多阶段，模型文件挂载卷。
-- `docker-compose.goodser.yml`：仅内网网络；`DEVICE=cpu|cuda`；healthcheck。
-- 资源建议：CPU 8C/8G 可跑单图；多商品/检测建议 8–16G GPU。
-- 模型缓存目录持久化，避免每次启动下载。
-- 不暴露公网；仅 V3 后端可访问。
+- 独立 compose 项目：`deploy/goodser-vision/docker-compose.yml`，仅内网网络。
+- GPU 预留：`deploy.resources.reservations.devices` + `NVIDIA_VISIBLE_DEVICES`；CPU profile 可无 GPU 启动。
+- 模型缓存卷持久化；镜像只带代码，模型启动时校验/下载。
+- 健康检查 + 自动重启；日志 JSON；指标接 Prometheus。
+- 不暴露公网；只允许 V3 后端访问；CORS 关闭。
+- 版本：镜像 tag + `/v1/models` + 数据库 `model` 字段三方一致；升级先灰度一台。
+
+**推理链路**：
+
+1. `/v1/analyze` 接收图片 → 预处理（EXIF 纠正、最长边 1920）。
+2. YOLO 检测 → NMS 去重 → 裁剪每个框。
+3. 每个裁剪图计算 CLIP 向量。
+4. Go 端用 pgvector 查 Top-K；服务端也可返回向量由 Go 查询（推荐 Go 查，权限/库存目录过滤在 Go）。
+5. 同一 `product_id` 的多个框聚合计数；低置信度保留候选。
+6. 返回框、候选、分组数量；Android 展示并允许人工修正。
 
 ### 5.5 Go 侧集成
 
@@ -409,10 +486,16 @@ CREATE TABLE zzz_goodser_recognition_feedback (
    - `POST /zzz-goodser/vision/index/rebuild`（管理员）
    - 或命令 `goodser embeddings rebuild --inventory <id>`。
 4. 扫描接口：
-   - `POST /zzz-goodser/inventories/:id/recognitions`（multipart 或 `image_url`）
+   - `POST /zzz-goodser/inventories/:id/recognitions`（multipart 或 `image_url`，`mode=multi|similarity`）
    - `GET /zzz-goodser/recognitions/:rid`
-   - `POST /zzz-goodser/recognitions/:rid/apply`（人工复核后落单）
-5. 相似查询 SQL：
+   - `POST /zzz-goodser/recognitions/:rid/apply`（人工复核后生成入库草稿/入库单）
+   - `POST /zzz-goodser/recognitions/:rid/items/:iid/confirm`（逐项确认，可选）
+5. 多商品链路：
+   - Go 调 `/v1/analyze` 拿检测框与每框向量/候选。
+   - 对每个框查 pgvector Top-K，按 `product_id` 聚合 `quantity`。
+   - 低于阈值的框标记 `unmatched`，Android 可新建商品或手动搜索。
+   - `apply` 只接受已确认项；库存变更走现有入库事务与幂等。
+6. 相似查询 SQL（每个框一次，可批量）：
    ```sql
    SELECT p.*, 1 - (e.embedding <=> $1) AS score
    FROM zzz_goodser_product_embeddings e
@@ -444,25 +527,36 @@ CREATE TABLE zzz_goodser_recognition_feedback (
    - `CAMERA`
    - Android 13+ 相册用 Photo Picker，不再申请存储权限
 3. 页面：
-   - `ScanScreen`：取景框、闪光灯、相册入口、拍照。
-   - `ScanResultScreen`：原图 + Top-3 卡片（商品图、名称、编码、库存、相似度）。
-   - 操作：查看商品 / 快速入库 / 新建商品（预填图片）/ 重新拍摄。
+   - `ScanScreen`：取景框、闪光灯、相册入口、拍照；提示「尽量平铺、避免遮挡」。
+   - `ScanResultScreen`：
+     - 原图 + 编号检测框 overlay（可点选/隐藏）。
+     - 按商品分组的清单：缩略图、名称/编码、当前库存、识别数量、相似度。
+     - 每组可展开 Top-3 候选，支持改选商品、改数量、删除误识别、手动补商品。
+     - 未匹配框突出显示，提供「新建商品（预填裁剪图）」。
+   - 底部操作：全选/取消、生成入库草稿、重新拍摄。
 4. 上传：
-   - 客户端压缩到最长边 1280、JPEG 85%，减少延迟。
-   - 上传到 V3 `recognitions` 接口；轮询或同步返回。
-5. 离线/失败：
+   - 检测需要更高分辨率：客户端压缩到最长边 **1600–1920**、JPEG 90%。
+   - 上传到 V3 `recognitions` 接口；异步任务轮询（1s 间隔，最长 60s）。
+5. 复核与落单：
+   - 默认不自动改库存；用户确认后生成入库草稿或直接批量入库（二选一，默认草稿）。
+   - 同一商品多框自动合并数量，可手动拆分。
+6. 离线/失败：
    - 失败提示重试；可选本地队列（后续）。
-6. 兼容：
+7. 兼容：
    - 保留现有 legacy API；新功能只加新接口。
    - 服务器地址仍由 `ServerConfigScreen` 配置。
 
 ### 5.8 验收标准（R1）
 
-- 50 张真实照片测试集，Top-3 命中率 ≥ 80%。
-- 单张识别 p95：CPU ≤ 3s，GPU ≤ 1s（不含网络）。
-- 返回 Top-K、相似度、商品信息；人工可改选。
-- 低置信度不自动落库。
-- 服务不可用时有明确提示，不影响原有入库流程。
+- 100 张真实照片测试集（平铺/叠放/弱光/遮挡各若干）：
+  - 商品检测召回率 ≥ 90%（允许人工补漏）。
+  - 匹配 Top-3 命中率 ≥ 80%。
+  - ≤ 10 件场景，数量误差 ≤ 1。
+- 单张 p95：GPU（共享 16GB）≤ 5s；CPU 降级 ≤ 10s（不含网络）。
+- 返回检测框、分组数量、Top-K 候选、相似度；人工可改选/改数量/补商品。
+- 低置信度不自动落库；确认后生成入库草稿。
+- 视觉服务异常时明确提示，不影响原有入库流程。
+- 连续压测 30 分钟显存不增长、不 OOM；与 embedding/TTS 共存时视觉服务占用 ≤ 8GB。
 - 图片不出内网（默认本地部署）。
 
 ---
@@ -664,16 +758,27 @@ goodser:
 | M3 Repository | PG 方言、UPSERT、事务、集成测试 | 5d | M2 |
 | M4 数据迁移 | allowlist、转换、校验、演练、回滚 | 4d | M2 |
 | M5 模块启用 | 独立开关、健康检查、路由切换、Web 冒烟 | 2d | M3、M4 |
-| M6 视觉服务 | Docker + embed API + 索引/回填 | 5d | M1（可并行） |
-| M7 识别 API | 任务、相似查询、复核、权限 | 3d | M5、M6 |
-| M8 Android 扫描 | CameraX、上传、结果页、操作 | 4d | M7 |
-| M9 平铺导出 | 渲染器、API、模板、Web/Android | 4d | M5 |
-| M10 多商品识别 | 检测、裁剪、聚类、计数（可选） | 5d | M8 |
-| M11 验收观察 | PG 测试、UAT、文档、7 天观察 | 2d | M5、M8、M9 |
+| M6 视觉服务 | 独立容器、YOLO 检测、CLIP 向量、OCR 可选、analyze API、显存控制 | 7d | M1（可并行） |
+| M7 识别 API | 任务、逐框相似查询、聚类计数、复核、权限 | 4d | M5、M6 |
+| M8 Android 扫描 | CameraX、多商品结果页、框选/分组/改数量/入库草稿 | 6d | M7 |
+| M9 平铺导出 | 渲染器、API、模板、Web/Android | 5d | M5 |
+| M10 识别增强 | OCR 强匹配、VLM 复核、盘点模式（可选） | 5d | M8 |
+| M11 验收观察 | PG 测试、UAT、性能基线、7 天观察 | 2d | M5、M8、M9 |
 
 **核心迁移（M0–M5）约 18 人日**（含测试/演练；与 README 的 8–10d 代码迁移相比更保守）。
-**新增功能（M6–M9）约 16 人日**；多商品 +5d。
-建议排期 5–7 周（并行视觉服务与 Android）。
+**新增功能（M6–M9）约 22 人日**；增强 M10 +5d。
+**合计约 40 人日**；按 2–3 条并行工作流，建议 **5–6 周**完成 R1 + 导出。
+
+### 8.1.1 立即启动排期（并行）
+
+| 周 | 迁移线 | 识别线（独立容器） | Android/导出线 |
+|---|---|---|---|
+| W1 | V2 基线/映射表；PG 008–009 | 视觉仓库脚手架；YOLO/CLIP 跑通；拍 100 张样片 | Android CameraX 分支；导出样式 POC |
+| W2 | PG 010–012 + Repository 改造 | 检测/裁剪/向量 API；标注首批 100 张 | 导出渲染器；Android 拍照页 |
+| W3 | 迁移工具 + 首次演练 | 聚类计数 + analyze API；显存压测 | Android 结果页；Web 导出面板 |
+| W4 | 模块开关 + 路由切换演练 | Go 识别 API 联调；阈值校准 | Android 多商品联调；导出联调 |
+| W5 | 正式迁移 + 观察 | 识别准确率调优；OCR（可选） | UAT + 修复 |
+| W6 | 文档/回滚演练 | 性能/显存稳定性 | 全端验收 |
 
 ### 8.2 任务清单
 
@@ -698,14 +803,17 @@ goodser:
 
 | 编号 | 任务 | 预估 |
 |---|---|---:|
-| V3.3-GDS-20 | `goodser-vision` Docker + FastAPI + CLIP embed | 2d |
-| V3.3-GDS-21 | 向量表、回填任务、商品图变更触发 | 1.5d |
-| V3.3-GDS-22 | 相似查询 API + 阈值 + 权限 | 1d |
-| V3.3-GDS-23 | 识别任务表/复核接口 | 1d |
-| V3.3-GDS-24 | Android CameraX 拍照/相册/压缩/上传 | 2d |
-| V3.3-GDS-25 | Android 结果页 + 查看/入库/新建 | 2d |
-| V3.3-GDS-26 | 识别测试集与阈值校准 | 1d |
-| V3.3-GDS-27 | 多商品检测/计数（R2，可选） | 5d |
+| V3.3-GDS-20 | `goodser-vision` 独立仓库/镜像/FastAPI 骨架 + 健康检查 | 1.5d |
+| V3.3-GDS-21 | YOLO 检测 + 标注流程 + 裁剪/NMS | 3d |
+| V3.3-GDS-22 | Chinese-CLIP 向量 + `/v1/embed` + 批量回填 | 1.5d |
+| V3.3-GDS-23 | `/v1/analyze`：检测 + 向量 + 聚类计数 | 1.5d |
+| V3.3-GDS-24 | GPU 显存控制/懒加载/并发/指标（≤8GB） | 1d |
+| V3.3-GDS-25 | 向量表、商品图变更触发、重建接口 | 1.5d |
+| V3.3-GDS-26 | Go 识别 API：任务、逐框 Top-K、聚合、复核 | 2d |
+| V3.3-GDS-27 | Android CameraX 拍照/相册/压缩/上传 | 2d |
+| V3.3-GDS-28 | Android 多商品结果页：框 overlay、分组、改数量、入库草稿 | 3d |
+| V3.3-GDS-29 | 测试集、阈值校准、准确率报告 | 1.5d |
+| V3.3-GDS-29b | OCR 强匹配 + VLM 复核（R2，可选） | 5d |
 
 #### 平铺导出
 
@@ -742,8 +850,11 @@ goodser:
 ### 9.2 识别
 
 - [ ] Android 可拍照/选图并上传。
-- [ ] 返回 Top-K 相似商品与相似度；Top-3 命中率 ≥ 80%（50 张测试集）。
-- [ ] 人工可改选/改数量；确认后才落单。
+- [ ] 一张图多个商品可检测、分组、计数；检测召回率 ≥ 90%。
+- [ ] 每组返回 Top-K 相似商品与相似度；Top-3 命中率 ≥ 80%（100 张测试集）。
+- [ ] 人工可改选/改数量/补漏；确认后才生成入库草稿。
+- [ ] 单张 p95：GPU ≤ 5s，CPU 降级 ≤ 10s。
+- [ ] 视觉服务占用 ≤ 8GB，连续压测不 OOM。
 - [ ] 识别服务不可用不影响原有入库。
 - [ ] 图片默认不出内网。
 
@@ -761,9 +872,11 @@ goodser:
 
 | 风险 | 影响 | 对策 |
 |---|---|---|
-| V3.0 上线冲突 | 迁移窗口被挤占 | 先做 M0/M1 与视觉 POC；生产切换排到 V3.0 稳定后 |
+| V3.0 上线冲突 | 迁移窗口被挤占 | 迁移开发并行不停；生产切路由避开 V3.0 发布当天，保留回滚点 |
 | pgvector 不可用 | 相似检索无法落地 | 退 FAISS（vision 服务持有索引）；接口不变 |
-| 无 GPU | 多商品检测慢 | 首期单商品 CLIP（CPU 可跑）；GPU 后再上检测 |
+| GPU 共享/显存不足 | 视觉服务 OOM 或拖慢 TTS/embedding | 视觉预算 ≤8GB、并发 1–2、VLM 懒加载/卸载、FP16/INT8、显存压测 |
+| 独立容器版本漂移 | Go 与模型服务契约不一致 | `/v1` 版本化 + 契约测试 + 模型版本入库；镜像 tag 固定 |
+| 检测标注不足 | 多商品召回低 | 首期 100–300 张标注；允许人工补漏；按系列迭代 |
 | 商品图缺失/质量差 | 识别率低 | 文本/编码兜底；提示补图；Top-K 人工确认 |
 | 同系列外观接近 | 误匹配 | 图像 + OCR + 文本融合；阈值分档 |
 | 数据归属差异 | 多用户越权/串数据 | 首期单 owner + `owner_user_id` 预留；后续按 inventory 隔离 |
@@ -776,32 +889,34 @@ goodser:
 
 ---
 
-## 11. 待确认问题
+## 11. 待确认问题（已更新）
 
-1. **启动时机**：Goodser 迁移是等 V3.0（12.15）稳定后切，还是现在就用 V2 MySQL 临时启用先跑起来？
-   - 推荐：现在做 M0/M1/M6 原型，生产切换排 V3.0 后。
-2. **多用户归属**：Goodser 是否只服务一个 owner？还是多个微信用户/Android 用户各自隔离库存？
-   - 推荐首期单 owner；schema 预留 `owner_user_id`。
-3. **识别首期范围**：先做「单商品相似检索」，还是必须一次做「多商品检测 + 计数」？
-   - 推荐先 R1，R2 作为第二阶段。
-4. **硬件**：部署视觉服务的机器是否有 NVIDIA GPU？显存多少？
-   - CPU 可做单图 CLIP；多商品/检测建议 8–16GB GPU。
-5. **导出样式**：平铺图是否需要固定模板/品牌角标/价格？默认透明背景还是白底？
-6. **Android 发布**：升级现有 App，还是新建 V3 App？
+已确认：立即并行迁移、单 owner、多商品检测 + 计数、独立容器、5060Ti 16GB 共享。
+
+仍需确认：
+
+1. **导出样式**：平铺图是否需要固定模板/品牌角标/价格？默认透明背景还是白底？
+2. **Android 发布**：升级现有 App，还是新建 V3 App？
    - 推荐升级现有包名，保留用户。
-7. **小程序**：首期是否必须同步支持拍照识别/平铺导出，还是 Android 先行？
-8. **数据迁移窗口**：可接受的停机时长（建议 2–4 小时）与回滚窗口（7 天）。
+3. **小程序**：首期是否必须同步支持拍照识别/平铺导出，还是 Android 先行？
+4. **迁移窗口**：可接受的停机时长（建议 2–4 小时）与回滚窗口（7 天）。
+5. **视觉仓库归属**：`goodser-vision` 放在哪个 Git 仓库/镜像仓库？是否由本仓库 CI 统一构建？
+6. **标注数据**：谁来标注首批 100–300 张？能否先接受「检测召回 ≥90% + 人工补漏」？
+7. **VLM 复核**：16GB 共享显存下是否首期就启用 3B VLM？还是先 OCR，VLM 后置？
+   - 推荐先 OCR；VLM 作为可选，按需懒加载。
+8. **GPU 配额**：视觉服务 8GB、embedding/TTS 剩余 8GB 的划分是否固定？是否需要按时间片切换？
 
 ---
 
 ## 12. 建议的第一周动作
 
-1. 确认 §11 的 1–4 项。
-2. 导出 V2 表结构与行数，生成 19 表字段映射表。
-3. 搭 `goodser-vision` 最小容器：`/healthz` + `/v1/embed`，用 20 张商品图跑通向量。
-4. 用 50 张真实照片做一次 Top-K 离线评估，确定模型与阈值。
-5. 在 DM 建 V3.3 里程碑与任务，冻结范围。
+1. 在 DM 建 V3.3 里程碑与任务，冻结 R1 范围（多商品检测 + 计数 + 人工复核）。
+2. 导出 V2 表结构与行数，生成 19 表字段映射表；确定 owner 回填规则。
+3. 新建 `goodser-vision` 独立仓库/目录：`/healthz` + `/v1/models` + `/v1/embed` 跑通。
+4. 收集并标注首批 100 张真实照片（平铺/叠放/弱光/遮挡），跑 YOLO 检测基线。
+5. 用 50 张照片做 CLIP Top-K 离线评估，确定阈值与模型。
 6. 选 3 个商品做平铺图渲染 POC，确认字体/尺寸/数量徽标样式。
+7. 起一个 Android `feature/goodser-scan` 分支，先打通 CameraX 拍照与上传。
 
 ---
 
@@ -810,3 +925,4 @@ goodser:
 | 日期 | 变更 | 作者 |
 |---|---|---|
 | 2026-11-26 | 初版：V2→V3 迁移、Android 拍照识别、平铺图导出 | Tom / AI |
+| 2026-11-26 | v0.2：确认立即并行迁移、单 owner、多商品检测+计数、独立视觉容器、5060Ti 16GB 共享显存；补充显存预算/排期/任务 | Tom / AI |
