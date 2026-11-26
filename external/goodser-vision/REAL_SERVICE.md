@@ -262,6 +262,27 @@ GOODSER_VISION_OCR_DEVICE=gpu
 GOODSER_VISION_OCR_DEVICE=cpu
 ```
 
+OCR 语言：
+
+```env
+# 默认 ch：中文 + 英文 + 数字
+GOODSER_VISION_OCR_LANG=ch
+
+# 纯英文/数字为主，可提高英文识别率
+# GOODSER_VISION_OCR_LANG=en
+
+# 日文包装
+# GOODSER_VISION_OCR_LANG=japan
+```
+
+说明：
+
+- `ch` 是 PaddleOCR 的中英文混合模型，不是只认中文。
+- 数字、英文编码、中文名称都在同一模型内识别。
+- 编码类文本容易混淆：`O/0`、`I/1`、`S/5`、`B/8`、`Z/2`，需要后端做格式校验和字符纠正。
+- 小字/反光/遮挡会降低准确率；建议对裁剪图适当放大，并使用 PP-OCRv4/v5 server 模型。
+- 若中英文都需要最高准确率，可后续加载 `ch` + `en` 双模型合并；当前单 `ch` 模型对首期足够，且更省显存。
+
 > PaddlePaddle 的 GPU 支持与 PyTorch 的 CUDA 支持是两套体系；PyTorch 2.7.1+cu128 可用不代表 Paddle GPU 可用。
 > 因此默认 GPU，但保留自动回退和手动开关。
 
