@@ -147,7 +147,7 @@ type txQueryExecer interface {
 func nextVersionNo(ctx context.Context, exec txQueryExecer, requirementID int64) (int, error) {
 	var maxNo sql.NullInt64
 	if err := exec.QueryRowContext(ctx,
-		"SELECT MAX(version_no) FROM "+tableRequirementVersion+" WHERE requirement_id = ?",
+		dbutil.Rebind("SELECT MAX(version_no) FROM "+tableRequirementVersion+" WHERE requirement_id = ?"),
 		requirementID).Scan(&maxNo); err != nil {
 		return 0, err
 	}

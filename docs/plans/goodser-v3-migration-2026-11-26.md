@@ -1,6 +1,6 @@
 # Goodser V3 迁移与增强规划
 
-> 版本：v0.4（项目管理已登记）
+> 版本：v0.5（V3.3 已登记并关联需求）
 > 日期：2026-11-26
 > 分支建议：`v3/goodser-plan` → `feature-V3`
 > 关联文档：
@@ -1059,7 +1059,8 @@ goodser:
 | 任务 | 32 个（`V3.3-GDS-01` … `V3.3-GDS-41`，含可选 `29b`/`36`） |
 | 依赖 | 37 条 FS 依赖 |
 | 预估 | 328 小时 ≈ 41 人日（含可选 OCR/VLM 与模板） |
-| 需求 | 3 条（迁移/识别/导出）暂未入库，见下 |
+| 需求 | 3 条已入库：`RQM-0014` 迁移 / `RQM-0015` 识别 / `RQM-0016` 导出（status=planned） |
+| 关联 | 迁移任务→RQM-0014；识别任务→RQM-0015；导出任务→RQM-0016 |
 
 查看入口：
 
@@ -1067,11 +1068,13 @@ goodser:
 http://localhost:3000/modules/zzz/developmentmanager/9?tab=plan
 ```
 
-> 需求创建接口当前返回 500：`requirement_repository.go` 里残留 MySQL 方言
-> `CAST(SUBSTRING(code, 5) AS UNSIGNED)`。已改为 PG 的
-> `CAST(SUBSTRING(code FROM 5) AS INTEGER)`，单元测试通过；需重启后端后生效。
-> 当前运行的后端进程受权限保护，无法直接停止，因此需求暂未写入；任务已挂在里程碑下，
-> 重启后可补 3 条需求并把任务关联到需求。
+> 为把需求写入 DM，顺带修复了三个 V3 方言/事务问题：
+> - `requirement_repository.go`：`CAST(SUBSTRING(code, 5) AS UNSIGNED)` → PG `INTEGER`；
+> - `nextVersionNo` / `insertRequirementVersion` 未走 `dbutil.Rebind`，导致 PG `$n` 语法错误；
+> - `execTx` 误写成递归调用自身，改为 `tx.ExecContext`；`projectColumns` 对可空字段补 `COALESCE`
+>   （修复项目列表 500）。
+>
+> 以上已通过 `go test ./zzz/developmentManager`，并在 29095 实例验证；前端代理已切到 29095。
 
 ---
 
@@ -1083,3 +1086,4 @@ http://localhost:3000/modules/zzz/developmentmanager/9?tab=plan
 | 2026-11-26 | v0.2：确认立即并行迁移、单 owner、多商品检测+计数、独立视觉容器、5060Ti 16GB 共享显存；补充显存预算/排期/任务 | Tom / AI |
 | 2026-11-26 | v0.3：导出支持黑/白/透明背景与名称/价格/数量开关；补充直出/捆/组合包计价规则；视觉服务定位到 `external/goodser-vision`；确认 Android 现有工程位置 | Tom / AI |
 | 2026-11-26 | v0.4：确认 Android 先行、停机 2–4h、透明描边、捆选择按需；登记 V3.3 里程碑（ID 7）、32 任务、37 依赖；修复需求编号 PG 方言 | Tom / AI |
+| 2026-11-26 | v0.5：需求 RQM-0014/15/16 入库并关联任务；修复需求版本 Rebind、execTx 递归、项目列表 COALESCE；前端代理切 29095 | Tom / AI |

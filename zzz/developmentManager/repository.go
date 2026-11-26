@@ -16,8 +16,10 @@ const (
 	tableRelation = "zzz_development_manager_project_relation"
 	tableAsset    = "zzz_development_manager_project_asset"
 
-	projectColumns = "id, project_key, name, type, COALESCE(description, '') AS description, repo_url, repo_path, default_branch, " +
-		"tech_stack, status, deleted, deleted_at, created_by, updated_by, created_at, updated_at"
+	projectColumns = "id, project_key, name, type, COALESCE(description, '') AS description, " +
+		"COALESCE(repo_url, '') AS repo_url, COALESCE(repo_path, '') AS repo_path, COALESCE(default_branch, '') AS default_branch, " +
+		"COALESCE(tech_stack::text, '[]') AS tech_stack, COALESCE(status, '') AS status, deleted, deleted_at, " +
+		"COALESCE(created_by, '') AS created_by, COALESCE(updated_by, '') AS updated_by, created_at, updated_at"
 
 	relationColumns = "id, from_project_id, to_project_id, relation_type, note, deleted, deleted_at, " +
 		"created_by, created_at, updated_at"
@@ -57,7 +59,7 @@ func isDuplicateKey(err error) bool {
 }
 
 func execTx(ctx context.Context, tx *sql.Tx, query string, args ...any) (sql.Result, error) {
-	return execTx(ctx, tx, dbutil.Rebind(query), args...)
+	return tx.ExecContext(ctx, dbutil.Rebind(query), args...)
 }
 
 func queryRowTx(ctx context.Context, tx *sql.Tx, query string, args ...any) *sql.Row {
