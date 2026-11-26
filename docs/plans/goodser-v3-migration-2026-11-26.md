@@ -996,6 +996,7 @@ Runbook：[goodser-v2-to-v3.md](../migrations/goodser-v2-to-v3.md)
 - 字体：自动探测系统 CJK 字体（Windows 微软雅黑、Linux Noto CJK、macOS 苹方），也可配 `goodser.export.font_path`。
 - 任务：写入 `zzz_goodser_export_jobs`；≤30 项同步返回，>30 项后台任务，状态 `pending/processing/succeeded/failed`。
 - 输出：PNG（支持透明）/ JPEG（透明自动压白底），上传 RustFS，返回 7 天有效公开 URL。
+- Web：商品列表多选 → 导出面板（背景/列数/格式/显示开关/价格口径/标题）、实时价格预览、生成下载与最近导出历史；支持在面板内搜索商品、添加组合包/捆（前端提交 `60bf889`）。
 
 API：
 
@@ -1027,7 +1028,6 @@ goodser:
 
 待完成：
 
-- Web 多选 + 导出面板 + 历史。
 - Android 多选 + 保存/分享。
 - 导出模板 CRUD（表已建，接口未实现）。
 
