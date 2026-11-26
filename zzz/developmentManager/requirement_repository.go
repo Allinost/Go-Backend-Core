@@ -129,7 +129,7 @@ func (r *Repository) GetRequirement(ctx context.Context, id int64) (*Requirement
 func (r *Repository) NextRequirementNo(ctx context.Context, projectID int64) (int, error) {
 	var maxNo int
 	err := r.queryRow(ctx,
-		"SELECT COALESCE(MAX(CAST(SUBSTRING(code, 5) AS UNSIGNED)), 0) FROM "+tableRequirement+
+		"SELECT COALESCE(MAX(CAST(SUBSTRING(code FROM 5) AS INTEGER)), 0) FROM "+tableRequirement+
 			" WHERE project_id = ?", projectID).Scan(&maxNo)
 	if err != nil {
 		return 0, err

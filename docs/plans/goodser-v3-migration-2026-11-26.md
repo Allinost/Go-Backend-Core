@@ -1,6 +1,6 @@
 # Goodser V3 迁移与增强规划
 
-> 版本：v0.3（导出与视觉容器决策已确认）
+> 版本：v0.4（项目管理已登记）
 > 日期：2026-11-26
 > 分支建议：`v3/goodser-plan` → `feature-V3`
 > 关联文档：
@@ -37,6 +37,10 @@
 | 模型服务 | **独立容器项目 `external/goodser-vision`**，独立镜像/API 版本，不塞进 Go 主进程 |
 | GPU | **RTX 5060 Ti 16GB**，需与 embedding / TTS 等服务共享显存；视觉服务预算建议 ≤ 8GB |
 | 平铺导出 | 服务端 Go 渲染，Web/Android 共用；背景黑/白/透明，名称/价格/数量可开关，不显示编码/品牌角标 |
+| 客户端顺序 | **Android 先行**，小程序后续 |
+| 迁移窗口 | **停机 2–4 小时**；V2 快照保留 7 天，回滚 ≤30 分钟 |
+| Android 工程 | 直接升级现有 `com.goodser.app`；Goodser 仓库里的 Rust 后端**已废弃，不使用** |
+| 捆导出 | 先支持按需选择主品/捆品；未选时用默认预览，后续再修 |
 
 ### 0.3 关键判断
 
@@ -69,13 +73,16 @@ V3.0 规划原本写的是「业务模块暂不迁移，V3.3 再做 Goodser」�
 
 | 端 | 现状 | 位置 |
 |---|---|---|
-| V2 后端 | Rust / Axum / MySQL / RustFS，action 风格 API | `Goodser/backend` |
+| V2 后端 | Rust / Axum / MySQL / RustFS，action 风格 API；**已废弃，仅作行为参考，不再维护/使用** | `Goodser/backend` |
 | V2 小程序 | 微信小程序，支持云开发 / Go 后端两种模式 | `Goodser/miniprogram` |
 | V2 Android | Kotlin + Jetpack Compose，Retrofit；`applicationId=com.goodser.app`、minSdk 26、targetSdk 35 | `C:\Users\Tom\Documents\Projects\Goodser\Goodser\android` |
 | V3 后端 | Go 模块，19 张表、REST + legacy 共 91 个路由 | `zzz/goodser` |
 | V3 Web | 已拆分为 10 个 Tab 的 Goodser 页面 | `Go-Frontend-Core/src/views/modules/zzz/goodser` |
 | V3 迁移工具 | `cmd/v3migrate` 支持 allowlist/dump/load/verify | `cmd/v3migrate` |
 | 图片识别旧规划 | 多商品检测 + CLIP + FAISS + OCR 方案 | `docs/plans/goodser-image-recognition-plan-2026-11-03.md` |
+
+> **重要**：`Goodser/backend` 的 Rust 后端已废弃，迁移时只参考其 API 行为和数据语义，不再部署/修改。
+> Android 升级以 `C:\Users\Tom\Documents\Projects\Goodser\Goodser\android` 为唯一工程，包名 `com.goodser.app`。
 
 ### 1.2 关键阻塞
 
@@ -176,7 +183,7 @@ V3.0 规划原本写的是「业务模块暂不迁移，V3.3 再做 Goodser」�
 
 ### 4.2 阶段 A：冻结与盘点
 
-- [ ] 冻结 V2 Goodser 写入（维护窗口）。
+- [ ] 冻结 V2 Goodser 写入（维护窗口 **2–4 小时**）。
 - [ ] 备份 V2 MySQL：结构 + 数据 + 行数 + checksum。
 - [ ] 导出 V2 商品图片清单（RustFS key / URL），确认无缺失。
 - [ ] 确认 V2 使用方：Web、Android、小程序、API Key/第三方调用。
@@ -666,7 +673,8 @@ expected_price > 0 ? expected_price
 | `fixed` | `bundle.fixed_price` | 固定价，忽略组件价格 |
 | `main_only` | 主品单价 × 主品数量 | 捆品不收费，但仍展示图片/数量 |
 
-- 导出捆时请求需带 `bundle_selection`：主商品、主商品数量、捆品清单（与下单预览一致）。
+- 导出捆时请求可带 `bundle_selection`：主商品、主商品数量、捆品清单（与下单预览一致）。
+- 若未选择：`fixed` 直接用固定价；`main_only` 取首个可用主品；`sum` 取首个可用主品 + 捆物池默认成员，并标记「默认组合」，允许后续修改。
 - 服务端调用 `PreviewBundle` 得到 `unit_price`、`total_price`、`main_amount`、`sub_amount`、组件快照。
 - 图片上显示捆名 + 单价/行金额；组件明细可放在导出历史/详情里，不塞进主图。
 
@@ -1013,20 +1021,17 @@ goodser:
 - 立即并行迁移；单 owner；多商品检测 + 计数 + 人工确认。
 - 视觉服务代码放 `external/goodser-vision`，独立镜像/部署。
 - 导出背景支持黑 / 白 / 透明；名称、价格、数量可开关；编码与品牌角标不做。
-- 价格需适配直出、捆（主品/捆品）、组合包。
+- 价格适配直出、捆（主品/捆品）、组合包；捆选择按需，未选走默认预览，后续再修。
+- Android 先行，升级现有 `com.goodser.app`；小程序后续。
+- 停机窗口 2–4 小时；回滚窗口 7 天。
+- 透明背景默认深色文字 + 白色描边。
 
 仍需确认：
 
-1. **Android 发布**：建议直接升级现有 `com.goodser.app`（`C:\Users\Tom\Documents\Projects\Goodser\Goodser\android`），保留包名与用户；是否确认？
-2. **小程序**：首期是否同步支持拍照识别/平铺导出，还是 Android 先行？
-3. **迁移窗口**：可接受的停机时长（建议 2–4 小时）与回滚窗口（7 天）。
-4. **视觉 CI**：`external/goodser-vision` 是否纳入主仓 CI 构建镜像？镜像仓库地址？
-5. **标注数据**：首批 100–300 张由谁标注？是否接受「检测召回 ≥90% + 人工补漏」作为首期标准？
-6. **VLM 复核**：16GB 共享显存下是否首期启用 3B VLM？建议先 OCR，VLM 可选懒加载。
-7. **GPU 配额**：视觉 ≤8GB、embedding/TTS 剩余 8GB 的划分是否固定？是否需要按时间片切换？
-8. **捆导出交互**：导出捆时是否要求像下单一样先选主品/捆品，还是只导出捆模板（用默认主品/捆品池）？
-   - 推荐：与下单一致，先选主品/捆品，确保价格准确。
-9. **透明背景文字**：默认深色文字 + 白色描边是否可接受？还是提供「浅色文字」开关？
+1. **视觉 CI**：`external/goodser-vision` 是否纳入主仓 CI 构建镜像？镜像仓库地址？
+2. **标注数据**：首批 100–300 张由谁标注？是否接受「检测召回 ≥90% + 人工补漏」作为首期标准？
+3. **VLM 复核**：16GB 共享显存下是否首期启用 3B VLM？建议先 OCR，VLM 可选懒加载。
+4. **GPU 配额**：视觉 ≤8GB、embedding/TTS 剩余 8GB 的划分是否固定？是否需要按时间片切换？
 
 ---
 
@@ -1042,10 +1047,39 @@ goodser:
 
 ---
 
-## 13. 变更记录
+## 13. V3 项目管理登记
+
+已在 V3 项目管理中登记（项目 `go-backend-core`，ID 9）：
+
+| 项 | 值 |
+|---|---|
+| 里程碑 | `V3.3` / 「Goodser V3 迁移与增强」 / ID 7 |
+| 周期 | 2026-11-26 → 2027-01-09 |
+| 状态 | planned |
+| 任务 | 32 个（`V3.3-GDS-01` … `V3.3-GDS-41`，含可选 `29b`/`36`） |
+| 依赖 | 37 条 FS 依赖 |
+| 预估 | 328 小时 ≈ 41 人日（含可选 OCR/VLM 与模板） |
+| 需求 | 3 条（迁移/识别/导出）暂未入库，见下 |
+
+查看入口：
+
+```text
+http://localhost:3000/modules/zzz/developmentmanager/9?tab=plan
+```
+
+> 需求创建接口当前返回 500：`requirement_repository.go` 里残留 MySQL 方言
+> `CAST(SUBSTRING(code, 5) AS UNSIGNED)`。已改为 PG 的
+> `CAST(SUBSTRING(code FROM 5) AS INTEGER)`，单元测试通过；需重启后端后生效。
+> 当前运行的后端进程受权限保护，无法直接停止，因此需求暂未写入；任务已挂在里程碑下，
+> 重启后可补 3 条需求并把任务关联到需求。
+
+---
+
+## 14. 变更记录
 
 | 日期 | 变更 | 作者 |
 |---|---|---|
 | 2026-11-26 | 初版：V2→V3 迁移、Android 拍照识别、平铺图导出 | Tom / AI |
 | 2026-11-26 | v0.2：确认立即并行迁移、单 owner、多商品检测+计数、独立视觉容器、5060Ti 16GB 共享显存；补充显存预算/排期/任务 | Tom / AI |
 | 2026-11-26 | v0.3：导出支持黑/白/透明背景与名称/价格/数量开关；补充直出/捆/组合包计价规则；视觉服务定位到 `external/goodser-vision`；确认 Android 现有工程位置 | Tom / AI |
+| 2026-11-26 | v0.4：确认 Android 先行、停机 2–4h、透明描边、捆选择按需；登记 V3.3 里程碑（ID 7）、32 任务、37 依赖；修复需求编号 PG 方言 | Tom / AI |
