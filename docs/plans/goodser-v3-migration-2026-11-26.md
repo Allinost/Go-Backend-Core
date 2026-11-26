@@ -980,6 +980,57 @@ goodser:
 
 Runbook：[goodser-v2-to-v3.md](../migrations/goodser-v2-to-v3.md)
 
+### 7.8 平铺图导出（M9，后端）
+
+已实现（`feature-V3`）：
+
+- 渲染器：纯 Go（`image/draw` + `golang.org/x/image`），不依赖视觉服务。
+- 背景：黑 / 白 / 透明；文字自动对比色，透明背景带描边。
+- 内容：商品图（contain + 圆角）、数量徽标 `×N`、名称（最多 2 行省略）、价格。
+- 布局：列数 3/4/5，宽度 1024–3072（默认 2048），自动计算行高。
+- 价格口径：
+  - 直出：expected → market → original 回退（复用 `productSalePrice`）。
+  - 捆：复用 `PreviewBundle`，`sum` / `fixed` / `main_only` 与下单一致。
+  - 组合包：固定价 `combo.price`，不按组件重算。
+- 图片：并发下载（8 路），失败用「无图」占位，不阻塞整张图。
+- 字体：自动探测系统 CJK 字体（Windows 微软雅黑、Linux Noto CJK、macOS 苹方），也可配 `goodser.export.font_path`。
+- 任务：写入 `zzz_goodser_export_jobs`；≤30 项同步返回，>30 项后台任务，状态 `pending/processing/succeeded/failed`。
+- 输出：PNG（支持透明）/ JPEG（透明自动压白底），上传 RustFS，返回 7 天有效公开 URL。
+
+API：
+
+| 方法 | 路径 |
+|---|---|
+| POST | `/zzz-goodser/inventories/:id/exports/preview` |
+| POST | `/zzz-goodser/inventories/:id/exports` |
+| GET | `/zzz-goodser/inventories/:id/exports` |
+| GET | `/zzz-goodser/exports/:eid` |
+| DELETE | `/zzz-goodser/exports/:eid` |
+
+配置（`config.yaml` 或 `APP_GOODSER_EXPORT_*`）：
+
+```yaml
+goodser:
+  export:
+    max_items: 200
+    max_width: 3072
+    default_columns: 4
+    font_path: ""
+    temp_dir: ""
+    timeout_seconds: 120
+```
+
+测试：
+
+- 渲染单测：黑/白/透明、PNG/JPEG、无图占位、价格文案、参数归一化。
+- PG 集成测试：任务 CRUD、直接商品计价、目录校验、无存储时任务标记 `failed`。
+
+待完成：
+
+- Web 多选 + 导出面板 + 历史。
+- Android 多选 + 保存/分享。
+- 导出模板 CRUD（表已建，接口未实现）。
+
 ---
 
 ## 8. 里程碑与任务拆分

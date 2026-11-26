@@ -30,6 +30,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.6
 	golang.org/x/crypto v0.51.0
+	golang.org/x/image v0.25.0
 	golang.org/x/sync v0.21.0
 	google.golang.org/grpc v1.82.0
 	gorm.io/driver/mysql v1.6.0

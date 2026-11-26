@@ -7,6 +7,16 @@ legacy_modules_enabled: false
 # V3 PG 版 Goodser（图鉴/库存/订单）默认不注册；迁移验证通过后设 true
 modules_goodser_enabled: false
 
+# Goodser 平铺图导出
+goodser:
+  export:
+    max_items: 200
+    max_width: 3072
+    default_columns: 4
+    font_path: ""            # 留空自动探测系统中文字体
+    temp_dir: ""             # 留空使用系统临时目录
+    timeout_seconds: 120
+
 # 运维安全开关
 ops:
   ssh_known_hosts_enabled: false  # 默认关闭，避免首次部署 known_hosts 不存在导致 SSH 不可用

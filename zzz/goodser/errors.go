@@ -51,6 +51,13 @@ const (
 	ErrImageUpload     = 20300
 	ErrImageNotFound   = 20301
 	ErrStatusCodeInUse = 20302
+
+	ErrExportNotFound   = 20310
+	ErrExportItemsEmpty = 20311
+	ErrExportTooMany    = 20312
+	ErrExportStorage    = 20313
+	ErrExportRender     = 20314
+	ErrExportInvalid    = 20315
 )
 
 var errMsgs = map[int]string{
@@ -98,6 +105,12 @@ var errMsgs = map[int]string{
 	ErrImageUpload:          "图片上传失败",
 	ErrImageNotFound:        "图片不存在",
 	ErrStatusCodeInUse:      "状态编码正在被使用，无法删除",
+	ErrExportNotFound:       "导出记录不存在",
+	ErrExportItemsEmpty:     "请选择要导出的商品",
+	ErrExportTooMany:        "导出商品数量超过上限",
+	ErrExportStorage:        "导出图片上传失败",
+	ErrExportRender:         "导出图片生成失败",
+	ErrExportInvalid:        "导出参数不合法",
 }
 
 // GoodserError 模块级错误

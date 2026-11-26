@@ -44,6 +44,23 @@ type Config struct {
 	// GoodserEnabled 控制 V3 PG 版 Goodser 业务模块是否注册（独立于 LegacyModulesEnabled）。
 	// 对应环境变量 APP_MODULES_GOODSER_ENABLED。
 	GoodserEnabled bool `mapstructure:"modules_goodser_enabled"`
+	// Goodser 模块级配置（平铺图导出等）。
+	Goodser GoodserConfig `mapstructure:"goodser"`
+}
+
+// GoodserConfig Goodser 模块配置。
+type GoodserConfig struct {
+	Export ExportConfig `mapstructure:"export"`
+}
+
+// ExportConfig 平铺图导出配置。
+type ExportConfig struct {
+	MaxItems       int    `mapstructure:"max_items"`
+	MaxWidth       int    `mapstructure:"max_width"`
+	DefaultColumns int    `mapstructure:"default_columns"`
+	FontPath       string `mapstructure:"font_path"`
+	TempDir        string `mapstructure:"temp_dir"`
+	TimeoutSeconds int    `mapstructure:"timeout_seconds"`
 }
 
 type OpsConfig struct {

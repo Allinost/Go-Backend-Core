@@ -54,6 +54,14 @@ func (m *Module) Init(cfg *config.Config) error {
 
 	m.repo = NewRepository(pool)
 	m.svc = NewService(m.repo, m.store)
+	m.svc.SetExportOptions(ExportOptions{
+		MaxItems:       cfg.Goodser.Export.MaxItems,
+		MaxWidth:       cfg.Goodser.Export.MaxWidth,
+		DefaultColumns: cfg.Goodser.Export.DefaultColumns,
+		FontPath:       cfg.Goodser.Export.FontPath,
+		TempDir:        cfg.Goodser.Export.TempDir,
+		Timeout:        time.Duration(cfg.Goodser.Export.TimeoutSeconds) * time.Second,
+	})
 	m.wireIntegration()
 
 	m.h = NewHandler(m.svc, m.store)
@@ -231,6 +239,13 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	inv.POST("/returns/:rid/confirm", write, m.h.ConfirmReturnREST)
 	inv.POST("/returns/:rid/cancel", write, m.h.CancelReturnREST)
 	inv.GET("/inbound-logs", read, m.h.ListInboundLogsREST)
+
+	// 平铺图导出
+	inv.POST("/exports/preview", read, m.h.PreviewExport)
+	inv.POST("/exports", write, m.h.CreateExport)
+	inv.GET("/exports", read, m.h.ListExports)
+	r.GET("/exports/:eid", read, m.h.GetExport)
+	r.DELETE("/exports/:eid", write, m.h.DeleteExport)
 
 	// 受控维度、系列视图与组合包
 	inv.GET("/series", read, m.h.ListSeriesSummaryREST)
