@@ -126,37 +126,24 @@ VLM = Vision Language Model，能看图 + 文本并输出判断/描述。适合�
 - 读取包装/标签文字；
 - 判断同系列不同角色是否混淆。
 
-启用方式（OpenAI 兼容接口）：
+启用方式（通过 New API 统一接入）：
 
 ```env
 GOODSER_VISION_VLM_ENABLED=1
-GOODSER_VISION_VLM_PROVIDER=openai
-GOODSER_VISION_VLM_BASE_URL=http://127.0.0.1:8001/v1
-GOODSER_VISION_VLM_MODEL=qwen2.5-vl-3b-instruct
-GOODSER_VISION_VLM_API_KEY=...
+GOODSER_VISION_VLM_PROVIDER=newapi
+GOODSER_VISION_VLM_BASE_URL=http://new-api:3000/v1
+GOODSER_VISION_VLM_API_KEY=<New API Token>
+GOODSER_VISION_VLM_MODEL=<New API 中暴露的模型名，例如 deepseek-v4.1-flash>
 ```
 
-本地 vLLM/Ollama 也可以暴露 OpenAI 兼容接口后填入 `BASE_URL`，不必在 `goodser-vision` 进程里加载 7B 权重。
+New API 侧建议：
 
-**关于 Command Code Goat / OpenCode Go 订阅：**
+- 在 New API 中分别创建 opencode / commandcode 渠道；
+- 模型名以 New API「模型」页实际暴露的名称为准；
+- `goodser-vision` 只填 **New API 地址 + New API Token + 模型名**，不直接接触 opencode/commandcode 的订阅 Token；
+- 确认渠道支持图片输入（`image_url`）；不支持视觉的模型会失败。
 
-- 只有当订阅提供 **OpenAI 兼容 API** 且允许 **图片输入** 时，才能直接填到 `VLM_BASE_URL` / `VLM_API_KEY`。
-- 如果订阅只是编码 Agent 的 UI/CLI，没有通用视觉推理 API，就不能被 `goodser-vision` 直接调用。
-- 订阅通常有速率/用途限制；生产识别建议用独立推理 API 或本地 vLLM，避免把编码订阅当业务推理池。
-- 不要把订阅 Token 写进仓库；用 Secret/环境变量注入。
-
-**关于 DS V4.1 Flash（opencode / commandcode 订阅）：**
-
-- 如果订阅提供 OpenAI 兼容 `/chat/completions`，且支持 `image_url`，可以直接用：
-  ```env
-  GOODSER_VISION_VLM_ENABLED=1
-  GOODSER_VISION_VLM_PROVIDER=openai
-  GOODSER_VISION_VLM_BASE_URL=<订阅网关>/v1
-  GOODSER_VISION_VLM_API_KEY=<订阅 Key>
-  GOODSER_VISION_VLM_MODEL=<DS V4.1 Flash 的模型 ID>
-  ```
-- 如果订阅只提供编码 Agent UI/CLI，没有通用视觉推理 API：**保持关闭**，不要回退本地模型。
-- 关闭时识别流程仍正常：Chinese-CLIP + YOLO + OCR + 人工复核；VLM 只是可选的最后一层。
+本地 vLLM/Ollama 也可以接入 New API，再由 New API 统一暴露，`goodser-vision` 只认 OpenAI 兼容协议。
 
 **VLM 开关策略：**
 
@@ -165,20 +152,36 @@ GOODSER_VISION_VLM_API_KEY=...
 GOODSER_VISION_VLM_ENABLED=0
 ```
 
-运行时切换（无需重启，重启后回到环境变量默认值）：
+运行时配置（无需重启）：
 
 ```bash
-curl -X POST http://127.0.0.1:8000/v1/system/vlm \
-  -H 'Content-Type: application/json' \
-  -d '{"enabled": true}'
+# 查看当前配置（不会返回密钥明文，只返回 api_key_set）
+curl -s http://127.0.0.1:8000/v1/system/vlm
 
+# 设置 New API 地址、模型、密钥并启用
+curl -X PUT http://127.0.0.1:8000/v1/system/vlm \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "enabled": true,
+    "provider": "newapi",
+    "base_url": "http://new-api:3000/v1",
+    "model": "deepseek-v4.1-flash",
+    "api_key": "<New API Token>"
+  }'
+
+# 测试 New API 是否可达
+curl -X POST http://127.0.0.1:8000/v1/system/vlm/test
+
+# 临时关闭
 curl -X POST http://127.0.0.1:8000/v1/system/vlm \
   -H 'Content-Type: application/json' \
   -d '{"enabled": false}'
 ```
 
-- VLM 关闭/未配置/API 不可用时，`/v1/verify` 返回 `503`，不会加载本地模型，也不会影响 `/v1/analyze`、`/v1/segment`、图鉴切割。
+- 配置持久化到 `data/vlm.json`（权限尽量 0600），密钥不会通过 API 回显。
+- VLM 关闭/未配置/New API 不可用时，`/v1/verify` 返回 `503`，**不会加载本地模型**，也不会影响 `/v1/analyze`、`/v1/segment`、图鉴切割。
 - 前端/Android 把 VLM 复核当作“可选增强”：失败时继续人工确认。
+- 如果 New API 渠道不支持图片输入，保持关闭即可；主识别链路仍走 CLIP + YOLO + OCR + 人工复核。
 
 调用：
 

@@ -37,6 +37,14 @@ class VLMToggle(BaseModel):
     enabled: bool
 
 
+class VLMConfigUpdate(BaseModel):
+    enabled: bool | None = None
+    provider: str | None = None
+    base_url: str | None = None
+    model: str | None = None
+    api_key: str | None = None
+
+
 @app.on_event("startup")
 async def _startup() -> None:
     if settings.device == "cuda":
@@ -157,6 +165,30 @@ async def system_status() -> dict:
 async def set_vlm(payload: VLMToggle) -> dict:
     runtime.vlm.set_enabled(payload.enabled)
     return runtime.vlm.status().__dict__
+
+
+@app.get("/v1/system/vlm")
+async def get_vlm() -> dict:
+    return runtime.vlm.status().__dict__
+
+
+@app.put("/v1/system/vlm")
+async def update_vlm(payload: VLMConfigUpdate) -> dict:
+    return runtime.vlm.update(
+        enabled=payload.enabled,
+        provider=payload.provider,
+        base_url=payload.base_url,
+        model=payload.model,
+        api_key=payload.api_key,
+    )
+
+
+@app.post("/v1/system/vlm/test")
+async def test_vlm() -> dict:
+    try:
+        return await asyncio.to_thread(runtime.vlm.test)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail=f"New API 不可用: {exc}") from exc
 
 
 @app.post("/v1/embed", response_model=EmbedResponse)

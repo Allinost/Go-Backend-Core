@@ -21,6 +21,7 @@ services:
       GOODSER_VISION_VLM_ENABLED: "0"
     volumes:
       - ./models:/app/models
+      - ./data:/app/data
     networks:
       - goodser-internal
     # GPU 机器启用以下配置（并安装 CUDA 版依赖）

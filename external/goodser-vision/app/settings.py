@@ -44,6 +44,7 @@ class Settings:
     vlm_timeout_seconds: int = int(_env("GOODSER_VISION_VLM_TIMEOUT_SECONDS", "60"))
     vlm_max_image_side: int = int(_env("GOODSER_VISION_VLM_MAX_IMAGE_SIDE", "1280"))
     vlm_max_tokens: int = int(_env("GOODSER_VISION_VLM_MAX_TOKENS", "512"))
+    vlm_config_file: str = _env("GOODSER_VISION_VLM_CONFIG_FILE", "data/vlm.json")
 
 
 settings = Settings()

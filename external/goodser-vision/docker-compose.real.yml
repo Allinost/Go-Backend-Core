@@ -26,6 +26,7 @@ services:
       GOODSER_VISION_VLM_BASE_URL: ""
       GOODSER_VISION_VLM_API_KEY: ""
       GOODSER_VISION_VLM_MODEL: qwen2.5-vl-3b-instruct
+      GOODSER_VISION_VLM_CONFIG_FILE: data/vlm.json
       HF_HOME: /app/hf-cache
       PADDLEOCR_HOME: /app/paddle-cache
       PYTORCH_CUDA_ALLOC_CONF: max_split_size_mb:128
@@ -33,6 +34,7 @@ services:
       - ./models:/app/models
       - ./hf-cache:/app/hf-cache
       - ./paddle-cache:/app/paddle-cache
+      - ./data:/app/data
     shm_size: "2gb"
     networks:
       - goodser-internal
