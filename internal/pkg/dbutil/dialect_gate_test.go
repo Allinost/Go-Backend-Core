@@ -59,6 +59,10 @@ func TestV3DialectGate(t *testing.T) {
 		"deleted = 1",
 		"deleted=0",
 		"deleted=1",
+		"enabled = 0",
+		"enabled = 1",
+		"enabled=0",
+		"enabled=1",
 	}
 
 	for _, scope := range scopes {

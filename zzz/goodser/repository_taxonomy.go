@@ -252,7 +252,7 @@ func (r *Repository) GetDictionaryNames(ctx context.Context, ids []string) (map[
 // FindDictionaryByName 按类型与名称查找启用中的字典项，供客户按名称筛选
 func (r *Repository) FindDictionaryByName(ctx context.Context, kind, name string) (*Dictionary, error) {
 	row := r.db.QueryRowContext(ctx, `SELECT id, kind, code, name, parent_id, sort_order, enabled, extra, created_at, updated_at
-		FROM `+tableDictionaries+` WHERE kind = ? AND name = ? AND enabled = 1 LIMIT 1`, kind, strings.TrimSpace(name))
+		FROM `+tableDictionaries+` WHERE kind = ? AND name = ? AND enabled = true LIMIT 1`, kind, strings.TrimSpace(name))
 	item, err := scanDictionary(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -340,7 +340,7 @@ func (r *Repository) ListSeriesSummary(ctx context.Context, inventoryID string) 
 		       COALESCE(SUM(p.quantity), 0)
 		FROM `+tableDictionaries+` d
 		LEFT JOIN `+tableProducts+` p ON p.series_id = d.id AND p.inventory_id = ?
-		WHERE d.kind = ? AND d.enabled = 1
+		WHERE d.kind = ? AND d.enabled = true
 		GROUP BY d.id, d.name, d.sort_order
 		ORDER BY d.sort_order, d.name`, inventoryID, string(DictionaryKindSeries))
 	if err != nil {

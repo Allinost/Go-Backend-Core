@@ -26,7 +26,7 @@ import (
 
 const (
 	exportImageMaxBytes = 20 << 20
-	exportImageWorkers  = 8
+	exportImageWorkers  = 12
 	exportFetchTimeout  = 8 * time.Second
 	exportSyncThreshold = 30
 	exportURLLifetime   = 7 * 24 * time.Hour
@@ -95,7 +95,10 @@ func (s *Service) CreateExport(ctx context.Context, inventoryID string, req *Exp
 	}
 
 	if len(preview.Lines) <= exportSyncThreshold {
-		s.renderExport(ctx, job.ID, preview, *req, opts)
+		// 渲染不跟随请求上下文，避免客户端超时/断开导致任务被取消。
+		runCtx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
+		defer cancel()
+		s.renderExport(runCtx, job.ID, preview, *req, opts)
 		return s.GetExport(ctx, job.ID)
 	}
 	go func() {
