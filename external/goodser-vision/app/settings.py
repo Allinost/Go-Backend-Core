@@ -46,5 +46,33 @@ class Settings:
     vlm_max_tokens: int = int(_env("GOODSER_VISION_VLM_MAX_TOKENS", "512"))
     vlm_config_file: str = _env("GOODSER_VISION_VLM_CONFIG_FILE", "data/vlm.json")
 
+    # VLM 主/备（兼容旧单槽位 VLM_*）
+    vlm_primary_enabled: bool = _bool(
+        "GOODSER_VISION_VLM_PRIMARY_ENABLED",
+        _bool("GOODSER_VISION_VLM_ENABLED", False),
+    )
+    vlm_primary_provider: str = _env(
+        "GOODSER_VISION_VLM_PRIMARY_PROVIDER",
+        _env("GOODSER_VISION_VLM_PROVIDER", "disabled"),
+    ).lower()
+    vlm_primary_base_url: str = _env(
+        "GOODSER_VISION_VLM_PRIMARY_BASE_URL",
+        _env("GOODSER_VISION_VLM_BASE_URL", ""),
+    )
+    vlm_primary_api_key: str = _env(
+        "GOODSER_VISION_VLM_PRIMARY_API_KEY",
+        _env("GOODSER_VISION_VLM_API_KEY", ""),
+    )
+    vlm_primary_model: str = _env(
+        "GOODSER_VISION_VLM_PRIMARY_MODEL",
+        _env("GOODSER_VISION_VLM_MODEL", "qwen2.5-vl-3b-instruct"),
+    )
+
+    vlm_backup_enabled: bool = _bool("GOODSER_VISION_VLM_BACKUP_ENABLED", False)
+    vlm_backup_provider: str = _env("GOODSER_VISION_VLM_BACKUP_PROVIDER", "disabled").lower()
+    vlm_backup_base_url: str = _env("GOODSER_VISION_VLM_BACKUP_BASE_URL", "")
+    vlm_backup_api_key: str = _env("GOODSER_VISION_VLM_BACKUP_API_KEY", "")
+    vlm_backup_model: str = _env("GOODSER_VISION_VLM_BACKUP_MODEL", "")
+
 
 settings = Settings()

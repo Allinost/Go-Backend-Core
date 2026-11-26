@@ -82,7 +82,7 @@ class Runtime:
                 "embedder": self.embedder.status().__dict__,
                 "detector": self.detector.status().__dict__,
                 "ocr": self.ocr.status().__dict__,
-                "vlm": self.vlm.status().__dict__,
+                "vlm": self.vlm.status(),
             },
             "vram": vram_snapshot(),
         }

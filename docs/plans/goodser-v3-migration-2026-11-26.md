@@ -1,6 +1,6 @@
 # Goodser V3 迁移与增强规划
 
-> 版本：v0.8（视觉模型常驻与 VLM 接口）
+> 版本：v0.9（New API 主/备 VLM 与模型名单）
 > 日期：2026-11-26
 > 分支建议：`v3/goodser-plan` → `feature-V3`
 > 关联文档：
@@ -1173,6 +1173,8 @@ http://localhost:3000/modules/zzz/developmentmanager/9?tab=plan
 > - 真实视觉服务手册 `external/goodser-vision/REAL_SERVICE.md` + `docker-compose.real.yml`。
 > - 编辑导航改为草稿式确认/取消；层级默认折叠；支持保存为默认。
 > - 视觉模型常驻单例、启动预热、空闲卸载（0=常驻）、显存监控与 VLM OpenAI 兼容接口。
+> - VLM 已改为 New API 主/备双槽位；真实镜像升级到 CUDA 12.8 / PyTorch 2.7。
+> - 最终模型名单：[external/goodser-vision/MODELS.md](../../external/goodser-vision/MODELS.md)。
 
 ---
 
@@ -1188,3 +1190,4 @@ http://localhost:3000/modules/zzz/developmentmanager/9?tab=plan
 | 2026-11-26 | v0.6：新增导航层级管理（RQM-0017）与谷子图鉴（RQM-0018）；PG 008/009 应用；视觉容器脚手架；Android 扫码页；任务增至 43 | Tom / AI |
 | 2026-11-26 | v0.7：图鉴 Go API + Web Tab；真实视觉服务 docker-compose 手册；编辑导航草稿式保存/取消、默认折叠、保存为默认 | Tom / AI |
 | 2026-11-26 | v0.8：视觉模型常驻/预热/空闲卸载/显存监控；VLM OpenAI 兼容接口与订阅说明；任务增至 45 | Tom / AI |
+| 2026-11-26 | v0.9：VLM 改为 New API 主/备双槽位；CUDA 12.8 / PyTorch 2.7 升级；新增最终模型名单 `MODELS.md` | Tom / AI |

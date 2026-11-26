@@ -11,8 +11,9 @@
 | 项 | 要求 |
 |---|---|
 | 宿主机 | Linux（推荐）或 Windows + WSL2 |
-| GPU | NVIDIA，驱动 ≥ 550，支持 CUDA 12.x |
+| GPU | NVIDIA，驱动 ≥ 550，支持 CUDA 12.8+（Blackwell / RTX 50 系） |
 | 容器 | Docker 24+，NVIDIA Container Toolkit |
+| 基础镜像 | `pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime` |
 | 显存 | 16GB 共享；视觉服务 ≤ 8GB |
 | 网络 | 仅内网；不把 8000 暴露公网 |
 | 模型 | YOLO 检测权重、Chinese-CLIP、PaddleOCR（可选） |
@@ -21,8 +22,12 @@
 
 ```bash
 nvidia-smi
-docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
 ```
+
+> RTX 5060 Ti 是 Blackwell（sm_120），必须使用 CUDA 12.8+ / PyTorch 2.7+。
+> 本项目 `Dockerfile.real` 已固定为 `pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime`。
+> 若使用更新驱动/镜像，可选 `2.11.0-cuda12.8-cudnn9-runtime`，需重新验证 Ultralytics/Paddle 兼容性。
 
 ---
 
@@ -126,24 +131,33 @@ VLM = Vision Language Model，能看图 + 文本并输出判断/描述。适合�
 - 读取包装/标签文字；
 - 判断同系列不同角色是否混淆。
 
-启用方式（通过 New API 统一接入）：
+启用方式（New API 主/备双槽位）：
 
 ```env
 GOODSER_VISION_VLM_ENABLED=1
-GOODSER_VISION_VLM_PROVIDER=newapi
-GOODSER_VISION_VLM_BASE_URL=http://new-api:3000/v1
-GOODSER_VISION_VLM_API_KEY=<New API Token>
-GOODSER_VISION_VLM_MODEL=<New API 中暴露的模型名，例如 deepseek-v4.1-flash>
+
+# 主
+GOODSER_VISION_VLM_PRIMARY_ENABLED=1
+GOODSER_VISION_VLM_PRIMARY_PROVIDER=newapi
+GOODSER_VISION_VLM_PRIMARY_BASE_URL=http://new-api:3000/v1
+GOODSER_VISION_VLM_PRIMARY_API_KEY=<New API Token A>
+GOODSER_VISION_VLM_PRIMARY_MODEL=deepseek-v4.1-flash
+
+# 备
+GOODSER_VISION_VLM_BACKUP_ENABLED=1
+GOODSER_VISION_VLM_BACKUP_PROVIDER=newapi
+GOODSER_VISION_VLM_BACKUP_BASE_URL=http://new-api:3000/v1
+GOODSER_VISION_VLM_BACKUP_API_KEY=<New API Token B>
+GOODSER_VISION_VLM_BACKUP_MODEL=<备用视觉模型名>
 ```
 
-New API 侧建议：
+说明：
 
-- 在 New API 中分别创建 opencode / commandcode 渠道；
-- 模型名以 New API「模型」页实际暴露的名称为准；
-- `goodser-vision` 只填 **New API 地址 + New API Token + 模型名**，不直接接触 opencode/commandcode 的订阅 Token；
-- 确认渠道支持图片输入（`image_url`）；不支持视觉的模型会失败。
-
-本地 vLLM/Ollama 也可以接入 New API，再由 New API 统一暴露，`goodser-vision` 只认 OpenAI 兼容协议。
+- 主/备可以指向同一个 New API，但建议使用不同渠道/Token 或不同模型，避免同一渠道故障时一起失败。
+- `goodser-vision` 只填 New API 地址、Token、模型名，不直接接触 opencode/commandcode 订阅 Token。
+- `/v1/verify` 先调主；主超时/报错/无结果时自动调备；返回结果里带 `slot=primary|backup`。
+- 主备都失败时返回 `503`，**不回退本地模型**。
+- 兼容旧单槽位变量：`GOODSER_VISION_VLM_BASE_URL/API_KEY/MODEL` 会作为主槽位默认值。
 
 **VLM 开关策略：**
 
@@ -155,21 +169,31 @@ GOODSER_VISION_VLM_ENABLED=0
 运行时配置（无需重启）：
 
 ```bash
-# 查看当前配置（不会返回密钥明文，只返回 api_key_set）
+# 查看当前主/备配置（不返回密钥明文，只返回 api_key_set）
 curl -s http://127.0.0.1:8000/v1/system/vlm
 
-# 设置 New API 地址、模型、密钥并启用
+# 设置主/备并启用
 curl -X PUT http://127.0.0.1:8000/v1/system/vlm \
   -H 'Content-Type: application/json' \
   -d '{
     "enabled": true,
-    "provider": "newapi",
-    "base_url": "http://new-api:3000/v1",
-    "model": "deepseek-v4.1-flash",
-    "api_key": "<New API Token>"
+    "primary": {
+      "enabled": true,
+      "provider": "newapi",
+      "base_url": "http://new-api:3000/v1",
+      "model": "deepseek-v4.1-flash",
+      "api_key": "<New API Token A>"
+    },
+    "backup": {
+      "enabled": true,
+      "provider": "newapi",
+      "base_url": "http://new-api:3000/v1",
+      "model": "<备用视觉模型名>",
+      "api_key": "<New API Token B>"
+    }
   }'
 
-# 测试 New API 是否可达
+# 测试主/备；也可以加 ?slot=primary 或 ?slot=backup
 curl -X POST http://127.0.0.1:8000/v1/system/vlm/test
 
 # 临时关闭
@@ -179,7 +203,8 @@ curl -X POST http://127.0.0.1:8000/v1/system/vlm \
 ```
 
 - 配置持久化到 `data/vlm.json`（权限尽量 0600），密钥不会通过 API 回显。
-- VLM 关闭/未配置/New API 不可用时，`/v1/verify` 返回 `503`，**不会加载本地模型**，也不会影响 `/v1/analyze`、`/v1/segment`、图鉴切割。
+- VLM 关闭/未配置/主备均不可用时，`/v1/verify` 返回 `503`，不会加载本地模型。
+- `/v1/analyze`、`/v1/segment`、图鉴切割不依赖 VLM。
 - 前端/Android 把 VLM 复核当作“可选增强”：失败时继续人工确认。
 - 如果 New API 渠道不支持图片输入，保持关闭即可；主识别链路仍走 CLIP + YOLO + OCR + 人工复核。
 

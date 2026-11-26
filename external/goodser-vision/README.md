@@ -12,6 +12,7 @@ Goodser V3.3 的独立视觉容器项目，负责：
 > Go 后端只通过 HTTP 调用，不共享 Python 依赖。
 >
 > 真实模型（CLIP/YOLO/OCR）部署见 [REAL_SERVICE.md](./REAL_SERVICE.md)。
+> 最终模型名单与显存预算见 [MODELS.md](./MODELS.md)。
 
 ## 快速启动
 
