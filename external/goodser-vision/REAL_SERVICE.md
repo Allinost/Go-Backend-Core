@@ -145,6 +145,41 @@ GOODSER_VISION_VLM_API_KEY=...
 - 订阅通常有速率/用途限制；生产识别建议用独立推理 API 或本地 vLLM，避免把编码订阅当业务推理池。
 - 不要把订阅 Token 写进仓库；用 Secret/环境变量注入。
 
+**关于 DS V4.1 Flash（opencode / commandcode 订阅）：**
+
+- 如果订阅提供 OpenAI 兼容 `/chat/completions`，且支持 `image_url`，可以直接用：
+  ```env
+  GOODSER_VISION_VLM_ENABLED=1
+  GOODSER_VISION_VLM_PROVIDER=openai
+  GOODSER_VISION_VLM_BASE_URL=<订阅网关>/v1
+  GOODSER_VISION_VLM_API_KEY=<订阅 Key>
+  GOODSER_VISION_VLM_MODEL=<DS V4.1 Flash 的模型 ID>
+  ```
+- 如果订阅只提供编码 Agent UI/CLI，没有通用视觉推理 API：**保持关闭**，不要回退本地模型。
+- 关闭时识别流程仍正常：Chinese-CLIP + YOLO + OCR + 人工复核；VLM 只是可选的最后一层。
+
+**VLM 开关策略：**
+
+```env
+# 默认关闭
+GOODSER_VISION_VLM_ENABLED=0
+```
+
+运行时切换（无需重启，重启后回到环境变量默认值）：
+
+```bash
+curl -X POST http://127.0.0.1:8000/v1/system/vlm \
+  -H 'Content-Type: application/json' \
+  -d '{"enabled": true}'
+
+curl -X POST http://127.0.0.1:8000/v1/system/vlm \
+  -H 'Content-Type: application/json' \
+  -d '{"enabled": false}'
+```
+
+- VLM 关闭/未配置/API 不可用时，`/v1/verify` 返回 `503`，不会加载本地模型，也不会影响 `/v1/analyze`、`/v1/segment`、图鉴切割。
+- 前端/Android 把 VLM 复核当作“可选增强”：失败时继续人工确认。
+
 调用：
 
 ```bash

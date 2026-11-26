@@ -21,6 +21,7 @@ class VLMStatus:
     provider: str
     model: str
     enabled: bool
+    configured: bool
     loaded: bool
     last_used: float
 
@@ -39,15 +40,28 @@ class VLM:
         self.provider = settings.vlm_provider if settings.vlm_enabled else "disabled"
         self.model = settings.vlm_model
         self._last_used = 0.0
+        self._enabled_override: bool | None = None
 
     @property
     def enabled(self) -> bool:
-        return self.provider not in {"", "disabled", "off", "none"}
+        base_enabled = self.provider not in {"", "disabled", "off", "none"}
+        if self._enabled_override is not None:
+            return self._enabled_override and base_enabled
+        return base_enabled
+
+    @property
+    def configured(self) -> bool:
+        return self.enabled and bool(settings.vlm_base_url) and bool(self.model)
 
     @property
     def loaded(self) -> bool:
-        # 云端/外部 OpenAI 兼容服务不在本进程持有权重
-        return self.enabled and bool(settings.vlm_base_url)
+        # 外部 OpenAI 兼容服务不在本进程持有权重
+        return self.configured
+
+    def set_enabled(self, enabled: bool) -> None:
+        self._enabled_override = bool(enabled)
+        if not enabled:
+            self.unload()
 
     def load(self) -> None:
         # 外部服务无需加载；本地 vLLM/Ollama 由外部容器管理
@@ -64,13 +78,16 @@ class VLM:
             provider=self.provider,
             model=self.model,
             enabled=self.enabled,
+            configured=self.configured,
             loaded=self.loaded,
             last_used=self._last_used,
         )
 
     def verify(self, image: Image.Image, prompt: str, candidates: list[dict[str, Any]] | None = None) -> str:
         if not self.enabled:
-            raise RuntimeError("VLM 未启用")
+            raise RuntimeError("VLM 已关闭（不启用本地回退）")
+        if not self.configured:
+            raise RuntimeError("VLM 未配置：需要 VLM_BASE_URL 与 VLM_MODEL")
         if not settings.vlm_base_url:
             raise RuntimeError("GOODSER_VISION_VLM_BASE_URL 未配置")
         self._last_used = time.monotonic()

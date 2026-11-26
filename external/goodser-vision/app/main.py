@@ -10,6 +10,7 @@ from collections import Counter
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import PlainTextResponse
 from PIL import Image, ImageOps
+from pydantic import BaseModel
 
 from .runtime import Runtime, vram_snapshot
 from .schemas import (
@@ -30,6 +31,10 @@ runtime = Runtime()
 _semaphore = asyncio.Semaphore(max(1, settings.max_concurrency))
 _started_at = time.time()
 _metrics: Counter[str] = Counter()
+
+
+class VLMToggle(BaseModel):
+    enabled: bool
 
 
 @app.on_event("startup")
@@ -148,6 +153,12 @@ async def system_status() -> dict:
     return runtime.status()
 
 
+@app.post("/v1/system/vlm")
+async def set_vlm(payload: VLMToggle) -> dict:
+    runtime.vlm.set_enabled(payload.enabled)
+    return runtime.vlm.status().__dict__
+
+
 @app.post("/v1/embed", response_model=EmbedResponse)
 async def embed(image: UploadFile = File(...)) -> EmbedResponse:
     _ensure_gpu_headroom()
@@ -250,7 +261,10 @@ async def verify(
     except json.JSONDecodeError:
         parsed = []
     img = await _load_image(image)
-    text = await asyncio.to_thread(runtime.vlm.verify, img, prompt, parsed)
+    try:
+        text = await asyncio.to_thread(runtime.vlm.verify, img, prompt, parsed)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail=f"VLM 不可用: {exc}") from exc
     _metrics["verify"] += 1
     return {"text": text, "provider": runtime.vlm.provider, "model": runtime.vlm.model}
 
