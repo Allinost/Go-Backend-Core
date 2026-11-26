@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/Allinost/go-backend-core/internal/database/mysql"
@@ -58,6 +59,27 @@ var tableSpecs = []tableSpec{
 	{"zzz_development_manager_db_table", "zzz_development_manager_db_table"},
 	{"zzz_development_manager_db_column", "zzz_development_manager_db_column"},
 	{"zzz_development_manager_generation", "zzz_development_manager_generation"},
+
+	// Goodser（V2 MySQL → V3 PG）：表名保持一致，按依赖顺序排列。
+	{"zzz_goodser_inventories", "zzz_goodser_inventories"},
+	{"zzz_goodser_status_codes", "zzz_goodser_status_codes"},
+	{"zzz_goodser_tags", "zzz_goodser_tags"},
+	{"zzz_goodser_dictionaries", "zzz_goodser_dictionaries"},
+	{"zzz_goodser_seq_counters", "zzz_goodser_seq_counters"},
+	{"zzz_goodser_recycled_seq_numbers", "zzz_goodser_recycled_seq_numbers"},
+	{"zzz_goodser_products", "zzz_goodser_products"},
+	{"zzz_goodser_product_characters", "zzz_goodser_product_characters"},
+	{"zzz_goodser_combos", "zzz_goodser_combos"},
+	{"zzz_goodser_combo_items", "zzz_goodser_combo_items"},
+	{"zzz_goodser_bundles", "zzz_goodser_bundles"},
+	{"zzz_goodser_bundle_main_products", "zzz_goodser_bundle_main_products"},
+	{"zzz_goodser_bundle_sub_products", "zzz_goodser_bundle_sub_products"},
+	{"zzz_goodser_bundle_pools", "zzz_goodser_bundle_pools"},
+	{"zzz_goodser_bundle_pool_items", "zzz_goodser_bundle_pool_items"},
+	{"zzz_goodser_inbound_logs", "zzz_goodser_inbound_logs"},
+	{"zzz_goodser_outbound_orders", "zzz_goodser_outbound_orders"},
+	{"zzz_goodser_returns", "zzz_goodser_returns"},
+	{"zzz_goodser_stock_movements", "zzz_goodser_stock_movements"},
 }
 
 func sourceTables() []string {
@@ -111,12 +133,19 @@ func main() {
 	out := "reports/v3_bootstrap_report.md"
 	schema := "v3_rehearsal"
 	keep := false
+	sourceTZ := ""
 	flagSet := flag.NewFlagSet(cmd, flag.ExitOnError)
 	flagSet.StringVar(&file, "file", "backups/v3_bootstrap.json", "dump/load 文件")
 	flagSet.StringVar(&out, "out", out, "report 输出文件")
 	flagSet.StringVar(&schema, "schema", "v3_rehearsal", "rehearsal 目标 schema")
 	flagSet.BoolVar(&keep, "keep", false, "rehearsal 后保留 schema")
+	flagSet.StringVar(&sourceTZ, "source-tz", "Asia/Shanghai", "V2 MySQL DATETIME 时区")
 	_ = flagSet.Parse(flag.Args()[1:])
+	if sourceTZ != "" {
+		if loc, err := time.LoadLocation(sourceTZ); err == nil {
+			sourceLocation = loc
+		}
+	}
 
 	cfg, err := config.Load("config.yaml")
 	if err != nil {
@@ -494,6 +523,10 @@ func verify(ctx context.Context, mysqlDB, pgDB *sql.DB) error {
 		fmt.Printf("DATA     %v\n", err)
 		bad++
 	}
+	if err := verifyGoodser(ctx, pgDB); err != nil {
+		fmt.Printf("GOODSER  %v\n", err)
+		bad++
+	}
 	if bad > 0 {
 		return fmt.Errorf("verify failed")
 	}
@@ -615,7 +648,11 @@ func insertRow(ctx context.Context, pgDB *sql.DB, table string, row map[string]a
 	args := make([]any, len(keys))
 	for i, k := range keys {
 		placeholders[i] = "$" + strconv.Itoa(i+1)
-		args[i] = normalizeValue(row[k], meta.types[k])
+		value := row[k]
+		if table == goodserProductsTable && k == "image_url" {
+			value = normalizeMigratedImageURL(value)
+		}
+		args[i] = normalizeValue(value, meta.types[k])
 	}
 	query := "INSERT INTO \"" + table + "\" (" + quoteCols(keys) + ") VALUES (" + strings.Join(placeholders, ", ") + ") ON CONFLICT DO NOTHING"
 	res, err := pgDB.ExecContext(ctx, query, args...)
@@ -692,8 +729,16 @@ func toInt64(v any) int64 {
 	}
 }
 
+// sourceLocation 是 V2 MySQL DATETIME 的时区。
+// V3 的 timestamptz 连接默认 UTC，若不显式换算，V2 的本地时间会整体偏移。
+var sourceLocation = time.FixedZone("CST", 8*3600)
+
 func normalizeValue(v any, udt string) any {
 	switch udt {
+	case "timestamptz":
+		if t, ok := sourceWallTime(v); ok {
+			return t
+		}
 	case "bool":
 		switch x := v.(type) {
 		case bool:
@@ -729,6 +774,107 @@ func normalizeValue(v any, udt string) any {
 		}
 	}
 	return v
+}
+
+const goodserProductsTable = "zzz_goodser_products"
+
+// sourceWallTime 把 V2 的“墙上时间”重新解释为 sourceLocation 时区。
+// MySQL DATETIME 不带时区；驱动 parseTime 后得到的是进程本地时区的 time.Time，
+// 这里只取年月日时分秒，再按 sourceLocation 解释，避免迁移机时区不同导致整体偏移。
+func sourceWallTime(v any) (time.Time, bool) {
+	switch x := v.(type) {
+	case time.Time:
+		if x.IsZero() {
+			return time.Time{}, false
+		}
+		return time.Date(x.Year(), x.Month(), x.Day(), x.Hour(), x.Minute(), x.Second(), x.Nanosecond(), sourceLocation), true
+	case []byte:
+		return parseSourceTime(string(x))
+	case string:
+		return parseSourceTime(x)
+	default:
+		return time.Time{}, false
+	}
+}
+
+func parseSourceTime(raw string) (time.Time, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" || strings.HasPrefix(s, "0000-00-00") {
+		return time.Time{}, false
+	}
+	layouts := []string{
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05Z07:00",
+		"2006-01-02T15:04:05",
+		"2006-01-02",
+	}
+	for _, layout := range layouts {
+		if t, err := time.ParseInLocation(layout, s, sourceLocation); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
+}
+
+// normalizeMigratedImageURL 去掉对象存储预签名 URL 的查询串/片段。
+// 与运行时的 goodser.normalizeImageURL 规则一致，避免迁移后再逐条修复。
+func normalizeMigratedImageURL(v any) any {
+	s := strings.TrimSpace(valueString(v))
+	if !strings.Contains(s, "/goodser/images/") {
+		return v
+	}
+	if cut := strings.IndexAny(s, "?#"); cut >= 0 {
+		s = s[:cut]
+	}
+	return s
+}
+
+func valueString(v any) string {
+	switch x := v.(type) {
+	case string:
+		return x
+	case []byte:
+		return string(x)
+	default:
+		return ""
+	}
+}
+
+// verifyGoodser 校验 Goodser 迁移结果的业务不变量。
+func verifyGoodser(ctx context.Context, db *sql.DB) error {
+	var exists sql.NullString
+	if err := db.QueryRowContext(ctx, "SELECT to_regclass($1)::text", goodserProductsTable).Scan(&exists); err != nil || !exists.Valid {
+		return nil
+	}
+	checks := []struct {
+		name  string
+		query string
+	}{
+		{"商品负库存", `SELECT COUNT(*) FROM zzz_goodser_products WHERE quantity < 0 OR reserved_quantity < 0`},
+		{"流水负数量", `SELECT COUNT(*) FROM zzz_goodser_stock_movements WHERE quantity_after < 0 OR reserved_after < 0`},
+		{"商品标签非数组", `SELECT COUNT(*) FROM zzz_goodser_products WHERE tags IS NOT NULL AND jsonb_typeof(tags) <> 'array'`},
+		{"商品图片非数组", `SELECT COUNT(*) FROM zzz_goodser_products WHERE images IS NOT NULL AND jsonb_typeof(images) <> 'array'`},
+		{"订单明细非数组", `SELECT COUNT(*) FROM zzz_goodser_outbound_orders WHERE items IS NOT NULL AND jsonb_typeof(items) <> 'array'`},
+		{"图片仍带签名参数", `SELECT COUNT(*) FROM zzz_goodser_products WHERE image_url LIKE '%/goodser/images/%?%'`},
+	}
+	var issues []string
+	for _, c := range checks {
+		var n int
+		if err := db.QueryRowContext(ctx, c.query).Scan(&n); err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "does not exist") {
+				continue
+			}
+			return fmt.Errorf("%s: %w", c.name, err)
+		}
+		if n > 0 {
+			issues = append(issues, fmt.Sprintf("%s=%d", c.name, n))
+		}
+	}
+	if len(issues) > 0 {
+		return fmt.Errorf("%s", strings.Join(issues, ", "))
+	}
+	return nil
 }
 
 func resetSequence(ctx context.Context, db *sql.DB, table string) error {

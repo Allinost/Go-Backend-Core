@@ -968,12 +968,17 @@ goodser:
 - 独立开关：`modules_goodser_enabled` / `APP_MODULES_GOODSER_ENABLED`，与 `legacy_modules_enabled` 解耦。
 - 方言门禁：`zzz/goodser` 已加入 `internal/pkg/dbutil/dialect_gate_test.go`。
 - PG 集成测试：`zzz/goodser/repository_integration_test.go`（库存 CRUD、序号计数器、jsonb 标签与 ILIKE、成本价、库存统计、按天统计、HAVING），已在 dev PG 实测通过。
+- 迁移工具：`cmd/v3migrate` 已加入 19 表 allowlist；`DATETIME` 按 `-source-tz`（默认 `Asia/Shanghai`）换算到 `timestamptz`；预签名图片 URL 去签名；identity 序列自动重置。
+- 迁移校验：`verify` 增加 Goodser 业务检查（负库存、负流水、jsonb 数组结构、图片签名残留、序列落后）。
+- 迁移测试：合成 dump 的 `loadData` 集成测试已在 dev PG 通过（时区、图片 URL、jsonb、identity 序列、业务校验）。
 
-未完成：
+待完成：
 
-- `cmd/v3migrate` 的 19 表 allowlist、类型转换、行数/金额校验与序列重置。
-- Web 10 个 Tab 联调冒烟与正式路由切换窗口。
+- 真实 V2 dump 的演练（`rehearsal`）与正式切换窗口。
+- Web 10 个 Tab 联调冒烟。
 - 识别/导出 Go API（表已建，接口未实现）。
+
+Runbook：[goodser-v2-to-v3.md](../migrations/goodser-v2-to-v3.md)
 
 ---
 
