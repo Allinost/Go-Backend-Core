@@ -1,6 +1,6 @@
 # Goodser V3 迁移与增强规划
 
-> 版本：v0.5（V3.3 已登记并关联需求）
+> 版本：v0.6（导航与图鉴需求已落地/登记）
 > 日期：2026-11-26
 > 分支建议：`v3/goodser-plan` → `feature-V3`
 > 关联文档：
@@ -38,6 +38,8 @@
 | GPU | **RTX 5060 Ti 16GB**，需与 embedding / TTS 等服务共享显存；视觉服务预算建议 ≤ 8GB |
 | 平铺导出 | 服务端 Go 渲染，Web/Android 共用；背景黑/白/透明，名称/价格/数量可开关，不显示编码/品牌角标 |
 | 客户端顺序 | **Android 先行**，小程序后续 |
+| 导航层级 | 系统保留 9 个层级；自定义层级可增删；删除归入「其他」；图标可选 |
+| 谷子图鉴 | 图鉴原图可含多个柄图；自动切割入库；图鉴 + 商品图共同作为识别来源 |
 | 迁移窗口 | **停机 2–4 小时**；V2 快照保留 7 天，回滚 ≤30 分钟 |
 | Android 工程 | 直接升级现有 `com.goodser.app`；Goodser 仓库里的 Rust 后端**已废弃，不使用** |
 | 捆导出 | 先支持按需选择主品/捆品；未选时用默认预览，后续再修 |
@@ -123,6 +125,8 @@ V3.0 规划原本写的是「业务模块暂不迁移，V3.3 再做 Goodser」�
 4. Android 增加拍照/相册扫描，支持一张图多个商品检测、相似匹配与计数。
 5. Web + Android 增加平铺图拼接导出（商品图 + 数量）。
 6. 所有新能力遵守 V3 SOP：迁移可回滚、PG 集成测试、权限/审计、文档与台账同步。
+7. V3 侧边导航支持层级增删、图标选择与「其他」兜底，并按系统保留层级重组。
+8. Goodser 增加谷子图鉴：多图上传、单图多柄图切割、图鉴辅助识别。
 
 ### 2.2 非目标
 
@@ -862,6 +866,73 @@ goodser:
 | `goodser.export.create` | 创建导出 |
 | `goodser.export.read` | 查看/下载导出 |
 | `goodser.export.manage` | 删除/模板管理 |
+| `goodser.catalog.read` | 查看图鉴 |
+| `goodser.catalog.create` | 新建图鉴/上传原图 |
+| `goodser.catalog.update` | 编辑图鉴/柄图 |
+| `goodser.catalog.delete` | 删除图鉴/柄图 |
+| `goodser.catalog.segment` | 触发图鉴切割 |
+
+### 7.4 导航层级管理（V3 平台）
+
+**系统保留层级**：
+
+```text
+仪表盘（顶部项）
+常用功能
+用户管理
+业务模块
+硬件运维
+软件运维
+数据运维
+工具组件
+其他
+```
+
+规则：
+
+- 系统层级不可删除、名称固定；可调整显示、默认展开、排序和图标。
+- 自定义层级可新增/删除；删除时其下功能自动归入「其他」。
+- 每个层级/常用功能可选择图标（NKUI 已补 star/layers/server/code/database/tools/grid 等）。
+- 旧 v1 配置自动迁移到 v2：保留菜单可见性/权限/常用功能，未知功能进入「其他」。
+- 视觉：图标 chip、分组引导线、展开动画、激活态、数量徽标、折叠态。
+
+实现状态：前端已完成（`35a08de`），NKUI 图标已补（`33b3d56`）。
+
+### 7.5 谷子图鉴（Goodser）
+
+**目标**：建立「图鉴」知识库，辅助商品识别；图鉴与商品图共同作为识别来源。
+
+流程：
+
+1. 新建图鉴：标题、备注。
+2. 上传一张或多张制品图（单张可包含多个柄图）。
+3. 调 `goodser-vision` `/v1/segment` 检测/切割：
+   - 检测框 → 裁剪 → 上传 RustFS → 写 `zzz_goodser_catalog_items`。
+   - 切割失败保留原图，允许人工补切/校准。
+4. 图鉴柄图与商品图都写入向量元数据：
+   - `source_type=product` / `catalog_item`。
+   - 识别 Top-K 同时召回两类来源；命中图鉴柄图时展示关联商品或「未绑定」。
+5. Web 增加「图鉴」Tab；Android 增加图鉴浏览/拍照辅助入口。
+
+**API 规划**：
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/zzz-goodser/catalogs` | 图鉴列表 |
+| POST | `/zzz-goodser/catalogs` | 新建图鉴 |
+| GET | `/zzz-goodser/catalogs/:id` | 图鉴详情（原图 + 柄图） |
+| PUT | `/zzz-goodser/catalogs/:id` | 编辑标题/备注 |
+| DELETE | `/zzz-goodser/catalogs/:id` | 删除图鉴 |
+| POST | `/zzz-goodser/catalogs/:id/images` | 上传原图（可多张） |
+| POST | `/zzz-goodser/catalog-images/:id/segment` | 触发单图切割 |
+| PUT | `/zzz-goodser/catalog-items/:id` | 编辑柄图标题/关联商品/框 |
+| DELETE | `/zzz-goodser/catalog-items/:id` | 删除柄图 |
+
+实现状态：
+
+- PG 009 已建 `catalogs/catalog_images/catalog_items`、识别/导出表、向量元数据表（迁移已应用）。
+- `external/goodser-vision` 已提供 `/v1/segment`（当前 fallback 整图单框，YOLO 接入后多框）。
+- Go 图鉴 API / Web Tab / Android 图鉴入口待下一批实现（任务 `V3.3-GDS-51..56`）。
 
 ---
 
@@ -1056,11 +1127,11 @@ goodser:
 | 里程碑 | `V3.3` / 「Goodser V3 迁移与增强」 / ID 7 |
 | 周期 | 2026-11-26 → 2027-01-09 |
 | 状态 | planned |
-| 任务 | 32 个（`V3.3-GDS-01` … `V3.3-GDS-41`，含可选 `29b`/`36`） |
+| 任务 | 43 个（`V3.3-GDS-*`、`V3.3-NAV-*`） |
 | 依赖 | 37 条 FS 依赖 |
-| 预估 | 328 小时 ≈ 41 人日（含可选 OCR/VLM 与模板） |
-| 需求 | 3 条已入库：`RQM-0014` 迁移 / `RQM-0015` 识别 / `RQM-0016` 导出（status=planned） |
-| 关联 | 迁移任务→RQM-0014；识别任务→RQM-0015；导出任务→RQM-0016 |
+| 预估 | 447 小时 ≈ 56 人日（含可选 OCR/VLM、模板、图鉴） |
+| 需求 | 5 条已入库：RQM-0014 迁移 / 0015 识别 / 0016 导出 / 0017 导航 / 0018 图鉴（planned） |
+| 关联 | 迁移→0014；识别→0015；导出→0016；导航→0017；图鉴→0018 |
 
 查看入口：
 
@@ -1075,6 +1146,12 @@ http://localhost:3000/modules/zzz/developmentmanager/9?tab=plan
 >   （修复项目列表 500）。
 >
 > 以上已通过 `go test ./zzz/developmentManager`，并在 29095 实例验证；前端代理已切到 29095。
+>
+> **本轮已落地**：
+> - 导航层级增删/图标/视觉优化（前端 `35a08de`，NKUI `33b3d56`）。
+> - PG `008_goodser.sql`、`009_goodser_catalog.sql` 已编写并成功应用（9/9）。
+> - `external/goodser-vision` 脚手架（FastAPI、embed/analyze/segment、Dockerfile、compose）。
+> - Android CameraX 扫码页、识别 API/Repository、权限与入口（`feature-go-backend` 工作区）。
 
 ---
 
@@ -1087,3 +1164,4 @@ http://localhost:3000/modules/zzz/developmentmanager/9?tab=plan
 | 2026-11-26 | v0.3：导出支持黑/白/透明背景与名称/价格/数量开关；补充直出/捆/组合包计价规则；视觉服务定位到 `external/goodser-vision`；确认 Android 现有工程位置 | Tom / AI |
 | 2026-11-26 | v0.4：确认 Android 先行、停机 2–4h、透明描边、捆选择按需；登记 V3.3 里程碑（ID 7）、32 任务、37 依赖；修复需求编号 PG 方言 | Tom / AI |
 | 2026-11-26 | v0.5：需求 RQM-0014/15/16 入库并关联任务；修复需求版本 Rebind、execTx 递归、项目列表 COALESCE；前端代理切 29095 | Tom / AI |
+| 2026-11-26 | v0.6：新增导航层级管理（RQM-0017）与谷子图鉴（RQM-0018）；PG 008/009 应用；视觉容器脚手架；Android 扫码页；任务增至 43 | Tom / AI |

@@ -1,0 +1,33 @@
+services:
+  goodser-vision:
+    build:
+      context: .
+    image: goodser-vision:0.1.0
+    container_name: goodser-vision
+    restart: unless-stopped
+    ports:
+      # 仅本机/内网访问，不直接暴露公网
+      - "127.0.0.1:8000:8000"
+    environment:
+      DEVICE: cpu
+      GOODSER_VISION_EMBEDDER: fallback
+      GOODSER_VISION_DETECTOR: fallback
+      GOODSER_VISION_MAX_CONCURRENCY: "2"
+      GOODSER_VISION_MAX_IMAGE_SIDE: "1920"
+      GOODSER_VISION_MODEL_DIR: /app/models
+    volumes:
+      - ./models:/app/models
+    networks:
+      - goodser-internal
+    # GPU 机器启用以下配置（并安装 CUDA 版依赖）
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+networks:
+  goodser-internal:
+    name: goodser-internal
