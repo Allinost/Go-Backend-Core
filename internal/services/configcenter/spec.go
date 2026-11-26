@@ -34,6 +34,7 @@ type Spec struct {
 	Sensitive   bool      `json:"sensitive"`
 	Reloadable  bool      `json:"reloadable"`
 	EnvLocked   bool      `json:"env_locked"`
+	Unused      bool      `json:"unused"`
 	Group       string    `json:"group"`
 	Description string    `json:"description"`
 }

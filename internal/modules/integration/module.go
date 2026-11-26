@@ -113,9 +113,13 @@ func (m *Module) Init(cfg *config.Config) error {
 		}
 		var limiter middleware.Limiter
 		if rdb, ok := database.DB.Redis["main"]; ok && rdb != nil {
-			limiter = middleware.NewRedisRateLimit(rdb, maxPerMinute, time.Minute)
+			rl := middleware.NewRedisRateLimit(rdb, maxPerMinute, time.Minute)
+			activeRateLimit = rl
+			limiter = rl
 		} else {
-			limiter = middleware.NewRateLimit(maxPerMinute, time.Minute)
+			rl := middleware.NewRateLimit(maxPerMinute, time.Minute)
+			activeRateLimit = rl
+			limiter = rl
 		}
 		m.rateLimitMW = middleware.RateLimiterByKey(limiter, func(c *gin.Context) string {
 			if value, exists := c.Get("api_key_id"); exists {
@@ -145,6 +149,7 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.dispatcher.Start(context.Background())
 
 	m.retention = outbox.NewRetention(m.outbox, outbox.RetentionConfig{Days: cfg.Integration.RetentionDays})
+	activeRetention = m.retention
 	m.retention.Start(context.Background())
 
 	logger.Info().Bool("dispatcher", dc.Enabled).Int("retention_days", cfg.Integration.RetentionDays).Msg("integration: 模块初始化完成")

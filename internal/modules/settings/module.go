@@ -46,7 +46,12 @@ func (m *Module) Init(cfg *config.Config) error {
 	m.authMW = am.AuthMiddleware()
 	m.rbac = am.RBAC()
 
-	m.configSvc = newConfigService(cfg)
+	if preparedConfigSvc != nil {
+		m.configSvc = preparedConfigSvc
+		preparedConfigSvc = nil
+	} else {
+		m.configSvc = newConfigService(cfg)
+	}
 	m.h = NewHandler(m.store, cfg)
 	m.h.SetConfigService(m.configSvc)
 	return nil

@@ -13,10 +13,33 @@ type Service struct {
 	store    Store
 	apply    func(values map[string]any) error
 
+	writeMu  sync.Mutex
 	mu       sync.RWMutex
 	values   map[string]any
 	baseline map[string]any
 	cipher   SecretCipher
+	degraded string
+}
+
+// SetDegraded 标记配置中心处于降级状态（如持久化不可用），降级期间拒绝写入，避免变更丢失。
+func (s *Service) SetDegraded(reason string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.degraded = reason
+}
+
+// Degraded 返回降级原因；为空表示正常。
+func (s *Service) Degraded() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.degraded
+}
+
+func (s *Service) checkWritable() error {
+	if reason := s.Degraded(); reason != "" {
+		return fmt.Errorf("configcenter: 配置中心处于降级模式，拒绝写入（%s）", reason)
+	}
+	return nil
 }
 
 func New(registry *Registry, store Store) *Service {
@@ -71,18 +94,20 @@ func (s *Service) Load(ctx context.Context) error {
 	}
 	values := s.baselineCopy()
 	for key, raw := range stored {
+		spec, ok := s.registry.Get(key)
+		if !ok {
+			// 已下线的配置项：保留在库中但不参与加载，避免一条旧数据拖垮整个配置中心
+			continue
+		}
 		var value any
 		if err := json.Unmarshal(raw, &value); err != nil {
 			return fmt.Errorf("configcenter: 解析 %s 失败: %w", key, err)
 		}
-		if spec, ok := s.registry.Get(key); ok {
-			opened, err := s.openSecret(spec, value)
-			if err != nil {
-				return err
-			}
-			value = opened
+		opened, err := s.openSecret(spec, value)
+		if err != nil {
+			return err
 		}
-		values[key] = value
+		values[key] = opened
 	}
 	if err := s.registry.Validate(values); err != nil {
 		return err
@@ -135,6 +160,9 @@ func (s *Service) ValidatePatch(patch map[string]any) (map[string]any, error) {
 		if !ok {
 			return nil, fmt.Errorf("configcenter: 未知配置项 %s", key)
 		}
+		if spec.EnvLocked {
+			return nil, fmt.Errorf("configcenter: %s 由环境变量管理，不允许在线修改", key)
+		}
 		v, err := normalizeValue(spec, value)
 		if err != nil {
 			return nil, fmt.Errorf("configcenter: %s %w", key, err)
@@ -159,13 +187,18 @@ func (s *Service) ValidatePatch(patch map[string]any) (map[string]any, error) {
 
 // Update 校验、持久化并应用配置补丁。
 func (s *Service) Update(ctx context.Context, patch map[string]any, operator, note string) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	if err := s.checkWritable(); err != nil {
+		return err
+	}
 	normalized, err := s.ValidatePatch(patch)
 	if err != nil {
 		return err
 	}
-	// 前端可能回传脱敏占位符：视为“不修改”，避免把 ****** 写进配置。
+	// 前端可能回传脱敏占位符：敏感项视为“不修改”，避免把 ****** 写进配置。
 	for key, value := range normalized {
-		if isMasked(value) {
+		if spec, _ := s.registry.Get(key); spec.Sensitive && isMasked(value) {
 			delete(normalized, key)
 		}
 	}
@@ -211,9 +244,23 @@ func (s *Service) Update(ctx context.Context, patch map[string]any, operator, no
 
 // Reset 将指定 key 重置为默认值；keys 为空时重置全部。
 func (s *Service) Reset(ctx context.Context, keys []string, operator, note string) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	if err := s.checkWritable(); err != nil {
+		return err
+	}
 	if len(keys) == 0 {
 		for _, spec := range s.registry.Specs() {
 			keys = append(keys, spec.Key)
+		}
+	}
+	for _, key := range keys {
+		spec, ok := s.registry.Get(key)
+		if !ok {
+			return fmt.Errorf("configcenter: 未知配置项 %s", key)
+		}
+		if spec.EnvLocked {
+			return fmt.Errorf("configcenter: %s 由环境变量管理，不允许在线修改", key)
 		}
 	}
 	if err := s.store.Reset(ctx, keys, operator, note); err != nil {

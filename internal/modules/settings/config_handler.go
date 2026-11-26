@@ -54,7 +54,7 @@ func (h *Handler) GetConfig(c *gin.Context) {
 	if !h.configReady(c) {
 		return
 	}
-	response.Success(c, gin.H{"values": h.configSvc.Values(true)})
+	response.Success(c, gin.H{"values": h.configSvc.Values(true), "degraded": h.configSvc.Degraded()})
 }
 
 // UpdateConfig 更新配置（校验 + 持久化 + 热更新 + 审计）

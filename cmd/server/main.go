@@ -140,6 +140,9 @@ func main() {
 		modules.Register(&ia.Module{})
 	}
 
+	// 配置中心需先于模块初始化加载，使数据库保存的热更新项在启动时即生效
+	settings.PrepareConfigCenter(cfg)
+
 	// 初始化所有模块（调用 Init，不挂载路由）
 	modules.InitAll(cfg)
 
@@ -149,6 +152,7 @@ func main() {
 	mainR.Use(middleware.Logger())
 	mainR.Use(middleware.CORS())
 	mainR.Use(gin.Recovery())
+	mainR.Use(middleware.UploadLimit())
 	mainR.Use(middleware.RateLimiter(middleware.NewRateLimit(100, time.Minute)))
 	modules.RegisterAllRoutes(mainR)
 

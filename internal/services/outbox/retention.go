@@ -3,6 +3,7 @@ package outbox
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
@@ -17,7 +18,7 @@ type RetentionConfig struct {
 // Retention 定期清理超过保留期的已投递事件。
 type Retention struct {
 	svc      *Service
-	days     int
+	days     atomic.Int64
 	interval time.Duration
 
 	mu     sync.Mutex
@@ -31,12 +32,22 @@ func NewRetention(svc *Service, cfg RetentionConfig) *Retention {
 	if interval <= 0 {
 		interval = 6 * time.Hour
 	}
-	return &Retention{svc: svc, days: cfg.Days, interval: interval}
+	r := &Retention{svc: svc, interval: interval}
+	r.days.Store(int64(cfg.Days))
+	return r
 }
 
-// Start 启动后台清理循环。
+// SetDays 运行时调整保留天数（配置中心热更新）；<= 0 表示停止清理。
+func (r *Retention) SetDays(days int) {
+	if r == nil {
+		return
+	}
+	r.days.Store(int64(days))
+}
+
+// Start 启动后台清理循环（循环常驻，保留天数为 0 时每轮跳过，便于运行时开启）。
 func (r *Retention) Start(parent context.Context) {
-	if r == nil || r.days <= 0 || r.svc == nil {
+	if r == nil || r.svc == nil {
 		return
 	}
 	r.mu.Lock()
@@ -96,9 +107,13 @@ func (r *Retention) Stop() {
 
 // RunOnce 执行一次清理，返回删除条数。
 func (r *Retention) RunOnce(ctx context.Context) (int64, error) {
-	if r == nil || r.days <= 0 || r.svc == nil {
+	if r == nil || r.svc == nil {
 		return 0, nil
 	}
-	before := time.Now().UTC().AddDate(0, 0, -r.days)
+	days := int(r.days.Load())
+	if days <= 0 {
+		return 0, nil
+	}
+	before := time.Now().UTC().AddDate(0, 0, -days)
 	return r.svc.DeleteDeliveredBefore(ctx, before)
 }

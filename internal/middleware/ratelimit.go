@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -58,6 +59,16 @@ func (rl *RateLimit) cleanup() {
 	}
 }
 
+// SetMaxRequests 运行时调整窗口内最大请求数（配置中心热更新）
+func (rl *RateLimit) SetMaxRequests(n int) {
+	if n <= 0 {
+		return
+	}
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	rl.maxRequests = n
+}
+
 func (rl *RateLimit) Allow(ip string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
@@ -85,17 +96,25 @@ func (rl *RateLimit) Allow(ip string) bool {
 type RedisRateLimit struct {
 	client      redis.UniversalClient
 	prefix      string
-	maxRequests int
+	maxRequests atomic.Int64
 	window      time.Duration
 }
 
 // NewRedisRateLimit 创建 Redis 分布式限流器（生产多实例场景）
 func NewRedisRateLimit(client redis.UniversalClient, maxRequests int, window time.Duration) *RedisRateLimit {
-	return &RedisRateLimit{
-		client:      client,
-		prefix:      "ratelimit",
-		maxRequests: maxRequests,
-		window:      window,
+	rl := &RedisRateLimit{
+		client: client,
+		prefix: "ratelimit",
+		window: window,
+	}
+	rl.maxRequests.Store(int64(maxRequests))
+	return rl
+}
+
+// SetMaxRequests 运行时调整窗口内最大请求数（配置中心热更新）
+func (rl *RedisRateLimit) SetMaxRequests(n int) {
+	if n > 0 {
+		rl.maxRequests.Store(int64(n))
 	}
 }
 
@@ -112,7 +131,7 @@ func (rl *RedisRateLimit) Allow(ip string) bool {
 		rl.client.Expire(ctx, key, rl.window)
 	}
 
-	return count <= int64(rl.maxRequests)
+	return count <= rl.maxRequests.Load()
 }
 
 // RateLimiter 返回 Gin 限流中间件处理函数（按客户端 IP）

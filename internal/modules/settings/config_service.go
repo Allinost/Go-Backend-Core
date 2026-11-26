@@ -6,6 +6,8 @@ import (
 
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/Allinost/go-backend-core/internal/database"
+	"github.com/Allinost/go-backend-core/internal/middleware"
+	"github.com/Allinost/go-backend-core/internal/modules/integration"
 	"github.com/Allinost/go-backend-core/internal/pkg/logger"
 	svcAuth "github.com/Allinost/go-backend-core/internal/services/auth"
 	"github.com/Allinost/go-backend-core/internal/services/configcenter"
@@ -13,7 +15,16 @@ import (
 	"github.com/Allinost/go-backend-core/zzz/login3rd"
 )
 
-// newConfigService 创建配置中心：优先 PostgreSQL 持久化，表未迁移时降级内存。
+// preparedConfigSvc 在 modules.InitAll 之前由 PrepareConfigCenter 构建，
+// 保证 scheduler/integration 等先初始化的模块也能读到数据库中保存的配置。
+var preparedConfigSvc *configcenter.Service
+
+// PrepareConfigCenter 在数据库连接就绪后、模块初始化前调用：加载配置中心并把生效值写入 cfg。
+func PrepareConfigCenter(cfg *config.Config) {
+	preparedConfigSvc = newConfigService(cfg)
+}
+
+// newConfigService 创建配置中心：优先 PostgreSQL 持久化；不可用时降级为内存存储并标记 degraded（拒绝写入）。
 func newConfigService(cfg *config.Config) *configcenter.Service {
 	registry := configcenter.NewRegistry()
 	if err := registry.Register(configcenter.DefaultSpecs()...); err != nil {
@@ -24,7 +35,7 @@ func newConfigService(cfg *config.Config) *configcenter.Service {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	// 默认内存存储：保证 PG/迁移未就绪时配置中心仍可用。
+	// 默认内存存储：保证 PG/迁移未就绪时配置中心仍可用（只读降级）。
 	newSvc := func(store configcenter.Store) *configcenter.Service {
 		s := configcenter.New(registry, store)
 		s.SetBaseline(configBaseline(cfg))
@@ -35,14 +46,20 @@ func newConfigService(cfg *config.Config) *configcenter.Service {
 		logger.Warn().Err(err).Msg("settings: 配置中心内存加载失败")
 	}
 
-	if db := database.Main(); db != nil {
+	db := database.Main()
+	if db == nil {
+		svc.SetDegraded("PostgreSQL 主库未连接")
+		logger.Warn().Msg("settings: PostgreSQL 主库未连接，配置中心降级为只读内存模式")
+	} else {
 		sqlStore := configcenter.NewSQLStore(db)
 		if err := sqlStore.Init(ctx); err != nil {
-			logger.Warn().Err(err).Msg("settings: system_config 未迁移，配置中心降级为内存存储")
+			svc.SetDegraded("system_config 未迁移")
+			logger.Warn().Err(err).Msg("settings: system_config 未迁移，配置中心降级为只读内存模式")
 		} else {
 			sqlSvc := newSvc(sqlStore)
 			if err := sqlSvc.Load(ctx); err != nil {
-				logger.Warn().Err(err).Msg("settings: 配置中心 PG 加载失败，继续使用内存存储")
+				svc.SetDegraded("PostgreSQL 配置加载失败: " + err.Error())
+				logger.Error().Err(err).Msg("settings: 配置中心 PG 加载失败，降级为只读内存模式")
 			} else {
 				svc = sqlSvc
 				logger.Info().Msg("settings: 配置中心已使用 PostgreSQL 持久化")
@@ -141,9 +158,14 @@ func applyConfigValues(cfg *config.Config, values map[string]any) {
 	}
 	if n, ok := intValue(values["integration.rate_limit.requests_per_minute"]); ok {
 		cfg.Integration.RateLimit.RequestsPerMinute = n
+		integration.SetRateLimitPerMinute(n)
 	}
 	if n, ok := intValue(values["integration.retention_days"]); ok {
 		cfg.Integration.RetentionDays = n
+		integration.SetRetentionDays(n)
+	}
+	if n, ok := intValue(values["security.upload_max_mb"]); ok {
+		middleware.SetUploadMaxMB(n)
 	}
 	if b, ok := boolValue(values["auth.allow_registration"]); ok {
 		svcAuth.SetAllowRegistration(b)

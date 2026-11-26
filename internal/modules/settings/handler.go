@@ -115,6 +115,16 @@ func (h *Handler) Update(c *gin.Context) {
 		response.ParamErr(c, err.Error())
 		return
 	}
+	// public_base_url 的唯一来源是配置中心（DB），这里先写配置中心，再同步文件副本（兼容旧版本回退）
+	if h.configSvc != nil {
+		uid, _ := actor(c)
+		if err := h.configSvc.Update(c.Request.Context(), map[string]any{
+			"server.public_base_url": normalized.PublicBaseURL,
+		}, uid, "应用设置页更新"); err != nil {
+			response.Fail(c, appErrors.New(appErrors.CodeParamErr, err.Error()))
+			return
+		}
+	}
 	if err := h.store.Save(normalized); err != nil {
 		logger.Error().Err(err).Msg("settings: 保存设置失败")
 		response.Fail(c, appErrors.New(appErrors.CodeSystemErr, err.Error()))
@@ -148,6 +158,11 @@ func (h *Handler) buildView() (*View, error) {
 	data, err := h.store.Load(defaults(h.cfg))
 	if err != nil {
 		return nil, err
+	}
+	if h.configSvc != nil {
+		if v, ok := h.configSvc.Values(false)["server.public_base_url"].(string); ok {
+			data.PublicBaseURL = v
+		}
 	}
 	health := database.Health()
 	items := make([]StatusItem, 0, len(health))
