@@ -12,8 +12,10 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt requirements-real.txt ./
-RUN pip install --no-cache-dir -r requirements-real.txt
+COPY requirements.txt requirements-real.txt requirements-real-gpu.txt requirements-real-cpu.txt ./
+ARG PADDLE_REQUIREMENTS=requirements-real-gpu.txt
+RUN pip install --no-cache-dir -r requirements-real.txt \
+    && pip install --no-cache-dir -r ${PADDLE_REQUIREMENTS}
 
 COPY app ./app
 COPY README.md REAL_SERVICE.md ./

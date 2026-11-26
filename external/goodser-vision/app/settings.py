@@ -36,6 +36,10 @@ class Settings:
 
     # VLM
     vlm_enabled: bool = _bool("GOODSER_VISION_VLM_ENABLED", False)
+    # auto | primary | backup
+    vlm_mode: str = _env("GOODSER_VISION_VLM_MODE", "auto").lower()
+    # 主失败后的冷却时间（秒），冷却期内直接走备
+    vlm_cooldown_seconds: int = int(_env("GOODSER_VISION_VLM_COOLDOWN_SECONDS", "60"))
     # disabled | openai（OpenAI 兼容接口：vLLM / Ollama / 云厂商 / 订阅网关）
     vlm_provider: str = _env("GOODSER_VISION_VLM_PROVIDER", "disabled").lower()
     vlm_base_url: str = _env("GOODSER_VISION_VLM_BASE_URL", "")
@@ -73,6 +77,11 @@ class Settings:
     vlm_backup_base_url: str = _env("GOODSER_VISION_VLM_BACKUP_BASE_URL", "")
     vlm_backup_api_key: str = _env("GOODSER_VISION_VLM_BACKUP_API_KEY", "")
     vlm_backup_model: str = _env("GOODSER_VISION_VLM_BACKUP_MODEL", "")
+
+    # OCR: gpu | cpu | auto（默认 GPU，初始化失败自动回退 CPU）
+    ocr_enabled: bool = _bool("GOODSER_VISION_OCR_ENABLED", True)
+    ocr_device: str = _env("GOODSER_VISION_OCR_DEVICE", "gpu").lower()
+    ocr_lang: str = _env("GOODSER_VISION_OCR_LANG", "ch")
 
 
 settings = Settings()

@@ -19,6 +19,7 @@ services:
       GOODSER_VISION_IDLE_UNLOAD_SECONDS: "0"
       GOODSER_VISION_IDLE_CHECK_SECONDS: "30"
       GOODSER_VISION_VLM_ENABLED: "0"
+      GOODSER_VISION_OCR_DEVICE: gpu
     volumes:
       - ./models:/app/models
       - ./data:/app/data

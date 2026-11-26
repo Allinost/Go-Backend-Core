@@ -105,11 +105,26 @@ curl -s http://127.0.0.1:8000/v1/models
 | `GOODSER_VISION_GPU_MEMORY_FRACTION` | `0.5` | 视觉服务显存上限比例（16GB → 8GB） |
 | `GOODSER_VISION_GPU_HEADROOM_MB` | `1024` | 预留显存，低于阈值拒绝新请求 |
 | `GOODSER_VISION_VLM_ENABLED` | `0` | 是否启用 VLM 复核 |
-| `GOODSER_VISION_VLM_PROVIDER` | `disabled` | `disabled` / `openai`（OpenAI 兼容） |
-| `GOODSER_VISION_VLM_BASE_URL` | — | 例如 `http://127.0.0.1:8001/v1` |
-| `GOODSER_VISION_VLM_API_KEY` | — | 外部服务 Key；不要写进代码/仓库 |
-| `GOODSER_VISION_VLM_MODEL` | `qwen2.5-vl-3b-instruct` | 外部服务模型名 |
+| `GOODSER_VISION_VLM_MODE` | `auto` | `auto` / `primary` / `backup` |
+| `GOODSER_VISION_VLM_COOLDOWN_SECONDS` | `60` | 主失败后的冷却秒数 |
+| `GOODSER_VISION_VLM_PROVIDER` | `disabled` | `disabled` / `newapi`（旧单槽位） |
+| `GOODSER_VISION_VLM_BASE_URL` | — | 旧单槽位地址 |
+| `GOODSER_VISION_VLM_API_KEY` | — | 旧单槽位 Key |
+| `GOODSER_VISION_VLM_MODEL` | — | 旧单槽位模型 |
 | `GOODSER_VISION_VLM_MAX_IMAGE_SIDE` | `1280` | 传给 VLM 的图片最长边 |
+| `GOODSER_VISION_VLM_PRIMARY_ENABLED` | `0` | 主槽位开关 |
+| `GOODSER_VISION_VLM_PRIMARY_PROVIDER` | `disabled` | 主槽位协议，通常 `newapi` |
+| `GOODSER_VISION_VLM_PRIMARY_BASE_URL` | — | 主槽位 New API 地址 |
+| `GOODSER_VISION_VLM_PRIMARY_API_KEY` | — | 主槽位 New API Token |
+| `GOODSER_VISION_VLM_PRIMARY_MODEL` | — | 主槽位模型名 |
+| `GOODSER_VISION_VLM_BACKUP_ENABLED` | `0` | 备槽位开关 |
+| `GOODSER_VISION_VLM_BACKUP_PROVIDER` | `disabled` | 备槽位协议 |
+| `GOODSER_VISION_VLM_BACKUP_BASE_URL` | — | 备槽位 New API 地址 |
+| `GOODSER_VISION_VLM_BACKUP_API_KEY` | — | 备槽位 Key |
+| `GOODSER_VISION_VLM_BACKUP_MODEL` | — | 备槽位模型名 |
+| `GOODSER_VISION_OCR_ENABLED` | `1` | 是否启用 OCR |
+| `GOODSER_VISION_OCR_DEVICE` | `gpu` | `gpu` / `cpu` / `auto`；GPU 初始化失败自动回退 CPU |
+| `GOODSER_VISION_OCR_LANG` | `ch` | PaddleOCR 语言 |
 
 > 显存比例通过 `torch.cuda.set_per_process_memory_fraction` 限制；实际占用仍需压测。
 > VLM 默认关闭；启用时通过 OpenAI 兼容接口调用，不在本进程加载 7B 权重。
@@ -201,6 +216,54 @@ curl -X POST http://127.0.0.1:8000/v1/system/vlm \
   -H 'Content-Type: application/json' \
   -d '{"enabled": false}'
 ```
+
+主/备切换：
+
+```bash
+# 自动：主健康走主，主失败/冷却走备
+curl -X POST http://127.0.0.1:8000/v1/system/vlm/switch \
+  -H 'Content-Type: application/json' -d '{"slot":"auto"}'
+
+# 强制主
+curl -X POST http://127.0.0.1:8000/v1/system/vlm/switch \
+  -H 'Content-Type: application/json' -d '{"slot":"primary"}'
+
+# 强制备
+curl -X POST http://127.0.0.1:8000/v1/system/vlm/switch \
+  -H 'Content-Type: application/json' -d '{"slot":"backup"}'
+```
+
+- `auto`：主健康 → 主；主失败/超时 → 冷却 `GOODSER_VISION_VLM_COOLDOWN_SECONDS` 秒 → 备
+- `primary`：强制主，不自动切备（维护/测试用）
+- `backup`：强制备
+- 主备都失败 → `/v1/verify` 返回 503
+
+### 4.2.1 OCR 为什么默认 GPU / 什么时候回 CPU
+
+默认：
+
+```env
+GOODSER_VISION_OCR_DEVICE=gpu
+```
+
+- OCR 和 CLIP/YOLO 一样常驻，不重复加载。
+- GPU OCR 更快，适合一次识别多个柄图/商品。
+- 代码在 GPU 初始化失败时**自动回退 CPU**，不会导致服务启动失败。
+
+回 CPU 的场景：
+
+- `paddlepaddle-gpu` wheel 与 CUDA 12.8 / Blackwell（sm_120）不匹配；
+- 显存非常紧张，需要把 0.8–1.3GB 让给 TTS/embedding；
+- 只做低频/少量 OCR，CPU 延迟可接受。
+
+切换：
+
+```env
+GOODSER_VISION_OCR_DEVICE=cpu
+```
+
+> PaddlePaddle 的 GPU 支持与 PyTorch 的 CUDA 支持是两套体系；PyTorch 2.7.1+cu128 可用不代表 Paddle GPU 可用。
+> 因此默认 GPU，但保留自动回退和手动开关。
 
 - 配置持久化到 `data/vlm.json`（权限尽量 0600），密钥不会通过 API 回显。
 - VLM 关闭/未配置/主备均不可用时，`/v1/verify` 返回 `503`，不会加载本地模型。

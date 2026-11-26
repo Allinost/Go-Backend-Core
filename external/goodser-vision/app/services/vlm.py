@@ -37,6 +37,10 @@ class VLMSlot:
     model: str
     api_key: str
     last_used: float = 0.0
+    last_success: float = 0.0
+    last_error: str = ""
+    fail_count: int = 0
+    open_until: float = 0.0
 
     @property
     def protocol_enabled(self) -> bool:
@@ -46,7 +50,12 @@ class VLMSlot:
     def configured(self) -> bool:
         return self.protocol_enabled and bool(self.base_url) and bool(self.model)
 
+    def healthy(self, now: float | None = None) -> bool:
+        now = now or time.monotonic()
+        return self.enabled and self.configured and now >= self.open_until
+
     def status(self) -> dict[str, Any]:
+        now = time.monotonic()
         return {
             "name": self.name,
             "enabled": self.enabled,
@@ -56,7 +65,12 @@ class VLMSlot:
             "configured": self.configured,
             "api_key_set": bool(self.api_key),
             "loaded": self.configured,
+            "healthy": self.healthy(now),
+            "cooldown_remaining": max(0, int(self.open_until - now)),
+            "last_error": self.last_error,
+            "fail_count": self.fail_count,
             "last_used": self.last_used,
+            "last_success": self.last_success,
         }
 
 
@@ -69,6 +83,7 @@ class VLM:
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._global_enabled = bool(settings.vlm_enabled)
+        self._mode = settings.vlm_mode if settings.vlm_mode in {"auto", "primary", "backup"} else "auto"
         self.primary = VLMSlot(
             name="primary",
             enabled=bool(settings.vlm_primary_enabled),
@@ -103,6 +118,19 @@ class VLM:
     def loaded(self) -> bool:
         return self.configured
 
+    @property
+    def mode(self) -> str:
+        return self._mode
+
+    def switch(self, mode: str) -> dict[str, Any]:
+        value = (mode or "auto").strip().lower()
+        if value not in {"auto", "primary", "backup"}:
+            raise ValueError("mode 必须是 auto/primary/backup")
+        with self._lock:
+            self._mode = value
+            self._persist()
+            return self.status()
+
     def set_enabled(self, enabled: bool) -> None:
         with self._lock:
             self._global_enabled = bool(enabled)
@@ -111,6 +139,7 @@ class VLM:
     def update(
         self,
         enabled: bool | None = None,
+        mode: str | None = None,
         primary: dict[str, Any] | None = None,
         backup: dict[str, Any] | None = None,
         provider: str | None = None,
@@ -121,6 +150,11 @@ class VLM:
         with self._lock:
             if enabled is not None:
                 self._global_enabled = bool(enabled)
+            if mode is not None:
+                value = mode.strip().lower()
+                if value not in {"auto", "primary", "backup"}:
+                    raise ValueError("mode 必须是 auto/primary/backup")
+                self._mode = value
             if any(value is not None for value in (provider, base_url, model, api_key)):
                 self._apply_slot(self.primary, {
                     "provider": provider,
@@ -147,14 +181,43 @@ class VLM:
         if values.get("api_key") is not None:
             slot.api_key = str(values["api_key"]).strip()
 
-    def _active_slots(self) -> list[VLMSlot]:
+    def _candidate_slots(self) -> list[VLMSlot]:
         if not self._global_enabled:
             return []
+        now = time.monotonic()
+        if self._mode == "primary":
+            return [self.primary] if self.primary.enabled and self.primary.configured else []
+        if self._mode == "backup":
+            return [self.backup] if self.backup.enabled and self.backup.configured else []
+        primary_ok = self.primary.healthy(now)
+        backup_ok = self.backup.healthy(now)
+        if primary_ok and backup_ok:
+            return [self.primary, self.backup]
+        if primary_ok:
+            return [self.primary]
+        if backup_ok:
+            return [self.backup]
+        # 主备都在冷却：安全兜底，仍然尝试一次，避免完全不可用
         return [
             slot
             for slot in (self.primary, self.backup)
             if slot.enabled and slot.configured
         ]
+
+    def _mark_success(self, slot: VLMSlot) -> None:
+        now = time.monotonic()
+        slot.last_used = now
+        slot.last_success = now
+        slot.last_error = ""
+        slot.fail_count = 0
+        slot.open_until = 0.0
+
+    def _mark_failure(self, slot: VLMSlot, exc: Exception) -> None:
+        now = time.monotonic()
+        slot.fail_count += 1
+        slot.last_error = str(exc)[:300]
+        if settings.vlm_cooldown_seconds > 0:
+            slot.open_until = now + settings.vlm_cooldown_seconds
 
     def test(self, slot_name: str | None = None) -> dict[str, Any]:
         targets = [self.primary, self.backup]
@@ -172,6 +235,7 @@ class VLM:
                     resp = client.get(url, headers=headers)
                 if resp.status_code < 200 or resp.status_code >= 300:
                     raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}")
+                self._mark_success(slot)
                 out[slot.name] = {"ok": True, "base_url": slot.base_url, "model": slot.model}
             except Exception as exc:  # noqa: BLE001
                 out[slot.name] = {"ok": False, "error": str(exc)}
@@ -189,22 +253,31 @@ class VLM:
     def status(self) -> dict[str, Any]:
         primary = self.primary.status()
         backup = self.backup.status()
-        active = self.primary if self.primary.enabled and self.primary.configured else self.backup
+        now = time.monotonic()
+        if self.primary.healthy(now):
+            active = self.primary
+        elif self.backup.healthy(now):
+            active = self.backup
+        else:
+            active = self.primary if self.primary.enabled else self.backup
         return {
             "enabled": self.enabled,
             "configured": self.configured,
+            "mode": self._mode,
+            "active_slot": active.name,
             "provider": active.provider,
             "model": active.model,
             "base_url": active.base_url,
             "api_key_set": bool(active.api_key),
             "loaded": self.loaded,
             "last_used": max(self.primary.last_used, self.backup.last_used),
+            "cooldown_seconds": settings.vlm_cooldown_seconds,
             "primary": primary,
             "backup": backup,
         }
 
     def verify(self, image: Image.Image, prompt: str, candidates: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-        slots = self._active_slots()
+        slots = self._candidate_slots()
         if not slots:
             raise RuntimeError("VLM 已关闭或主/备均未配置（不启用本地回退）")
         data_url = self._data_url(image)
@@ -215,14 +288,17 @@ class VLM:
         for slot in slots:
             try:
                 text = self._call(slot, content, data_url)
-                slot.last_used = time.monotonic()
+                self._mark_success(slot)
                 return {
                     "text": text,
                     "slot": slot.name,
                     "provider": slot.provider,
                     "model": slot.model,
+                    "mode": self._mode,
+                    "failover": slot.name != "primary",
                 }
             except Exception as exc:  # noqa: BLE001
+                self._mark_failure(slot, exc)
                 errors.append(f"{slot.name}: {exc}")
                 logger.warning("VLM %s failed: %s", slot.name, exc)
         raise RuntimeError("主/备 VLM 均不可用: " + "; ".join(errors))
@@ -285,6 +361,8 @@ class VLM:
             return
         if "enabled" in data:
             self._global_enabled = bool(data["enabled"])
+        if data.get("mode") in {"auto", "primary", "backup"}:
+            self._mode = data["mode"]
         if isinstance(data.get("primary"), dict):
             self._apply_slot(self.primary, data["primary"])
         if isinstance(data.get("backup"), dict):
@@ -300,6 +378,7 @@ class VLM:
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "enabled": self._global_enabled,
+            "mode": self._mode,
             "primary": {
                 "enabled": self.primary.enabled,
                 "provider": self.primary.provider,

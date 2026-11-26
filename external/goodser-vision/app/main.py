@@ -47,6 +47,7 @@ class VLMSlotUpdate(BaseModel):
 
 class VLMConfigUpdate(BaseModel):
     enabled: bool | None = None
+    mode: str | None = None
     primary: VLMSlotUpdate | None = None
     backup: VLMSlotUpdate | None = None
     # 兼容旧单槽位字段
@@ -54,6 +55,10 @@ class VLMConfigUpdate(BaseModel):
     base_url: str | None = None
     model: str | None = None
     api_key: str | None = None
+
+
+class VLMSwitch(BaseModel):
+    slot: str
 
 
 @app.on_event("startup")
@@ -189,6 +194,7 @@ async def update_vlm(payload: VLMConfigUpdate) -> dict:
     backup = payload.backup.model_dump(exclude_none=True) if payload.backup else None
     return runtime.vlm.update(
         enabled=payload.enabled,
+        mode=payload.mode,
         primary=primary,
         backup=backup,
         provider=payload.provider,
@@ -196,6 +202,14 @@ async def update_vlm(payload: VLMConfigUpdate) -> dict:
         model=payload.model,
         api_key=payload.api_key,
     )
+
+
+@app.post("/v1/system/vlm/switch")
+async def switch_vlm(payload: VLMSwitch) -> dict:
+    try:
+        return runtime.vlm.switch(payload.slot)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/v1/system/vlm/test")
