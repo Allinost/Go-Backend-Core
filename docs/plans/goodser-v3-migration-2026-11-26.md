@@ -1,6 +1,6 @@
 # Goodser V3 迁移与增强规划
 
-> 版本：v0.2（决策已确认）
+> 版本：v0.3（导出与视觉容器决策已确认）
 > 日期：2026-11-26
 > 分支建议：`v3/goodser-plan` → `feature-V3`
 > 关联文档：
@@ -34,9 +34,9 @@
 | 启动方式 | **立即并行做完整迁移**，不等 V3.0 稳定；生产切路由仍需独立窗口与回滚点 |
 | 数据归属 | **单 owner，首期共享**；schema 预留 `owner_user_id`，后续再按用户隔离 |
 | 识别范围 | **多商品检测 + 计数 + 手工确认**；不是只做单商品相似检索 |
-| 模型服务 | **独立容器项目 `goodser-vision`**，独立仓库/镜像/API 版本，不塞进 Go 主进程 |
+| 模型服务 | **独立容器项目 `external/goodser-vision`**，独立镜像/API 版本，不塞进 Go 主进程 |
 | GPU | **RTX 5060 Ti 16GB**，需与 embedding / TTS 等服务共享显存；视觉服务预算建议 ≤ 8GB |
-| 平铺导出 | 服务端 Go 渲染，Web/Android 共用同一套输出 |
+| 平铺导出 | 服务端 Go 渲染，Web/Android 共用；背景黑/白/透明，名称/价格/数量可开关，不显示编码/品牌角标 |
 
 ### 0.3 关键判断
 
@@ -71,7 +71,7 @@ V3.0 规划原本写的是「业务模块暂不迁移，V3.3 再做 Goodser」�
 |---|---|---|
 | V2 后端 | Rust / Axum / MySQL / RustFS，action 风格 API | `Goodser/backend` |
 | V2 小程序 | 微信小程序，支持云开发 / Go 后端两种模式 | `Goodser/miniprogram` |
-| V2 Android | Kotlin + Jetpack Compose，Retrofit | `Goodser/Goodser/android` |
+| V2 Android | Kotlin + Jetpack Compose，Retrofit；`applicationId=com.goodser.app`、minSdk 26、targetSdk 35 | `C:\Users\Tom\Documents\Projects\Goodser\Goodser\android` |
 | V3 后端 | Go 模块，19 张表、REST + legacy 共 91 个路由 | `zzz/goodser` |
 | V3 Web | 已拆分为 10 个 Tab 的 Goodser 页面 | `Go-Frontend-Core/src/views/modules/zzz/goodser` |
 | V3 迁移工具 | `cmd/v3migrate` 支持 allowlist/dump/load/verify | `cmd/v3migrate` |
@@ -379,12 +379,29 @@ CREATE TABLE zzz_goodser_recognition_feedback (
 
 ### 5.4 视觉服务 `goodser-vision`（独立容器项目）
 
-**定位**：独立仓库/独立镜像/独立发布节奏，Go 后端只通过 HTTP 调用；不与主进程共享 Python 依赖，也不把模型文件打进 Go 镜像。
+**定位**：独立容器项目，代码放在 **`Go-Backend-Core/external/goodser-vision`**，独立镜像/独立发布节奏；Go 后端只通过 HTTP 调用，不与主进程共享 Python 依赖，也不把模型文件打进 Go 镜像。
 
-**建议仓库结构**：
+**仓库内位置**：
 
 ```text
-goodser-vision/
+Go-Backend-Core/
+├── cmd/ internal/ zzz/ ...
+└── external/
+    └── goodser-vision/
+        ├── app/
+        ├── models/          # .gitignore 模型权重，仅保留下载脚本/清单
+        ├── tests/
+        ├── Dockerfile
+        ├── docker-compose.yml
+        └── README.md
+```
+
+> `external/` 只是代码归属，不改变运行形态：镜像单独构建、单独部署、单独扩缩容；主仓 CI 增加该目录的构建/测试任务。
+
+**建议项目结构**：
+
+```text
+external/goodser-vision/
 ├── app/
 │   ├── main.py              # FastAPI 入口
 │   ├── api/                 # analyze / embed / detect / ocr / health
@@ -458,7 +475,7 @@ goodser-vision/
 
 **部署**：
 
-- 独立 compose 项目：`deploy/goodser-vision/docker-compose.yml`，仅内网网络。
+- 独立 compose 项目：`external/goodser-vision/docker-compose.yml`，仅内网网络。
 - GPU 预留：`deploy.resources.reservations.devices` + `NVIDIA_VISIBLE_DEVICES`；CPU profile 可无 GPU 启动。
 - 模型缓存卷持久化；镜像只带代码，模型启动时校验/下载。
 - 健康检查 + 自动重启；日志 JSON；指标接 Prometheus。
@@ -573,10 +590,13 @@ goodser-vision/
 
 | 能力 | 首期 | 后续 |
 |---|---|---|
-| 选择商品与数量 | ✅ | 按系列/标签批量选择 |
+| 选择商品与数量 | ✅ 商品/捆/组合包 | 按系列/标签批量选择 |
 | 网格排版 | ✅ 3/4/5 列 | 自定义模板/自由拖拽 |
-| 商品图 + 数量徽标 | ✅ | 名称/编码/价格可选 |
-| 背景 | 透明/白/深色 | 自定义背景图 |
+| 背景 | ✅ **黑 / 白 / 透明** | 自定义背景图 |
+| 商品图 + 数量徽标 | ✅ 数量可选显示 | 自定义徽标样式 |
+| 名称 | ✅ 可选显示 | 字体/字号模板 |
+| 价格 | ✅ 可选显示（直出/捆/组合包） | 多币种/折扣价 |
+| 编码/品牌角标 | ❌ 不做 | — |
 | 输出 | PNG/JPEG | PDF/长图/多页 |
 | 历史记录 | ✅ 最近导出 | 收藏模板/批量导出 |
 | 异步任务 | >30 件 | 队列/优先级 |
@@ -599,10 +619,21 @@ goodser-vision/
 3. 计算 cell 宽高、间距、页边距、标题/页脚高度。
 4. 每个 cell：
    - 商品图 contain/cover，圆角裁切。
-   - 右下角数量徽标 `×N`（对比色）。
-   - 可选名称/编码（最多 2 行，超出省略）。
+   - 右下角数量徽标 `×N`（可关闭）；黑底/白底自动切换对比色。
+   - 名称可选（最多 2 行，超出省略）；价格可选。
+   - 不使用编码、品牌角标。
 5. 标题：库存目录名 + 日期 + 总件数/总种数。
 6. 页脚：备注/生成时间（可选）。
+
+**背景与文字**：
+
+| 背景 | 文字/价格 | 数量徽标 |
+|---|---|---|
+| 黑 | 浅色（neutral-0/100） | 主色或白底黑字 |
+| 白 | 深色（neutral-900） | 主色或黑底白字 |
+| 透明 | `text_color=auto|dark|light`，默认 dark + 白色描边 | 半透明白/黑 |
+
+> 透明背景也必须保证文字可读：默认给文字加 1–2px 描边或半透明底板，避免分享到深色聊天背景时看不清。
 
 **性能**：
 
@@ -610,6 +641,46 @@ goodser-vision/
 - 30–200 件异步任务（目标 ≤ 10s）。
 - 单次最多 200 件；输出最长边 ≤ 4096。
 - 图片下载与渲染内存控制；临时文件及时清理。
+
+### 6.3.1 价格规则（直出 / 捆 / 组合包）
+
+导出图片里的价格必须与下单/统计口径一致，**由服务端计算，前端不自行拼价格**。
+
+**直出商品**：复用 `productSalePrice(product)`：
+
+```
+expected_price > 0 ? expected_price
+: market_price > 0 ? market_price
+: original_price > 0 ? original_price
+: 0
+```
+
+- 数量 > 1 时，行金额 = 单价 × 数量。
+- 价格为 0 或未设置：显示 `—`（或不显示价格，取决于 `show_price`）。
+
+**捆（bundle）**：必须复用现有 `PreviewBundle` 逻辑，不能简单相加：
+
+| price_mode | 单价计算 | 说明 |
+|---|---|---|
+| `sum`（默认） | 主品单价 × 主品数量 + Σ(捆品单价 × 数量) | 主品/捆品都按 `productSalePrice` |
+| `fixed` | `bundle.fixed_price` | 固定价，忽略组件价格 |
+| `main_only` | 主品单价 × 主品数量 | 捆品不收费，但仍展示图片/数量 |
+
+- 导出捆时请求需带 `bundle_selection`：主商品、主商品数量、捆品清单（与下单预览一致）。
+- 服务端调用 `PreviewBundle` 得到 `unit_price`、`total_price`、`main_amount`、`sub_amount`、组件快照。
+- 图片上显示捆名 + 单价/行金额；组件明细可放在导出历史/详情里，不塞进主图。
+
+**组合包（combo）**：
+
+- 使用 `combo.price`（组合包固定价），不按组件价格重新求和。
+- 可用量由组件推导；导出只展示组合包图片、名称、数量、固定价。
+
+**展示口径**：
+
+- `price_display`：`unit`（单价）、`total`（行金额）、`both`（`¥12.00 ×3`）。
+- 默认：数量 = 1 显示单价；数量 > 1 显示行金额。
+- 货币符号 `¥`，保留 2 位小数；价格 0 显示 `—`。
+- 导出预览接口返回每一行的 `unit_price`、`amount`、`price_mode`，前端只负责展示。
 
 ### 6.4 数据模型
 
@@ -642,20 +713,40 @@ CREATE TABLE zzz_goodser_export_templates (
 
 ```json
 {
-  "items": [{"product_id": "p1", "quantity": 2}],
+  "items": [
+    {"type": "product", "id": "p1", "quantity": 2},
+    {
+      "type": "bundle",
+      "id": "b1",
+      "quantity": 1,
+      "bundle_selection": {
+        "main_product_id": "p2",
+        "main_quantity": 1,
+        "sub_items": [{"product_id": "p3", "quantity": 2}]
+      }
+    },
+    {"type": "combo", "id": "c1", "quantity": 1}
+  ],
   "columns": 4,
   "background": "transparent",
+  "text_color": "auto",
   "format": "png",
   "show_name": true,
-  "show_code": false,
+  "show_price": true,
+  "show_quantity": true,
+  "price_display": "total",
   "title": "2026-11-26 发货清单"
 }
 ```
+
+> `type=product|bundle|combo`；`bundle` 必须带 `bundle_selection`，由服务端复用 `PreviewBundle` 计价。
+> `background=black|white|transparent`；`text_color=auto|dark|light`（透明背景时生效）。
 
 ### 6.5 API
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
+| POST | `/zzz-goodser/inventories/:id/exports/preview` | 计算价格与布局摘要，不渲染（前端确认用） |
 | POST | `/zzz-goodser/inventories/:id/exports` | 创建导出（≤30 同步，>30 返回 202 + job） |
 | GET | `/zzz-goodser/exports/:eid` | 查询任务/结果 |
 | GET | `/zzz-goodser/inventories/:id/exports` | 导出历史 |
@@ -665,30 +756,53 @@ CREATE TABLE zzz_goodser_export_templates (
 | PUT | `/zzz-goodser/export-templates/:tid` | 更新 |
 | DELETE | `/zzz-goodser/export-templates/:tid` | 删除 |
 
+**预览响应**（节选）：
+
+```json
+{
+  "lines": [
+    {"type":"product","id":"p1","name":"徽章 A","quantity":2,"unit_price":12.5,"amount":25.0,"price_mode":"direct"},
+    {"type":"bundle","id":"b1","name":"套装 B","quantity":1,"unit_price":88.0,"amount":88.0,"price_mode":"main_only",
+     "components":[{"name":"主品","quantity":1,"amount":60.0},{"name":"捆品","quantity":2,"amount":0}]}
+  ],
+  "total_amount": 113.0,
+  "total_quantity": 4
+}
+```
+
 权限：`goodser.export`（owner read/write）；限流与文件大小限制。
 
 ### 6.6 Web UI
 
 - 商品列表增加多选 + 「生成平铺图」按钮。
 - 导出面板：
-  - 已选商品列表，可改数量/移除。
-  - 列数、背景、是否显示名称/编码、格式。
-  - 预览缩略图（可选，异步生成）。
+  - 已选商品/捆/组合包列表，可改数量/移除；捆需选择主品与捆品。
+  - 背景：黑 / 白 / 透明；透明时可选文字深浅。
+  - 显示开关：名称、价格、数量；价格口径：单价/行金额/两者。
+  - 列数（3/4/5）、格式（PNG/JPEG）。
+  - 价格预览：调用 `/exports/preview` 显示每行单价、金额、合计。
   - 生成/下载/复制链接。
 - 历史记录抽屉：最近 20 条，重新下载/删除。
 
 ### 6.7 Android UI
 
 - 商品列表长按多选 → 底部操作栏「平铺图」。
-- 数量调整页 → 生成 → 结果页显示图片 → 保存到相册 / 系统分享。
-- 复用服务端渲染，不在客户端重复实现排版。
+- 支持商品/捆/组合包；捆在导出前选择主品与捆品（复用下单预览）。
+- 数量调整页 → 背景/名称/价格/数量开关 → 价格预览 → 生成。
+- 结果页显示图片 → 保存到相册 / 系统分享。
+- 复用服务端渲染与计价，不在客户端重复实现。
 
 ### 6.8 验收标准
 
 - 30 件导出 ≤ 3s；100 件异步 ≤ 10s。
 - 数量与选择一致；商品图缺失有占位。
-- 中文名称/编码正常渲染（无方块）。
-- PNG 透明背景可用；JPEG 体积合理。
+- 中文名称正常渲染（无方块）。
+- 背景黑/白/透明均可用；透明背景文字可读。
+- 名称/价格/数量开关生效；编码与品牌角标不出现。
+- 价格正确：
+  - 直出：expected → market → original 回退。
+  - 捆：sum / fixed / main_only 与下单预览一致。
+  - 组合包：使用固定价，不按组件重算。
 - Web 下载、Android 保存/分享成功。
 - 失败任务有明确错误与重试。
 
@@ -803,7 +917,7 @@ goodser:
 
 | 编号 | 任务 | 预估 |
 |---|---|---:|
-| V3.3-GDS-20 | `goodser-vision` 独立仓库/镜像/FastAPI 骨架 + 健康检查 | 1.5d |
+| V3.3-GDS-20 | `external/goodser-vision` 容器项目/FastAPI 骨架 + 健康检查 | 1.5d |
 | V3.3-GDS-21 | YOLO 检测 + 标注流程 + 裁剪/NMS | 3d |
 | V3.3-GDS-22 | Chinese-CLIP 向量 + `/v1/embed` + 批量回填 | 1.5d |
 | V3.3-GDS-23 | `/v1/analyze`：检测 + 向量 + 聚类计数 | 1.5d |
@@ -819,12 +933,13 @@ goodser:
 
 | 编号 | 任务 | 预估 |
 |---|---|---:|
-| V3.3-GDS-30 | 渲染器：布局、圆角、数量徽标、中文字体 | 2d |
-| V3.3-GDS-31 | 图片抓取/占位/并发/临时文件 | 1d |
-| V3.3-GDS-32 | 导出任务表 + API + 权限/限流 | 1d |
-| V3.3-GDS-33 | Web 多选 + 导出面板 + 历史 | 1.5d |
-| V3.3-GDS-34 | Android 多选 + 生成/保存/分享 | 1.5d |
-| V3.3-GDS-35 | 模板 CRUD（可选） | 1d |
+| V3.3-GDS-30 | 渲染器：布局、圆角、数量徽标、中文字体、黑/白/透明背景 | 2d |
+| V3.3-GDS-31 | 价格适配：直出/捆/组合包 + 预览接口 | 1.5d |
+| V3.3-GDS-32 | 图片抓取/占位/并发/临时文件 | 1d |
+| V3.3-GDS-33 | 导出任务表 + API + 权限/限流 | 1d |
+| V3.3-GDS-34 | Web 多选 + 导出面板 + 价格预览 + 历史 | 1.5d |
+| V3.3-GDS-35 | Android 多选 + 生成/保存/分享（含捆选择） | 1.5d |
+| V3.3-GDS-36 | 模板 CRUD（可选） | 1d |
 
 #### 收尾
 
@@ -860,10 +975,12 @@ goodser:
 
 ### 9.3 导出
 
-- [ ] Web/Android 可选择商品与数量并生成图片。
+- [ ] Web/Android 可选择商品/捆/组合包与数量并生成图片。
+- [ ] 背景支持黑 / 白 / 透明；名称、价格、数量可开关；编码/品牌角标不出现。
+- [ ] 价格口径与下单一致：直出 expected→market→original；捆 sum/fixed/main_only；组合包固定价。
 - [ ] 30 件 ≤ 3s；100 件异步 ≤ 10s。
-- [ ] 数量、商品图、中文名称/编码正确。
-- [ ] PNG 透明/白底/深色背景可用；Android 可保存/分享。
+- [ ] 数量、商品图、中文名称正确；透明背景文字可读。
+- [ ] Android 可保存/分享。
 - [ ] 失败任务可重试，错误可读。
 
 ---
@@ -891,20 +1008,25 @@ goodser:
 
 ## 11. 待确认问题（已更新）
 
-已确认：立即并行迁移、单 owner、多商品检测 + 计数、独立容器、5060Ti 16GB 共享。
+已确认：
+
+- 立即并行迁移；单 owner；多商品检测 + 计数 + 人工确认。
+- 视觉服务代码放 `external/goodser-vision`，独立镜像/部署。
+- 导出背景支持黑 / 白 / 透明；名称、价格、数量可开关；编码与品牌角标不做。
+- 价格需适配直出、捆（主品/捆品）、组合包。
 
 仍需确认：
 
-1. **导出样式**：平铺图是否需要固定模板/品牌角标/价格？默认透明背景还是白底？
-2. **Android 发布**：升级现有 App，还是新建 V3 App？
-   - 推荐升级现有包名，保留用户。
-3. **小程序**：首期是否必须同步支持拍照识别/平铺导出，还是 Android 先行？
-4. **迁移窗口**：可接受的停机时长（建议 2–4 小时）与回滚窗口（7 天）。
-5. **视觉仓库归属**：`goodser-vision` 放在哪个 Git 仓库/镜像仓库？是否由本仓库 CI 统一构建？
-6. **标注数据**：谁来标注首批 100–300 张？能否先接受「检测召回 ≥90% + 人工补漏」？
-7. **VLM 复核**：16GB 共享显存下是否首期就启用 3B VLM？还是先 OCR，VLM 后置？
-   - 推荐先 OCR；VLM 作为可选，按需懒加载。
-8. **GPU 配额**：视觉服务 8GB、embedding/TTS 剩余 8GB 的划分是否固定？是否需要按时间片切换？
+1. **Android 发布**：建议直接升级现有 `com.goodser.app`（`C:\Users\Tom\Documents\Projects\Goodser\Goodser\android`），保留包名与用户；是否确认？
+2. **小程序**：首期是否同步支持拍照识别/平铺导出，还是 Android 先行？
+3. **迁移窗口**：可接受的停机时长（建议 2–4 小时）与回滚窗口（7 天）。
+4. **视觉 CI**：`external/goodser-vision` 是否纳入主仓 CI 构建镜像？镜像仓库地址？
+5. **标注数据**：首批 100–300 张由谁标注？是否接受「检测召回 ≥90% + 人工补漏」作为首期标准？
+6. **VLM 复核**：16GB 共享显存下是否首期启用 3B VLM？建议先 OCR，VLM 可选懒加载。
+7. **GPU 配额**：视觉 ≤8GB、embedding/TTS 剩余 8GB 的划分是否固定？是否需要按时间片切换？
+8. **捆导出交互**：导出捆时是否要求像下单一样先选主品/捆品，还是只导出捆模板（用默认主品/捆品池）？
+   - 推荐：与下单一致，先选主品/捆品，确保价格准确。
+9. **透明背景文字**：默认深色文字 + 白色描边是否可接受？还是提供「浅色文字」开关？
 
 ---
 
@@ -912,7 +1034,7 @@ goodser:
 
 1. 在 DM 建 V3.3 里程碑与任务，冻结 R1 范围（多商品检测 + 计数 + 人工复核）。
 2. 导出 V2 表结构与行数，生成 19 表字段映射表；确定 owner 回填规则。
-3. 新建 `goodser-vision` 独立仓库/目录：`/healthz` + `/v1/models` + `/v1/embed` 跑通。
+3. 在 `external/goodser-vision` 搭最小容器：`/healthz` + `/v1/models` + `/v1/embed` 跑通。
 4. 收集并标注首批 100 张真实照片（平铺/叠放/弱光/遮挡），跑 YOLO 检测基线。
 5. 用 50 张照片做 CLIP Top-K 离线评估，确定阈值与模型。
 6. 选 3 个商品做平铺图渲染 POC，确认字体/尺寸/数量徽标样式。
@@ -926,3 +1048,4 @@ goodser:
 |---|---|---|
 | 2026-11-26 | 初版：V2→V3 迁移、Android 拍照识别、平铺图导出 | Tom / AI |
 | 2026-11-26 | v0.2：确认立即并行迁移、单 owner、多商品检测+计数、独立视觉容器、5060Ti 16GB 共享显存；补充显存预算/排期/任务 | Tom / AI |
+| 2026-11-26 | v0.3：导出支持黑/白/透明背景与名称/价格/数量开关；补充直出/捆/组合包计价规则；视觉服务定位到 `external/goodser-vision`；确认 Android 现有工程位置 | Tom / AI |
