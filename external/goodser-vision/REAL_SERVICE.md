@@ -94,11 +94,93 @@ curl -s http://127.0.0.1:8000/v1/models
 | `GOODSER_VISION_MODEL_DIR` | `/app/models` | YOLO 权重目录 |
 | `HF_HOME` | `/app/hf-cache` | Chinese-CLIP 缓存 |
 | `PADDLEOCR_HOME` | `/app/paddle-cache` | PaddleOCR 缓存 |
+| `GOODSER_VISION_WARMUP` | `1` | 启动预热 |
+| `GOODSER_VISION_IDLE_UNLOAD_SECONDS` | `0` | 不活跃卸载秒数；0=常驻不卸载 |
+| `GOODSER_VISION_IDLE_CHECK_SECONDS` | `30` | 空闲扫描间隔 |
 | `GOODSER_VISION_GPU_MEMORY_FRACTION` | `0.5` | 视觉服务显存上限比例（16GB → 8GB） |
 | `GOODSER_VISION_GPU_HEADROOM_MB` | `1024` | 预留显存，低于阈值拒绝新请求 |
+| `GOODSER_VISION_VLM_ENABLED` | `0` | 是否启用 VLM 复核 |
+| `GOODSER_VISION_VLM_PROVIDER` | `disabled` | `disabled` / `openai`（OpenAI 兼容） |
+| `GOODSER_VISION_VLM_BASE_URL` | — | 例如 `http://127.0.0.1:8001/v1` |
+| `GOODSER_VISION_VLM_API_KEY` | — | 外部服务 Key；不要写进代码/仓库 |
+| `GOODSER_VISION_VLM_MODEL` | `qwen2.5-vl-3b-instruct` | 外部服务模型名 |
+| `GOODSER_VISION_VLM_MAX_IMAGE_SIDE` | `1280` | 传给 VLM 的图片最长边 |
 
 > 显存比例通过 `torch.cuda.set_per_process_memory_fraction` 限制；实际占用仍需压测。
-> VLM 复核默认关闭；启用时单独加载，空闲 5–10 分钟卸载。
+> VLM 默认关闭；启用时通过 OpenAI 兼容接口调用，不在本进程加载 7B 权重。
+
+### 4.1 模型常驻、预热与空闲卸载
+
+- 启动时加载并预热：Chinese-CLIP、YOLO、PaddleOCR。
+- 常驻单例：请求复用同一份模型，不再每次 `from_pretrained` / `YOLO(...)`。
+- `GOODSER_VISION_IDLE_UNLOAD_SECONDS=0`：所有已加载模型常驻，不卸载（推荐高频使用）。
+- 设置为 `>0`：超过该秒数无请求时释放模型显存；下一次请求会重新加载。
+- `GOODSER_VISION_MAX_CONCURRENCY=1`：连续高频时排队，避免重复分配显存。
+- 不要多 worker：`uvicorn --workers 1`，否则每个 worker 复制一份模型。
+
+### 4.2 VLM 复核
+
+VLM = Vision Language Model，能看图 + 文本并输出判断/描述。适合：
+
+- 识别低置信度时复核 Top-K 候选；
+- 读取包装/标签文字；
+- 判断同系列不同角色是否混淆。
+
+启用方式（OpenAI 兼容接口）：
+
+```env
+GOODSER_VISION_VLM_ENABLED=1
+GOODSER_VISION_VLM_PROVIDER=openai
+GOODSER_VISION_VLM_BASE_URL=http://127.0.0.1:8001/v1
+GOODSER_VISION_VLM_MODEL=qwen2.5-vl-3b-instruct
+GOODSER_VISION_VLM_API_KEY=...
+```
+
+本地 vLLM/Ollama 也可以暴露 OpenAI 兼容接口后填入 `BASE_URL`，不必在 `goodser-vision` 进程里加载 7B 权重。
+
+**关于 Command Code Goat / OpenCode Go 订阅：**
+
+- 只有当订阅提供 **OpenAI 兼容 API** 且允许 **图片输入** 时，才能直接填到 `VLM_BASE_URL` / `VLM_API_KEY`。
+- 如果订阅只是编码 Agent 的 UI/CLI，没有通用视觉推理 API，就不能被 `goodser-vision` 直接调用。
+- 订阅通常有速率/用途限制；生产识别建议用独立推理 API 或本地 vLLM，避免把编码订阅当业务推理池。
+- 不要把订阅 Token 写进仓库；用 Secret/环境变量注入。
+
+调用：
+
+```bash
+curl -X POST http://127.0.0.1:8000/v1/verify \
+  -F image=@samples/item.jpg \
+  -F prompt="判断图中商品是否与候选一致" \
+  -F candidates='[{"product_id":"p1","name":"徽章 A","score":0.82}]'
+```
+
+### 4.3 显存监控
+
+```bash
+curl -s http://127.0.0.1:8000/v1/system/status
+curl -s http://127.0.0.1:8000/metrics
+```
+
+`/v1/system/status` 返回：
+
+- 每个模型的 `loaded` / `last_used` / `device`
+- `vram.used_bytes` / `free_bytes` / `total_bytes`
+- `torch_allocated` / `torch_reserved`
+- 空闲卸载配置
+
+`/metrics` 暴露：
+
+```text
+goodser_vision_model_loaded{model="embedder"} 1
+goodser_vision_model_loaded{model="detector"} 1
+goodser_vision_model_loaded{model="ocr"} 1
+goodser_vision_model_loaded{model="vlm"} 0
+goodser_vision_gpu_memory_bytes{state="used"} ...
+goodser_vision_gpu_memory_bytes{state="free"} ...
+goodser_vision_gpu_memory_bytes{state="total"} ...
+```
+
+> PaddleOCR 的显存不完全计入 `torch_allocated`；请以 `used/free/total` 与 `nvidia-smi` 为准。
 
 ---
 

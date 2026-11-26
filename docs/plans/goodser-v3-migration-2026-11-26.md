@@ -1,6 +1,6 @@
 # Goodser V3 迁移与增强规划
 
-> 版本：v0.7（图鉴 API/Web、视觉手册、导航草稿式编辑）
+> 版本：v0.8（视觉模型常驻与 VLM 接口）
 > 日期：2026-11-26
 > 分支建议：`v3/goodser-plan` → `feature-V3`
 > 关联文档：
@@ -1143,10 +1143,10 @@ goodser:
 | 里程碑 | `V3.3` / 「Goodser V3 迁移与增强」 / ID 7 |
 | 周期 | 2026-11-26 → 2027-01-09 |
 | 状态 | planned |
-| 任务 | 43 个（`V3.3-GDS-*`、`V3.3-NAV-*`） |
+| 任务 | 45 个（`V3.3-GDS-*`、`V3.3-NAV-*`） |
 | 依赖 | 37 条 FS 依赖 |
-| 预估 | 447 小时 ≈ 56 人日（含可选 OCR/VLM、模板、图鉴） |
-| 进度 | 9.3%（4 done / 7 review / 4 doing / 28 todo） |
+| 预估 | 463 小时 ≈ 58 人日（含可选 OCR/VLM、模板、图鉴） |
+| 进度 | 8.9%（4 done / 8 review / 4 doing / 29 todo） |
 | 需求 | 5 条已入库：RQM-0014 迁移 / 0015 识别 / 0016 导出 / 0017 导航 / 0018 图鉴（planned） |
 | 关联 | 迁移→0014；识别→0015；导出→0016；导航→0017；图鉴→0018 |
 
@@ -1172,6 +1172,7 @@ http://localhost:3000/modules/zzz/developmentmanager/9?tab=plan
 > - 图鉴 Go API（`goodser-catalog`）与 Web「谷子图鉴」Tab。
 > - 真实视觉服务手册 `external/goodser-vision/REAL_SERVICE.md` + `docker-compose.real.yml`。
 > - 编辑导航改为草稿式确认/取消；层级默认折叠；支持保存为默认。
+> - 视觉模型常驻单例、启动预热、空闲卸载（0=常驻）、显存监控与 VLM OpenAI 兼容接口。
 
 ---
 
@@ -1186,3 +1187,4 @@ http://localhost:3000/modules/zzz/developmentmanager/9?tab=plan
 | 2026-11-26 | v0.5：需求 RQM-0014/15/16 入库并关联任务；修复需求版本 Rebind、execTx 递归、项目列表 COALESCE；前端代理切 29095 | Tom / AI |
 | 2026-11-26 | v0.6：新增导航层级管理（RQM-0017）与谷子图鉴（RQM-0018）；PG 008/009 应用；视觉容器脚手架；Android 扫码页；任务增至 43 | Tom / AI |
 | 2026-11-26 | v0.7：图鉴 Go API + Web Tab；真实视觉服务 docker-compose 手册；编辑导航草稿式保存/取消、默认折叠、保存为默认 | Tom / AI |
+| 2026-11-26 | v0.8：视觉模型常驻/预热/空闲卸载/显存监控；VLM OpenAI 兼容接口与订阅说明；任务增至 45 | Tom / AI |

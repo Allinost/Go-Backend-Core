@@ -74,13 +74,15 @@ DEVICE=cpu                          # cpu | cuda
 external/goodser-vision/
 ├── app/
 │   ├── main.py
+│   ├── runtime.py          # 模型常驻、预热、空闲卸载、显存状态
 │   ├── settings.py
 │   ├── schemas.py
 │   └── services/
 │       ├── embedder.py
 │       ├── detector.py
 │       ├── matcher.py
-│       └── ocr.py
+│       ├── ocr.py
+│       └── vlm.py
 ├── tests/
 ├── Dockerfile
 ├── docker-compose.yml
