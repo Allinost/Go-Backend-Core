@@ -3,6 +3,8 @@ FROM pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_BREAK_SYSTEM_PACKAGES=1 \
     HF_HOME=/app/hf-cache \
     PADDLEOCR_HOME=/app/paddle-cache
 
@@ -14,8 +16,11 @@ RUN apt-get update \
 
 COPY requirements.txt requirements-real.txt requirements-real-gpu.txt requirements-real-cpu.txt ./
 ARG PADDLE_REQUIREMENTS=requirements-real-gpu.txt
-RUN pip install --no-cache-dir -r requirements-real.txt \
-    && pip install --no-cache-dir -r ${PADDLE_REQUIREMENTS}
+# 基础镜像的 Python 是 PEP 668 externally-managed，容器内统一用 --break-system-packages
+RUN python -m pip install -r requirements-real.txt \
+    && python -m pip install -r ${PADDLE_REQUIREMENTS}
+# 确认 pip 与运行时用的是同一个解释器（torch 与业务依赖都能导入）
+RUN python -c "import torch, fastapi, uvicorn, httpx, PIL; print('torch', torch.__version__, 'cuda', torch.version.cuda)"
 
 COPY app ./app
 COPY scripts ./scripts

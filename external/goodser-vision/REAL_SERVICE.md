@@ -62,6 +62,18 @@ external/goodser-vision/
 
 ## 3. 启动真实服务
 
+前置条件：
+
+```bash
+# 1Panel 默认创建的外部网络，必须先存在
+docker network ls | Select-String 1panel-network    # Linux: docker network ls | grep 1panel-network
+```
+
+> `docker-compose.real.yml` 不再创建 `goodser-internal`，而是直接加入外部网络 `1panel-network`。
+> 后端容器（Go-Backend-Core）也必须加入 `1panel-network`，之后才能用
+> `GOODSER_VISION_URL=http://goodser-vision:8000` 访问。
+> 如果网络不存在，`docker compose up` 会直接报 `network 1panel-network declared as external, but could not be found`。
+
 ```bash
 cd external/goodser-vision
 cp env.real.example env.real
@@ -72,6 +84,10 @@ docker compose --env-file env.real -f docker-compose.real.yml up -d --build
 > `docker-compose.real.yml` 的 `environment` 全部使用 `${变量:-默认值}` 形式，
 > 因此 `env.real` 里的值（尤其 VLM 的 `*_API_KEY`）会真正注入容器；不传 `--env-file` 时使用默认值。
 > `env.real` 已被 `.gitignore` 排除，不要提交。
+>
+> 基础镜像的 Python 是 PEP 668 externally-managed，`Dockerfile.real` 已设置
+> `PIP_BREAK_SYSTEM_PACKAGES=1` 并用 `python -m pip` 安装，构建时不会再报
+> `error: externally-managed-environment`。
 >
 > `GOODSER_VISION_OCR_DEVICE=gpu` 时若 Paddle GPU 轮子与 CUDA 12.8/Blackwell 不兼容，
 > 运行时会自动回退 CPU；要彻底避免 GPU 依赖，可用下面的 CPU 构建：
