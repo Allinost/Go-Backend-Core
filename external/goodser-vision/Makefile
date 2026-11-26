@@ -1,4 +1,7 @@
-.PHONY: install run dev test lint docker-build docker-up docker-down
+.PHONY: install run dev test lint docker-build docker-up docker-down check-gpu
+
+check-gpu:
+	python scripts/check_runtime.py
 
 install:
 	python -m pip install -r requirements.txt

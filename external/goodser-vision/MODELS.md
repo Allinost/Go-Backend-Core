@@ -108,8 +108,8 @@ CPU OCR 会慢一些，但省显存；适合和 TTS/embedding 紧共享。
 | 组件 | 版本 |
 |---|---|
 | CUDA | **12.8+** |
-| PyTorch | **2.7.1** |
-| 基础镜像 | `pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime` |
+| PyTorch | **2.10.0**（Blackwell 稳定新版） |
+| 基础镜像 | `pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime` |
 | Python | 3.11（镜像内置） |
 | Ultralytics | `>=8.3.40` |
 | Transformers | `>=4.46.3` |
@@ -118,6 +118,7 @@ CPU OCR 会慢一些，但省显存；适合和 TTS/embedding 紧共享。
 | pgvector | 0.8+（如启用） |
 
 > RTX 5060 Ti 是 Blackwell（sm_120），必须 CUDA 12.8+ / PyTorch 2.7+。
+> 本项目使用 `2.10.0-cuda12.8-cudnn9-runtime`；若遇到兼容性问题可回退 `2.7.1-cuda12.8-cudnn9-runtime`。
 > 旧镜像 `2.4.1-cuda12.1` 不支持，已替换。
 
 ---

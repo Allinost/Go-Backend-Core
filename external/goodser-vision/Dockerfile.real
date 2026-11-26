@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime
+FROM pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -18,7 +18,8 @@ RUN pip install --no-cache-dir -r requirements-real.txt \
     && pip install --no-cache-dir -r ${PADDLE_REQUIREMENTS}
 
 COPY app ./app
-COPY README.md REAL_SERVICE.md ./
+COPY scripts ./scripts
+COPY README.md REAL_SERVICE.md MODELS.md ./
 
 EXPOSE 8000
 

@@ -26,8 +26,8 @@ docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
 ```
 
 > RTX 5060 Ti 是 Blackwell（sm_120），必须使用 CUDA 12.8+ / PyTorch 2.7+。
-> 本项目 `Dockerfile.real` 已固定为 `pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime`。
-> 若使用更新驱动/镜像，可选 `2.11.0-cuda12.8-cudnn9-runtime`，需重新验证 Ultralytics/Paddle 兼容性。
+> 本项目 `Dockerfile.real` 已固定为 `pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime`。
+> 若该镜像在目标机器上出现兼容性问题，可回退到 `2.7.1-cuda12.8-cudnn9-runtime`（Blackwell 最低稳定版本）。
 
 ---
 
@@ -68,6 +68,14 @@ cp env.real.example env.real
 # 按需修改模型路径、并发、显存比例
 docker compose --env-file env.real -f docker-compose.real.yml up -d --build
 ```
+
+GPU / PyTorch 兼容性检查：
+
+```bash
+docker compose -f docker-compose.real.yml run --rm goodser-vision python scripts/check_runtime.py
+```
+
+看到 `device capability: (12, 0)` 且 `torch arch list` 包含 `sm_120` 即可。
 
 查看状态：
 
