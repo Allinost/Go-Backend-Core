@@ -1,14 +1,12 @@
 services:
   goodser-vision:
-    build:
-      context: .
-      dockerfile: Dockerfile.real
-      args:
-        # 默认 GPU 版 Paddle；构建失败可改成 requirements-real-cpu.txt
-        PADDLE_REQUIREMENTS: ${PADDLE_REQUIREMENTS:-requirements-real-gpu.txt}
-    image: goodser-vision:0.1.0-gpu
+    # 直接使用官方镜像，不构建派生镜像；依赖装到挂载目录 ./deps
+    image: pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime
     container_name: goodser-vision
     restart: unless-stopped
+    working_dir: /app
+    # 首次启动安装依赖（写入 /app/deps/site-packages），之后容器重建也复用
+    entrypoint: ["python", "/app/scripts/entrypoint.py"]
     ports:
       # 宿主机 58000 → 容器 8000，固定映射
       - "0.0.0.0:58000:8000"
@@ -25,6 +23,10 @@ services:
       GOODSER_VISION_IDLE_CHECK_SECONDS: "${GOODSER_VISION_IDLE_CHECK_SECONDS:-30}"
       GOODSER_VISION_GPU_MEMORY_FRACTION: "${GOODSER_VISION_GPU_MEMORY_FRACTION:-0.5}"
       GOODSER_VISION_GPU_HEADROOM_MB: "${GOODSER_VISION_GPU_HEADROOM_MB:-1024}"
+      # 依赖目录（宿主机 ./deps）
+      GOODSER_VISION_DEPS_DIR: "/app/deps"
+      # GPU 用 requirements-real-gpu.txt；没 GPU 改成 requirements-real-cpu.txt
+      PADDLE_REQUIREMENTS: "${PADDLE_REQUIREMENTS:-requirements-real-gpu.txt}"
       # VLM 全局：默认关闭
       GOODSER_VISION_VLM_ENABLED: "${GOODSER_VISION_VLM_ENABLED:-0}"
       GOODSER_VISION_VLM_MODE: "${GOODSER_VISION_VLM_MODE:-auto}"
@@ -51,15 +53,30 @@ services:
       GOODSER_VISION_OCR_LANG: "${GOODSER_VISION_OCR_LANG:-ch}"
       # HuggingFace 国内镜像（避免直连 huggingface.co 超时）
       HF_ENDPOINT: "${HF_ENDPOINT:-https://hf-mirror.com}"
-      # 模型已下载到 ./models 后强制离线，避免启动时联网检查 etag 卡住
+      # 模型已下载到 ./models 后强制离线，避免启动时联网检查 etag
       HF_HUB_OFFLINE: "${HF_HUB_OFFLINE:-1}"
       TRANSFORMERS_OFFLINE: "${TRANSFORMERS_OFFLINE:-1}"
       HF_HOME: /app/hf-cache
       PADDLEOCR_HOME: /app/paddle-cache
+      # PaddleX 3.x 的模型缓存目录（OCR 模型不再落到容器家目录）
+      PADDLE_PDX_CACHE_HOME: /app/paddle-cache
       # 跳过 PaddleX 的模型源连通性探测，直接用 modelscope/本地缓存
       PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "1"
       PYTORCH_CUDA_ALLOC_CONF: max_split_size_mb:128
+      # pip 不留缓存，所有持久化内容都在 ./deps、./models、./hf-cache、./paddle-cache
+      PIP_NO_CACHE_DIR: "1"
+      PYTHONUNBUFFERED: "1"
     volumes:
+      # 代码来自仓库目录（默认 compose 同级）；依赖/模型/缓存留在 compose 同级目录。
+      # 如果 compose 不在仓库的 external/goodser-vision 下，用 GOODSER_VISION_APP_DIR 指向它。
+      - ${GOODSER_VISION_APP_DIR:-.}/app:/app/app
+      - ${GOODSER_VISION_APP_DIR:-.}/scripts:/app/scripts
+      - ${GOODSER_VISION_APP_DIR:-.}/requirements.txt:/app/requirements.txt:ro
+      - ${GOODSER_VISION_APP_DIR:-.}/requirements-real.txt:/app/requirements-real.txt:ro
+      - ${GOODSER_VISION_APP_DIR:-.}/requirements-real-gpu.txt:/app/requirements-real-gpu.txt:ro
+      - ${GOODSER_VISION_APP_DIR:-.}/requirements-real-cpu.txt:/app/requirements-real-cpu.txt:ro
+      # 以下都在宿主机 compose 同级目录，重建容器不丢，也不产生新镜像层
+      - ./deps:/app/deps
       - ./models:/app/models
       - ./hf-cache:/app/hf-cache
       - ./paddle-cache:/app/paddle-cache

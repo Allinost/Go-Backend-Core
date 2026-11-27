@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
+deps/
 .env
 env.real
 .pytest_cache/

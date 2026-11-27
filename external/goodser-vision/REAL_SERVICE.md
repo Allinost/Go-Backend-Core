@@ -13,7 +13,7 @@
 | 宿主机 | Linux（推荐）或 Windows + WSL2 |
 | GPU | NVIDIA，驱动 ≥ 550，支持 CUDA 12.8+（Blackwell / RTX 50 系） |
 | 容器 | Docker 24+，NVIDIA Container Toolkit |
-| 基础镜像 | `pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime` |
+| 基础镜像 | `pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime`（直接用官方镜像，不派生） |
 | 显存 | 16GB 共享；视觉服务 ≤ 8GB |
 | 网络 | 仅内网；不把 8000 暴露公网 |
 | 模型 | YOLO 检测权重、Chinese-CLIP、PaddleOCR（可选） |
@@ -26,7 +26,8 @@ docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
 ```
 
 > RTX 5060 Ti 是 Blackwell（sm_120），必须使用 CUDA 12.8+ / PyTorch 2.7+。
-> 本项目 `Dockerfile.real` 已固定为 `pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime`。
+> `docker-compose.real.yml` 直接使用官方镜像 `pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime`，
+> **不构建派生镜像**；业务依赖在首次启动时安装到挂载目录 `./deps/venv`。
 > 若该镜像在目标机器上出现兼容性问题，可回退到 `2.7.1-cuda12.8-cudnn9-runtime`（Blackwell 最低稳定版本）。
 
 ---
@@ -35,18 +36,23 @@ docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
 
 ```text
 external/goodser-vision/
+├── app/                          # 业务代码（挂载进容器，改完重启即可）
+├── scripts/entrypoint.py         # 容器入口：首次启动装依赖，然后起 uvicorn
+├── deps/                         # 依赖安装目录（自动生成，已 gitignore）
 ├── models/
 │   ├── yolo11s-goods.pt          # 谷子检测权重（首批 100–300 张标注后训练）
 │   └── .gitkeep
-├── hf-cache/                     # HuggingFace 缓存（Chinese-CLIP）
+├── hf-cache/                     # HuggingFace 缓存
 ├── paddle-cache/                 # PaddleOCR 模型缓存
-├── Dockerfile                    # fallback/CPU
-├── Dockerfile.real               # CUDA + CLIP/YOLO/OCR
-├── docker-compose.yml            # fallback/CPU
-├── docker-compose.real.yml       # 真实服务/GPU
+├── data/                         # VLM 配置等运行数据
+├── Dockerfile.real               # 可选：需要预构建镜像时才用
+├── docker-compose.real.yml       # 真实服务/GPU（官方镜像 + 挂载）
 ├── requirements.txt
-└── requirements-real.txt
+└── requirements-real*.txt
 ```
+
+所有会增长的内容（`deps/`、`models/`、`hf-cache/`、`paddle-cache/`、`data/`）
+都在宿主机该目录下，重建容器不会丢失，也不会产生新的镜像层。
 
 模型下载（示例）：
 
@@ -88,31 +94,42 @@ docker network ls | Select-String 1panel-network    # Linux: docker network ls |
 ```bash
 cd external/goodser-vision
 # 需要改配置时，直接编辑 docker-compose.real.yml 的 environment
-docker compose -f docker-compose.real.yml up -d --build
+# 不要加 --build：这里直接用官方镜像
+docker compose -f docker-compose.real.yml up -d
 ```
 
-> `docker-compose.real.yml` 是自包含的，`environment` 里已经给了默认值；
-> 要改 VLM Key、OCR、显存等，直接改 compose 的 `environment`。
-> 也可以临时用 `--env-file env.real` 覆盖 `${...}`，但不是必需。
-> `env.real.example` 仅作为变量参考，不参与默认部署。
+> 首次启动会拉取官方镜像并在 `./deps/site-packages` 安装业务依赖（transformers、
+> ultralytics、paddleocr、paddlepaddle-gpu），可能需要几分钟；之后重启/重建容器都会复用 `./deps`。
+> 代码目录以只读方式挂到 `/app`，所以**改代码后只需
+> `docker compose restart goodser-vision`，不需要重建镜像、也不需要 docker cp**。
 >
-> 基础镜像的 Python 是 PEP 668 externally-managed，`Dockerfile.real` 已设置
-> `PIP_BREAK_SYSTEM_PACKAGES=1` 并用 `python -m pip` 安装，构建时不会再报
-> `error: externally-managed-environment`。
->
-> `GOODSER_VISION_OCR_DEVICE=gpu` 时若 Paddle GPU 轮子与 CUDA 12.8/Blackwell 不兼容，
-> 运行时会自动回退 CPU；要彻底避免 GPU 依赖，可用下面的 CPU 构建：
+> 默认假设 compose 在仓库的 `external/goodser-vision` 目录执行。
+> 如果 compose 放在别处（例如模型目录），用环境变量指定代码位置：
 >
 > ```bash
-> docker compose -f docker-compose.real.yml build \
->   --build-arg PADDLE_REQUIREMENTS=requirements-real-cpu.txt
-> docker compose -f docker-compose.real.yml up -d
+> GOODSER_VISION_APP_DIR=/path/to/Go-Backend-Core/external/goodser-vision \
+>   docker compose -f docker-compose.real.yml up -d
 > ```
+>
+> 依赖清单变化（`requirements*.txt`）会在下次启动时自动重新安装；
+> 想强制重装，删除 `deps/.installed.sha256` 后重启即可。
+>
+> `docker-compose.real.yml` 是自包含的，`environment` 里已经给了默认值；
+> 要改 VLM Key、OCR、显存等，直接改 compose 的 `environment`。
+> `env.real.example` 仅作为变量参考，不参与默认部署。
+>
+> 没有 GPU 或想用 CPU 版 Paddle：在 compose 同级放一个 `.env` 或者直接改 compose：
+>
+> ```yaml
+>       PADDLE_REQUIREMENTS: "requirements-real-cpu.txt"
+> ```
+>
+> 改完 `docker compose -f docker-compose.real.yml up -d` 即会重装依赖（因为清单变了）。
 
 GPU / PyTorch 兼容性检查：
 
 ```bash
-docker compose -f docker-compose.real.yml run --rm goodser-vision python scripts/check_runtime.py
+docker compose -f docker-compose.real.yml run --rm --entrypoint python goodser-vision scripts/check_runtime.py
 ```
 
 看到 `device capability: (12, 0)` 且 `torch arch list` 包含 `sm_120` 即可。
@@ -134,17 +151,18 @@ curl -s http://127.0.0.1:58000/v1/models
 
 ### 3.1 预下载 Chinese-CLIP 与离线启动
 
-容器没有外网时，先把模型下到宿主机 `./models`（对应容器 `/app/models`）：
+容器没有外网时，先把模型下到宿主机 `./models`（对应容器 `/app/models`）。
+依赖在 `./deps` 装好之后，直接用容器里的 Python 下载即可（不需要额外镜像）：
 
 ```bash
 cd external/goodser-vision
 mkdir -p models
 
-docker run --rm --network bridge \
-  -v "$PWD/models:/models" \
+docker exec -e PYTHONPATH=/app/deps/site-packages \
+  -e HF_HUB_OFFLINE=0 -e TRANSFORMERS_OFFLINE=0 \
   -e HF_ENDPOINT=https://hf-mirror.com \
-  goodser-vision:0.1.0-gpu \
-  python -c "from huggingface_hub import snapshot_download; snapshot_download('OFA-Sys/chinese-clip-vit-base-patch16', cache_dir='/models')"
+  goodser-vision python -c \
+  "from huggingface_hub import snapshot_download; snapshot_download('OFA-Sys/chinese-clip-vit-base-patch16', cache_dir='/app/models')"
 ```
 
 确认缓存：
@@ -157,7 +175,8 @@ compose 默认 `HF_HUB_OFFLINE=1`、`TRANSFORMERS_OFFLINE=1`，启动只读本�
 如果模型没缓存，会快速回退 fallback，端口仍然可用。
 
 > 必须使用 `--cache-dir` 的 HF 缓存布局，不要用 `--local-dir`。
-> 如果默认 bridge 也不通，把 `--network bridge` 换成 `--network host`，或加 `-e HTTPS_PROXY=...`。
+> 容器里跑需要带 `PYTHONPATH=/app/deps/site-packages`（上面命令已带）；
+> 如果默认网络也不通，用 `-e HTTPS_PROXY=...` 或配置宿主机代理。
 
 ---
 
@@ -172,6 +191,10 @@ compose 默认 `HF_HUB_OFFLINE=1`、`TRANSFORMERS_OFFLINE=1`，启动只读本�
 | `GOODSER_VISION_MAX_CONCURRENCY` | `1` | 真实模型建议 1–2 |
 | `GOODSER_VISION_MAX_IMAGE_SIDE` | `1920` | 检测输入最长边 |
 | `GOODSER_VISION_MODEL_DIR` | `/app/models` | YOLO 权重目录 |
+| `GOODSER_VISION_DEPS_DIR` | `/app/deps` | 依赖安装目录（对应宿主机 `./deps`） |
+| `PADDLE_REQUIREMENTS` | `requirements-real-gpu.txt` | 无 GPU 时改 `requirements-real-cpu.txt` |
+| `HF_ENDPOINT` | `https://hf-mirror.com` | HuggingFace 国内镜像 |
+| `HF_HUB_OFFLINE` / `TRANSFORMERS_OFFLINE` | `1` | 只读本地模型缓存 |
 | `HF_HOME` | `/app/hf-cache` | Chinese-CLIP 缓存 |
 | `PADDLEOCR_HOME` | `/app/paddle-cache` | PaddleOCR 缓存 |
 | `GOODSER_VISION_WARMUP` | `1` | 启动预热 |
