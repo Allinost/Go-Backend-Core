@@ -1,5 +1,6 @@
 -r requirements-real.txt
 # paddlepaddle-gpu 3.x 不在 PyPI（PyPI 只有 2.6.2），必须从官方索引装。
-# 3.2.2 起官方只提供 cu126/cu129；基础镜像和宿主机是 CUDA 12.8，故用 cu128 的 3.2.0。
---extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cu128/
-paddlepaddle-gpu==3.2.0
+# 注意：cu128 索引里的 wheel 文件名是 paddlepaddle-3.2.0（工程名不匹配，pip 会拒绝），
+# 所以用 cu126 索引；CUDA 12.6 编译的 wheel 可以在 CUDA 12.8 运行时上跑。
+--extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cu126/
+paddlepaddle-gpu==3.2.2

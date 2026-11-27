@@ -32,6 +32,7 @@ def pip_install(requirements: pathlib.Path) -> None:
             "pip",
             "install",
             "--no-cache-dir",
+            "--root-user-action=ignore",
             "--upgrade",
             "--target",
             str(TARGET),
@@ -88,7 +89,11 @@ def main() -> None:
     if installed != wanted:
         print("[entrypoint] 首次启动或依赖清单变更，开始安装依赖（只需一次）", flush=True)
         pip_install(main_req)
-        pip_install(paddle_req)
+        try:
+            pip_install(paddle_req)
+        except subprocess.CalledProcessError as exc:
+            # OCR 是可选能力：Paddle 装不上时仍启动服务，CLIP/检测不受影响。
+            print(f"[entrypoint] PaddleOCR 依赖安装失败，OCR 暂不可用: {exc}", flush=True)
         MARKER.write_text(wanted + "\n", encoding="utf-8")
         print("[entrypoint] 依赖安装完成", flush=True)
     else:

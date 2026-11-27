@@ -108,6 +108,10 @@ docker compose up -d
 > 依赖清单变化（`requirements*.txt`）会在下次启动时自动重新安装；
 > 想强制重装，删除 `deps/.installed.sha256` 后重启即可。
 >
+> PaddleOCR 是可选依赖：`paddlepaddle-gpu` 安装失败时服务仍会启动（CLIP/检测可用），
+> 日志会打印 `PaddleOCR 依赖安装失败`。GPU 版从官方 cu126 索引安装（cu128 索引的
+> wheel 工程名不匹配，pip 会拒绝）。
+>
 > `docker-compose.yml` 是自包含的，`environment` 里已经给了默认值；
 > 要改 VLM Key、OCR、显存等，直接改 compose 的 `environment`。
 > 不需要 `.env` / `env_file`，仓库里也不提供 env 文件。
