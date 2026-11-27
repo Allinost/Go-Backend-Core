@@ -980,6 +980,52 @@ goodser:
 
 Runbook：[goodser-v2-to-v3.md](../migrations/goodser-v2-to-v3.md)
 
+### 7.9 图片识别 API（M7，后端）
+
+已完成（`feature-V3`）：
+
+- `goodser-vision` 客户端：读取 `GOODSER_VISION_URL`，调用 `/v1/analyze` 与 `/v1/embed`。
+- 向量索引：`POST /inventories/:id/embeddings/rebuild` 下载商品图 → `/v1/embed` → 写 `zzz_goodser_product_embeddings`（jsonb）。
+- 识别任务：multipart 或 `image_url` → `/v1/analyze` → 逐框 Top-K → 同商品聚合数量 → 落库 `recognition_jobs` / `recognition_items`。
+- 复核：逐项确认/改商品/改数量；`apply` 返回入库草稿并标记 `applied`，首期不直接改库存。
+- 相似度：当前使用 Go 侧余弦（jsonb 向量）；dev 库未安装 pgvector 且无建扩展权限，后续升级 `vector` + HNSW。
+
+API：
+
+| 方法 | 路径 |
+|---|---|
+| POST | `/zzz-goodser/inventories/:id/recognitions` |
+| GET | `/zzz-goodser/inventories/:id/recognitions` |
+| GET | `/zzz-goodser/recognitions/:rid` |
+| POST | `/zzz-goodser/recognitions/:rid/items/:iid/confirm` |
+| POST | `/zzz-goodser/recognitions/:rid/apply` |
+| POST | `/zzz-goodser/inventories/:id/embeddings/rebuild` |
+| GET | `/zzz-goodser/inventories/:id/embeddings/stats` |
+
+配置：
+
+```env
+# 生产（后端与视觉容器同在 1panel-network）
+GOODSER_VISION_URL=http://goodser-vision:8000
+# dev（跨主机）
+GOODSER_VISION_URL=http://10.144.144.10:8000
+```
+
+注意：
+
+- 视觉容器默认只绑定 `127.0.0.1:8000`；跨主机访问需设置 `GOODSER_VISION_BIND=0.0.0.0` 或宿主 IP。
+- `apply` 只生成草稿，不改库存；入库仍走现有 inbound 接口。
+- Android 识别结果页与真实联调待后续。
+
+### 7.10 默认系列
+
+V2 数据没有系列概念。`v3migrate load` 完成后会自动：
+
+1. 检查 `kind='series' AND code='default'`，没有则创建「默认系列」；
+2. 把 `series_id IS NULL` 的商品回填到默认系列。
+
+该步骤幂等，可重复执行；`verify` 允许字典表比 V2 多出行。
+
 ### 7.8 平铺图导出（M9，后端）
 
 已实现（`feature-V3`）：

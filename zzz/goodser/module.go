@@ -253,6 +253,15 @@ func (m *Module) RegisterRoutes(r *gin.RouterGroup) {
 	r.PUT("/export-templates/:tid", write, m.h.UpdateExportTemplate)
 	r.DELETE("/export-templates/:tid", write, m.h.DeleteExportTemplate)
 
+	// 图片识别与向量索引
+	inv.POST("/recognitions", write, m.h.CreateRecognition)
+	inv.GET("/recognitions", read, m.h.ListRecognitionJobs)
+	inv.POST("/embeddings/rebuild", write, m.h.RebuildEmbeddings)
+	inv.GET("/embeddings/stats", read, m.h.EmbeddingStats)
+	r.GET("/recognitions/:rid", read, m.h.GetRecognition)
+	r.POST("/recognitions/:rid/items/:iid/confirm", write, m.h.ConfirmRecognitionItem)
+	r.POST("/recognitions/:rid/apply", write, m.h.ApplyRecognition)
+
 	// 受控维度、系列视图与组合包
 	inv.GET("/series", read, m.h.ListSeriesSummaryREST)
 	inv.GET("/stats", read, m.h.GetInventoryStatsREST)

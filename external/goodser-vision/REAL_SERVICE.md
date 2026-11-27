@@ -72,6 +72,15 @@ docker network ls | Select-String 1panel-network    # Linux: docker network ls |
 > `docker-compose.real.yml` 不再创建 `goodser-internal`，而是直接加入外部网络 `1panel-network`。
 > 后端容器（Go-Backend-Core）也必须加入 `1panel-network`，之后才能用
 > `GOODSER_VISION_URL=http://goodser-vision:8000` 访问。
+>
+> 如果后端不在 Docker 网络里（例如 dev 跨主机访问），需要让端口对外监听：
+>
+> ```env
+> GOODSER_VISION_BIND=0.0.0.0
+> GOODSER_VISION_PORT=8000
+> ```
+>
+> 然后用 `GOODSER_VISION_URL=http://<GPU主机IP>:8000`。默认 `127.0.0.1` 只能本机访问。
 > 如果网络不存在，`docker compose up` 会直接报 `network 1panel-network declared as external, but could not be found`。
 
 ```bash

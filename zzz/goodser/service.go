@@ -22,6 +22,7 @@ type Service struct {
 	events        outbox.Emitter
 	ownerNotifier OwnerNotifier
 	exportOpts    ExportOptions
+	vision        VisionProvider
 }
 
 // OwnerNotifier 向店主推送客户订单请求，失败不影响订单写入
@@ -29,7 +30,17 @@ type OwnerNotifier func(ctx context.Context, event string, payload any) error
 
 // NewService 创建 Service
 func NewService(repo *Repository, store storage.Storage) *Service {
-	return &Service{repo: repo, store: store, exportOpts: ExportOptions{}.normalize()}
+	return &Service{
+		repo:       repo,
+		store:      store,
+		exportOpts: ExportOptions{}.normalize(),
+		vision:     NewHTTPVisionClient(),
+	}
+}
+
+// SetVisionClient 注入视觉服务客户端（测试或自定义网关）。
+func (s *Service) SetVisionClient(client VisionProvider) {
+	s.vision = client
 }
 
 // SetExportOptions 注入平铺图导出参数。

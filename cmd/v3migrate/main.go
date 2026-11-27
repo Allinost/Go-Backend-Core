@@ -10,6 +10,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -18,6 +19,8 @@ import (
 	"strings"
 	"time"
 	_ "time/tzdata"
+
+	"github.com/google/uuid"
 
 	"github.com/Allinost/go-backend-core/internal/config"
 	"github.com/Allinost/go-backend-core/internal/database/mysql"
@@ -394,7 +397,50 @@ func loadData(ctx context.Context, pgDB *sql.DB, dumpData map[string][]map[strin
 	for _, spec := range specs {
 		_ = resetSequence(ctx, pgDB, spec.Target)
 	}
+	if hasGoodserSpecs(specs) {
+		if err := ensureGoodserDefaultSeries(ctx, pgDB); err != nil {
+			return fmt.Errorf("初始化默认系列失败: %w", err)
+		}
+	}
 	fmt.Printf("导入完成：inserted=%d failed=%d skipped=%d pending=%d\n", inserted, failed, skipped, len(pending))
+	return nil
+}
+
+func hasGoodserSpecs(specs []tableSpec) bool {
+	for _, spec := range specs {
+		if strings.HasPrefix(spec.Target, "zzz_goodser_") {
+			return true
+		}
+	}
+	return false
+}
+
+// ensureGoodserDefaultSeries 确保存在「默认系列」，并把未归属系列的商品回填进去。
+// V2 数据没有系列概念，迁移后统一挂到默认系列，后续再人工调整。
+func ensureGoodserDefaultSeries(ctx context.Context, db *sql.DB) error {
+	var id string
+	err := db.QueryRowContext(ctx,
+		`SELECT id FROM zzz_goodser_dictionaries WHERE kind = 'series' AND code = 'default' LIMIT 1`).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		id = uuid.NewString()
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO zzz_goodser_dictionaries
+			 (id, kind, code, name, parent_id, sort_order, enabled, extra, created_at, updated_at)
+			 VALUES ($1, 'series', 'default', '默认系列', NULL, 0, true, '{}'::jsonb, now(), now())`,
+			id); err != nil {
+			return err
+		}
+		fmt.Printf("默认系列已创建：%s\n", id)
+	} else if err != nil {
+		return err
+	}
+	res, err := db.ExecContext(ctx,
+		`UPDATE zzz_goodser_products SET series_id = $1, updated_at = now() WHERE series_id IS NULL`, id)
+	if err != nil {
+		return err
+	}
+	updated, _ := res.RowsAffected()
+	fmt.Printf("默认系列回填：products=%d\n", updated)
 	return nil
 }
 
@@ -510,6 +556,8 @@ func verify(ctx context.Context, mysqlDB, pgDB *sql.DB, specs []tableSpec) error
 	allowTargetExtra := map[string]bool{
 		"users": true, "roles": true, "permissions": true, "role_permissions": true,
 		"api_keys": true, "scheduler_tasks": true, "feature_flags": true,
+		// V3 会补系统默认项（如 Goodser 默认系列），允许目标表多出行。
+		"zzz_goodser_dictionaries": true,
 	}
 	for _, spec := range specs {
 		v2, err := sourceCount(ctx, mysqlDB, spec.Source)

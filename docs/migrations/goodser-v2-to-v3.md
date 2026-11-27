@@ -101,6 +101,7 @@ go run ./cmd/v3migrate verify -scope goodser
 
 - 按依赖顺序插入；`ON CONFLICT DO NOTHING`，重复执行不会产生重复行（但也不会覆盖已存在行）。
 - 显式 ID 插入后自动重置 identity 序列（`stock_movements`、`combo_items`、`bundle_*`）。
+- 导入完成后自动创建/复用「默认系列」，并把 `series_id` 为空的商品回填进去。
 - 时区：V2 MySQL `DATETIME` 按 `-source-tz` 解释后再写入 `timestamptz`。默认 `Asia/Shanghai`，与 V2 服务器一致；若 V2 实际存 UTC，用：
   ```bash
   go run ./cmd/v3migrate load -file backups/goodser.json -source-tz UTC
