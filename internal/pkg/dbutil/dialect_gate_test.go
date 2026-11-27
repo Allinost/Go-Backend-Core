@@ -51,6 +51,8 @@ func TestV3DialectGate(t *testing.T) {
 		"REPLACE INTO",
 		"SELECT DATABASE()",
 		"JSON_CONTAINS",
+		"JSON_EXTRACT(",
+		"JSON_UNQUOTE(",
 		"FIND_IN_SET",
 		"DATE_FORMAT(",
 		"IFNULL(",

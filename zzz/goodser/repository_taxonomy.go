@@ -205,8 +205,8 @@ func (r *Repository) CountDictionaryRefs(ctx context.Context, item *Dictionary) 
 func (r *Repository) countBundleFilterRefs(ctx context.Context, filterKey, id string) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM `+tableBundles+` WHERE JSON_UNQUOTE(JSON_EXTRACT(main_filter, ?)) = ?`,
-		"$."+filterKey, id).Scan(&count)
+		`SELECT COUNT(*) FROM `+tableBundles+` WHERE (main_filter ->> ?) = ?`,
+		filterKey, id).Scan(&count)
 	return count, err
 }
 
