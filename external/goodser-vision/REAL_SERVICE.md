@@ -26,7 +26,7 @@ docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
 ```
 
 > RTX 5060 Ti 是 Blackwell（sm_120），必须使用 CUDA 12.8+ / PyTorch 2.7+。
-> `docker-compose.real.yml` 直接使用官方镜像 `pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime`，
+> `docker-compose.yml` 直接使用官方镜像 `pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime`，
 > **不构建派生镜像**；业务依赖在首次启动时安装到挂载目录 `./deps/venv`。
 > 若该镜像在目标机器上出现兼容性问题，可回退到 `2.7.1-cuda12.8-cudnn9-runtime`（Blackwell 最低稳定版本）。
 
@@ -46,7 +46,7 @@ external/goodser-vision/
 ├── paddle-cache/                 # PaddleOCR 模型缓存
 ├── data/                         # VLM 配置等运行数据
 ├── Dockerfile.real               # 可选：需要预构建镜像时才用
-├── docker-compose.real.yml       # 真实服务/GPU（官方镜像 + 挂载）
+├── docker-compose.yml       # 真实服务/GPU（官方镜像 + 挂载）
 ├── requirements.txt
 └── requirements-real*.txt
 ```
@@ -75,7 +75,7 @@ external/goodser-vision/
 docker network ls | Select-String 1panel-network    # Linux: docker network ls | grep 1panel-network
 ```
 
-> `docker-compose.real.yml` 不再创建 `goodser-internal`，而是直接加入外部网络 `1panel-network`。
+> `docker-compose.yml` 不再创建 `goodser-internal`，而是直接加入外部网络 `1panel-network`。
 > 后端容器（Go-Backend-Core）也必须加入 `1panel-network`，之后才能用
 > `GOODSER_VISION_URL=http://goodser-vision:8000` 访问。
 >
@@ -86,16 +86,16 @@ docker network ls | Select-String 1panel-network    # Linux: docker network ls |
 > ```
 >
 > 用 `GOODSER_VISION_URL=http://<GPU主机IP>:58000` 访问。
-> 如需只允许本机或指定 IP，直接改 `docker-compose.real.yml` 的 `ports`：
+> 如需只允许本机或指定 IP，直接改 `docker-compose.yml` 的 `ports`：
 > `"127.0.0.1:58000:8000"` 或 `"10.144.144.10:58000:8000"`。
 > 生产后端与视觉容器同属 `1panel-network` 时，用 `http://goodser-vision:8000`，不需要宿主机端口。
 > 如果网络不存在，`docker compose up` 会直接报 `network 1panel-network declared as external, but could not be found`。
 
 ```bash
 cd external/goodser-vision
-# 需要改配置时，直接编辑 docker-compose.real.yml 的 environment
+# 需要改配置时，直接编辑 docker-compose.yml 的 environment
 # 不要加 --build：这里直接用官方镜像
-docker compose -f docker-compose.real.yml up -d
+docker compose up -d
 ```
 
 > 首次启动会拉取官方镜像并在 `./deps/site-packages` 安装业务依赖（transformers、
@@ -108,7 +108,7 @@ docker compose -f docker-compose.real.yml up -d
 > 依赖清单变化（`requirements*.txt`）会在下次启动时自动重新安装；
 > 想强制重装，删除 `deps/.installed.sha256` 后重启即可。
 >
-> `docker-compose.real.yml` 是自包含的，`environment` 里已经给了默认值；
+> `docker-compose.yml` 是自包含的，`environment` 里已经给了默认值；
 > 要改 VLM Key、OCR、显存等，直接改 compose 的 `environment`。
 > 不需要 `.env` / `env_file`，仓库里也不提供 env 文件。
 >
@@ -118,12 +118,12 @@ docker compose -f docker-compose.real.yml up -d
 >       PADDLE_REQUIREMENTS: "requirements-real-cpu.txt"
 > ```
 >
-> 改完 `docker compose -f docker-compose.real.yml up -d` 即会重装依赖（因为清单变了）。
+> 改完 `docker compose up -d` 即会重装依赖（因为清单变了）。
 
 GPU / PyTorch 兼容性检查：
 
 ```bash
-docker compose -f docker-compose.real.yml run --rm --entrypoint python goodser-vision scripts/check_runtime.py
+docker compose run --rm --entrypoint python goodser-vision scripts/check_runtime.py
 ```
 
 看到 `device capability: (12, 0)` 且 `torch arch list` 包含 `sm_120` 即可。
@@ -131,7 +131,7 @@ docker compose -f docker-compose.real.yml run --rm --entrypoint python goodser-v
 查看状态：
 
 ```bash
-docker compose -f docker-compose.real.yml ps
+docker compose ps
 docker logs -f goodser-vision
 curl -s http://127.0.0.1:58000/healthz
 curl -s http://127.0.0.1:58000/v1/models
@@ -502,8 +502,11 @@ Web/Android
 ## 8. 回滚
 
 ```bash
-docker compose -f docker-compose.real.yml down
-docker compose -f docker-compose.yml up -d   # fallback/CPU
+# 停掉真实模型，退回 fallback（不删除依赖和模型缓存）
+docker compose down
+DEVICE=cpu GOODSER_VISION_EMBEDDER=fallback GOODSER_VISION_DETECTOR=fallback \
+GOODSER_VISION_OCR_ENABLED=0 GOODSER_VISION_WARMUP=0 \
+  docker compose up -d
 ```
 
-Go 后端把 `GOODSER_VISION_URL` 指回 fallback 或直接停用图鉴切割即可；商品/图鉴数据不受影响。
+或者直接 `docker compose down` 停掉，Go 后端把 `GOODSER_VISION_URL` 指回 fallback 或直接停用图鉴切割；商品/图鉴数据不受影响。

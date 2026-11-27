@@ -1,39 +1,99 @@
 services:
   goodser-vision:
-    build:
-      context: .
-    image: goodser-vision:0.1.0
+    # 直接使用官方镜像，不构建派生镜像；依赖装到挂载目录 ./deps
+    image: pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime
     container_name: goodser-vision
     restart: unless-stopped
+    working_dir: /app
+    # 首次启动安装依赖（写入 /app/deps/site-packages），之后容器重建也复用
+    entrypoint: ["python", "/app/scripts/entrypoint.py"]
     ports:
-      # 仅本机/内网访问，不直接暴露公网
-      - "127.0.0.1:8000:8000"
+      # 宿主机 58000 → 容器 8000，固定映射
+      - "0.0.0.0:58000:8000"
     environment:
-      DEVICE: cpu
-      GOODSER_VISION_EMBEDDER: fallback
-      GOODSER_VISION_DETECTOR: fallback
-      GOODSER_VISION_MAX_CONCURRENCY: "2"
-      GOODSER_VISION_MAX_IMAGE_SIDE: "1920"
-      GOODSER_VISION_MODEL_DIR: /app/models
-      GOODSER_VISION_WARMUP: "1"
-      GOODSER_VISION_IDLE_UNLOAD_SECONDS: "0"
-      GOODSER_VISION_IDLE_CHECK_SECONDS: "30"
-      GOODSER_VISION_VLM_ENABLED: "0"
-      GOODSER_VISION_OCR_DEVICE: cpu
+      DEVICE: "${DEVICE:-cuda}"
+      GOODSER_VISION_EMBEDDER: "${GOODSER_VISION_EMBEDDER:-clip}"
+      GOODSER_VISION_DETECTOR: "${GOODSER_VISION_DETECTOR:-yolo}"
+      GOODSER_VISION_EMBED_DIM: "${GOODSER_VISION_EMBED_DIM:-512}"
+      GOODSER_VISION_MAX_CONCURRENCY: "${GOODSER_VISION_MAX_CONCURRENCY:-1}"
+      GOODSER_VISION_MAX_IMAGE_SIDE: "${GOODSER_VISION_MAX_IMAGE_SIDE:-1920}"
+      GOODSER_VISION_MODEL_DIR: "${GOODSER_VISION_MODEL_DIR:-/app/models}"
+      GOODSER_VISION_WARMUP: "${GOODSER_VISION_WARMUP:-1}"
+      GOODSER_VISION_IDLE_UNLOAD_SECONDS: "${GOODSER_VISION_IDLE_UNLOAD_SECONDS:-0}"
+      GOODSER_VISION_IDLE_CHECK_SECONDS: "${GOODSER_VISION_IDLE_CHECK_SECONDS:-30}"
+      GOODSER_VISION_GPU_MEMORY_FRACTION: "${GOODSER_VISION_GPU_MEMORY_FRACTION:-0.5}"
+      GOODSER_VISION_GPU_HEADROOM_MB: "${GOODSER_VISION_GPU_HEADROOM_MB:-1024}"
+      # 依赖目录（宿主机 ./deps）
+      GOODSER_VISION_DEPS_DIR: "/app/deps"
+      # GPU 用 requirements-real-gpu.txt；没 GPU 改成 requirements-real-cpu.txt
+      PADDLE_REQUIREMENTS: "${PADDLE_REQUIREMENTS:-requirements-real-gpu.txt}"
+      # VLM 全局：默认关闭
+      GOODSER_VISION_VLM_ENABLED: "${GOODSER_VISION_VLM_ENABLED:-0}"
+      GOODSER_VISION_VLM_MODE: "${GOODSER_VISION_VLM_MODE:-auto}"
+      GOODSER_VISION_VLM_COOLDOWN_SECONDS: "${GOODSER_VISION_VLM_COOLDOWN_SECONDS:-60}"
+      GOODSER_VISION_VLM_TIMEOUT_SECONDS: "${GOODSER_VISION_VLM_TIMEOUT_SECONDS:-60}"
+      GOODSER_VISION_VLM_MAX_IMAGE_SIDE: "${GOODSER_VISION_VLM_MAX_IMAGE_SIDE:-1280}"
+      GOODSER_VISION_VLM_MAX_TOKENS: "${GOODSER_VISION_VLM_MAX_TOKENS:-512}"
+      # VLM 主槽位
+      GOODSER_VISION_VLM_PRIMARY_ENABLED: "${GOODSER_VISION_VLM_PRIMARY_ENABLED:-0}"
+      GOODSER_VISION_VLM_PRIMARY_PROVIDER: "${GOODSER_VISION_VLM_PRIMARY_PROVIDER:-disabled}"
+      GOODSER_VISION_VLM_PRIMARY_BASE_URL: "${GOODSER_VISION_VLM_PRIMARY_BASE_URL:-}"
+      GOODSER_VISION_VLM_PRIMARY_API_KEY: "${GOODSER_VISION_VLM_PRIMARY_API_KEY:-}"
+      GOODSER_VISION_VLM_PRIMARY_MODEL: "${GOODSER_VISION_VLM_PRIMARY_MODEL:-}"
+      # VLM 备槽位
+      GOODSER_VISION_VLM_BACKUP_ENABLED: "${GOODSER_VISION_VLM_BACKUP_ENABLED:-0}"
+      GOODSER_VISION_VLM_BACKUP_PROVIDER: "${GOODSER_VISION_VLM_BACKUP_PROVIDER:-disabled}"
+      GOODSER_VISION_VLM_BACKUP_BASE_URL: "${GOODSER_VISION_VLM_BACKUP_BASE_URL:-}"
+      GOODSER_VISION_VLM_BACKUP_API_KEY: "${GOODSER_VISION_VLM_BACKUP_API_KEY:-}"
+      GOODSER_VISION_VLM_BACKUP_MODEL: "${GOODSER_VISION_VLM_BACKUP_MODEL:-}"
+      GOODSER_VISION_VLM_CONFIG_FILE: "${GOODSER_VISION_VLM_CONFIG_FILE:-data/vlm.json}"
+      # OCR：默认 GPU，初始化失败自动回退 CPU
+      GOODSER_VISION_OCR_ENABLED: "${GOODSER_VISION_OCR_ENABLED:-1}"
+      GOODSER_VISION_OCR_DEVICE: "${GOODSER_VISION_OCR_DEVICE:-gpu}"
+      GOODSER_VISION_OCR_LANG: "${GOODSER_VISION_OCR_LANG:-ch}"
+      # HuggingFace 国内镜像（避免直连 huggingface.co 超时）
+      HF_ENDPOINT: "${HF_ENDPOINT:-https://hf-mirror.com}"
+      # 模型已下载到 ./models 后强制离线，避免启动时联网检查 etag
+      HF_HUB_OFFLINE: "${HF_HUB_OFFLINE:-1}"
+      TRANSFORMERS_OFFLINE: "${TRANSFORMERS_OFFLINE:-1}"
+      HF_HOME: /app/hf-cache
+      PADDLEOCR_HOME: /app/paddle-cache
+      # PaddleX 3.x 的模型缓存目录（OCR 模型不再落到容器家目录）
+      PADDLE_PDX_CACHE_HOME: /app/paddle-cache
+      # 跳过 PaddleX 的模型源连通性探测，直接用 modelscope/本地缓存
+      PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "1"
+      PYTORCH_CUDA_ALLOC_CONF: max_split_size_mb:128
+      # pip 不留缓存，所有持久化内容都在 ./deps、./models、./hf-cache、./paddle-cache
+      PIP_NO_CACHE_DIR: "1"
+      PYTHONUNBUFFERED: "1"
     volumes:
+      # 代码、依赖、模型、缓存都在 compose 同目录
+      - ./app:/app/app
+      - ./scripts:/app/scripts
+      - ./requirements.txt:/app/requirements.txt:ro
+      - ./requirements-real.txt:/app/requirements-real.txt:ro
+      - ./requirements-real-gpu.txt:/app/requirements-real-gpu.txt:ro
+      - ./requirements-real-cpu.txt:/app/requirements-real-cpu.txt:ro
+      # 以下重建容器不丢，也不产生新镜像层
+      - ./deps:/app/deps
       - ./models:/app/models
+      - ./hf-cache:/app/hf-cache
+      - ./paddle-cache:/app/paddle-cache
       - ./data:/app/data
+    shm_size: "2gb"
     networks:
-      - goodser-internal
-    # GPU 机器启用以下配置（并安装 CUDA 版依赖）
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+      1panel-network:
+        aliases:
+          - goodser-vision
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
 networks:
-  goodser-internal:
-    name: goodser-internal
+  # 1Panel 已创建的外部网络；后端容器也在该网络中
+  1panel-network:
+    external: true

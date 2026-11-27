@@ -934,18 +934,18 @@ goodser:
 - `external/goodser-vision` 已提供 `/v1/segment`（当前 fallback 整图单框，YOLO 接入后多框）。
 - Go 图鉴 API 已实现：`goodser-catalog` 模块（PG）提供图鉴 CRUD、原图上传、`image_url` 添加、切割、柄图 CRUD。
 - Web「谷子图鉴」Tab 已实现：列表、新建、详情、上传原图、URL 添加、自动切割、柄图编辑/删除。
-- 真实视觉服务部署手册：[external/goodser-vision/REAL_SERVICE.md](../../external/goodser-vision/REAL_SERVICE.md)（含 `docker-compose.real.yml`、GPU/显存/模型配置）。
+- 真实视觉服务部署手册：[external/goodser-vision/REAL_SERVICE.md](../../external/goodser-vision/REAL_SERVICE.md)（含 `docker-compose.yml`、GPU/显存/模型配置）。
 - Android 图鉴入口与识别联调待后续任务（GDS-54/56）。
 
 ### 7.6 真实视觉服务接入（手册）
 
 已提供 `external/goodser-vision/REAL_SERVICE.md`：
 
-- `docker-compose.real.yml`：CUDA + Chinese-CLIP + YOLO + PaddleOCR（直接用官方镜像，配置内联，无 env 文件）；
+- `docker-compose.yml`：CUDA + Chinese-CLIP + YOLO + PaddleOCR（直接用官方镜像，配置内联，无 env 文件）；
 - `Dockerfile.real` / `requirements-real.txt`（仅在需要预构建镜像时使用）；
 - 显存策略：`GOODSER_VISION_GPU_MEMORY_FRACTION=0.5`、`GPU_HEADROOM_MB=1024`、并发 1；
 - Go 后端通过 `GOODSER_VISION_URL` 接入；
-- 回滚：切回 `docker-compose.yml` fallback/CPU。
+- 回滚：`docker compose down`，或把 `DEVICE=cpu`、`GOODSER_VISION_EMBEDDER=fallback`、`GOODSER_VISION_DETECTOR=fallback`、`GOODSER_VISION_OCR_ENABLED=0` 写进 compose 后重启。
 
 > 当前 Go 图鉴服务调用 `/v1/segment`；真实服务启动后即可做单图多柄图切割。
 
@@ -1296,7 +1296,7 @@ http://localhost:3000/modules/zzz/developmentmanager/9?tab=plan
 > - `external/goodser-vision` 脚手架（FastAPI、embed/analyze/segment、Dockerfile、compose）。
 > - Android CameraX 扫码页、识别 API/Repository、权限与入口（`feature/goodser-scan` 工作区）。
 > - 图鉴 Go API（`goodser-catalog`）与 Web「谷子图鉴」Tab。
-> - 真实视觉服务手册 `external/goodser-vision/REAL_SERVICE.md` + `docker-compose.real.yml`。
+> - 真实视觉服务手册 `external/goodser-vision/REAL_SERVICE.md` + `docker-compose.yml`。
 > - 编辑导航改为草稿式确认/取消；层级默认折叠；支持保存为默认。
 > - 视觉模型常驻单例、启动预热、空闲卸载（0=常驻）、显存监控与 VLM OpenAI 兼容接口。
 > - VLM 已改为 New API 主/备双槽位；真实镜像升级到 CUDA 12.8 / PyTorch 2.7。

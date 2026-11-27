@@ -16,7 +16,7 @@ test:
 	python -m pytest -q
 
 docker-build:
-	docker compose build
+	@echo "直接使用官方 pytorch 镜像，无需构建；docker compose up -d 即可"
 
 docker-up:
 	docker compose up -d
