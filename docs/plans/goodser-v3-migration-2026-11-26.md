@@ -941,9 +941,8 @@ goodser:
 
 已提供 `external/goodser-vision/REAL_SERVICE.md`：
 
-- `docker-compose.real.yml`：CUDA + Chinese-CLIP + YOLO + PaddleOCR；
-- `Dockerfile.real` / `requirements-real.txt`；
-- `.env.real.example`：设备、模型目录、并发、显存比例、缓存目录；
+- `docker-compose.real.yml`：CUDA + Chinese-CLIP + YOLO + PaddleOCR（直接用官方镜像，配置内联，无 env 文件）；
+- `Dockerfile.real` / `requirements-real.txt`（仅在需要预构建镜像时使用）；
 - 显存策略：`GOODSER_VISION_GPU_MEMORY_FRACTION=0.5`、`GPU_HEADROOM_MB=1024`、并发 1；
 - Go 后端通过 `GOODSER_VISION_URL` 接入；
 - 回滚：切回 `docker-compose.yml` fallback/CPU。

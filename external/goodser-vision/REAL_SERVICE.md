@@ -116,9 +116,9 @@ docker compose -f docker-compose.real.yml up -d
 >
 > `docker-compose.real.yml` 是自包含的，`environment` 里已经给了默认值；
 > 要改 VLM Key、OCR、显存等，直接改 compose 的 `environment`。
-> `env.real.example` 仅作为变量参考，不参与默认部署。
+> 不需要 `.env` / `env_file`，仓库里也不提供 env 文件。
 >
-> 没有 GPU 或想用 CPU 版 Paddle：在 compose 同级放一个 `.env` 或者直接改 compose：
+> 没有 GPU 或想用 CPU 版 Paddle：直接改 compose 这一行：
 >
 > ```yaml
 >       PADDLE_REQUIREMENTS: "requirements-real-cpu.txt"
