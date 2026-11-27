@@ -87,14 +87,14 @@ docker network ls | Select-String 1panel-network    # Linux: docker network ls |
 
 ```bash
 cd external/goodser-vision
-cp env.real.example env.real
-# 按需修改模型路径、并发、显存比例、VLM 主备 Key
+# 需要改配置时，直接编辑 docker-compose.real.yml 的 environment
 docker compose -f docker-compose.real.yml up -d --build
 ```
 
-> `docker-compose.real.yml` 通过 `env_file: ./env.real` 把配置注入容器，**不再依赖 `${...}` 插值**，
-> 所以 `env.real` 里的 VLM Key、OCR、显存等会直接生效，不需要额外 `--env-file`。
-> `env.real` 已被 `.gitignore` 排除，不要提交。
+> `docker-compose.real.yml` 是自包含的，`environment` 里已经给了默认值；
+> 要改 VLM Key、OCR、显存等，直接改 compose 的 `environment`。
+> 也可以临时用 `--env-file env.real` 覆盖 `${...}`，但不是必需。
+> `env.real.example` 仅作为变量参考，不参与默认部署。
 >
 > 基础镜像的 Python 是 PEP 668 externally-managed，`Dockerfile.real` 已设置
 > `PIP_BREAK_SYSTEM_PACKAGES=1` 并用 `python -m pip` 安装，构建时不会再报
