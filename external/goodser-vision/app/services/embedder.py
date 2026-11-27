@@ -15,6 +15,26 @@ from ..settings import settings
 logger = logging.getLogger("goodser-vision.embedder")
 
 
+def _huggingface_reachable(timeout: float = 3.0) -> bool:
+    """快速判断 HuggingFace（或 HF_ENDPOINT 镜像）是否可达。
+
+    无外网时 transformers/huggingface_hub 会按文件逐个重试（每次 5 轮、指数退避），
+    导致 FastAPI 启动被阻塞数分钟、端口不可用。这里先做一次 3 秒 TCP 探测，
+    不可达则立即回退 fallback embedder。
+    """
+    import os
+    import socket
+    from urllib.parse import urlparse
+
+    endpoint = os.getenv("HF_ENDPOINT", "https://huggingface.co")
+    host = urlparse(endpoint).hostname or "huggingface.co"
+    try:
+        with socket.create_connection((host, 443), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
 @dataclass
 class EmbedderStatus:
     name: str
@@ -53,12 +73,23 @@ class Embedder:
 
                 model_name = "OFA-Sys/chinese-clip-vit-base-patch16"
                 logger.info("loading Chinese-CLIP: %s", model_name)
-                self._processor = ChineseCLIPProcessor.from_pretrained(
-                    model_name, cache_dir=settings.model_dir
-                )
-                model = ChineseCLIPModel.from_pretrained(
-                    model_name, cache_dir=settings.model_dir
-                )
+                try:
+                    # 优先离线加载已缓存的模型，避免无外网时长时间重试
+                    self._processor = ChineseCLIPProcessor.from_pretrained(
+                        model_name, cache_dir=settings.model_dir, local_files_only=True
+                    )
+                    model = ChineseCLIPModel.from_pretrained(
+                        model_name, cache_dir=settings.model_dir, local_files_only=True
+                    )
+                except Exception:
+                    if not _huggingface_reachable():
+                        raise RuntimeError("HuggingFace 不可达，且本地无 Chinese-CLIP 缓存")
+                    self._processor = ChineseCLIPProcessor.from_pretrained(
+                        model_name, cache_dir=settings.model_dir
+                    )
+                    model = ChineseCLIPModel.from_pretrained(
+                        model_name, cache_dir=settings.model_dir
+                    )
                 model.eval()
                 if settings.device == "cuda" and torch.cuda.is_available():
                     model.to("cuda")
