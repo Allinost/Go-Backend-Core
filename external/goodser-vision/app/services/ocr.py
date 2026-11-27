@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from dataclasses import dataclass
@@ -9,6 +10,9 @@ from typing import Any
 from PIL import Image
 
 from ..settings import settings
+
+# PaddleX 启动时会探测模型源（aistudio 404 后转 modelscope），跳过探测可少等几十秒。
+os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "1")
 
 logger = logging.getLogger("goodser-vision.ocr")
 

@@ -56,6 +56,8 @@ services:
       TRANSFORMERS_OFFLINE: "${TRANSFORMERS_OFFLINE:-1}"
       HF_HOME: /app/hf-cache
       PADDLEOCR_HOME: /app/paddle-cache
+      # 跳过 PaddleX 的模型源连通性探测，直接用 modelscope/本地缓存
+      PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK: "1"
       PYTORCH_CUDA_ALLOC_CONF: max_split_size_mb:128
     volumes:
       - ./models:/app/models

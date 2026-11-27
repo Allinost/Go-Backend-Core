@@ -156,12 +156,41 @@ class Embedder:
         if settings.device == "cuda" and torch.cuda.is_available():
             inputs = {key: value.to("cuda") for key, value in inputs.items()}
         with torch.inference_mode():
-            features = self._model.get_image_features(**inputs)
-        vec = features[0].detach().float().cpu().numpy()
+            outputs = self._model.get_image_features(**inputs)
+        features = self._extract_features(outputs)
+        # 不同 transformers 版本返回形状可能是 (1, D) / (1, 1, D)，
+        # 直接 tolist() 会得到嵌套 list，float() 会报 TypeError，这里统一拉平。
+        vec = np.asarray(features.detach().float().cpu().numpy(), dtype=np.float32).reshape(-1)
+        dim = int(self.dim)
+        if vec.size != dim:
+            logger.warning(
+                "CLIP 输出维度 %d 与配置 %d 不一致，按配置截断/补零", vec.size, dim
+            )
+            if vec.size > dim:
+                vec = vec[:dim]
+            else:
+                vec = np.pad(vec, (0, dim - vec.size))
         norm = float(np.linalg.norm(vec))
         if norm > 0:
             vec = vec / norm
         return [round(float(v), 6) for v in vec.tolist()]
+
+    @staticmethod
+    def _extract_features(outputs):
+        """兼容 transformers 各版本：Tensor / 元组 / BaseModelOutput。"""
+        import torch
+
+        if isinstance(outputs, torch.Tensor):
+            return outputs
+        if isinstance(outputs, (list, tuple)):
+            for item in outputs:
+                if isinstance(item, torch.Tensor):
+                    return item
+        for attr in ("image_embeds", "pooler_output", "last_hidden_state"):
+            value = getattr(outputs, attr, None)
+            if isinstance(value, torch.Tensor):
+                return value
+        raise RuntimeError(f"无法从 CLIP 输出中提取特征: {type(outputs)!r}")
 
     def status(self) -> EmbedderStatus:
         return EmbedderStatus(

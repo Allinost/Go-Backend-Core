@@ -93,7 +93,12 @@ def _ensure_gpu_headroom() -> None:
 
 
 async def _load_image(upload: UploadFile) -> Image.Image:
-    if upload.content_type and not upload.content_type.startswith("image/"):
+    content_type = (upload.content_type or "").lower()
+    # Go 的 multipart.CreateFormFile 默认发 application/octet-stream，
+    # 这类通用二进制流交给 PIL 校验，不要直接拒绝。
+    if content_type and not (
+        content_type.startswith("image/") or content_type in ("application/octet-stream", "binary/octet-stream")
+    ):
         raise HTTPException(status_code=400, detail="仅支持图片文件")
     data = await upload.read()
     if not data:

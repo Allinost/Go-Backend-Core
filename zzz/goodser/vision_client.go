@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"strings"
 	"time"
@@ -97,7 +98,10 @@ func (c *httpVisionClient) postImage(ctx context.Context, path string, image []b
 	}
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("image", "image.jpg")
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", `form-data; name="image"; filename="image.jpg"`)
+	header.Set("Content-Type", http.DetectContentType(image))
+	part, err := writer.CreatePart(header)
 	if err != nil {
 		return nil, err
 	}
