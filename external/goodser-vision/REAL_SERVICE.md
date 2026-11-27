@@ -73,14 +73,15 @@ docker network ls | Select-String 1panel-network    # Linux: docker network ls |
 > 后端容器（Go-Backend-Core）也必须加入 `1panel-network`，之后才能用
 > `GOODSER_VISION_URL=http://goodser-vision:8000` 访问。
 >
-> 如果后端不在 Docker 网络里（例如 dev 跨主机访问），需要让端口对外监听：
+> 如果后端不在 Docker 网络里（例如 dev 跨主机访问），宿主机端口已固定映射为：
 >
-> ```env
-> GOODSER_VISION_BIND=0.0.0.0      # 或宿主机 EasyTier IP，如 10.144.144.10
-> GOODSER_VISION_PORT=58000        # 宿主机映射端口；容器内仍是 8000
+> ```text
+> 0.0.0.0:58000 -> 容器 8000
 > ```
 >
-> 然后用 `GOODSER_VISION_URL=http://<GPU主机IP>:58000`。默认 `127.0.0.1` 只能本机访问。
+> 用 `GOODSER_VISION_URL=http://<GPU主机IP>:58000` 访问。
+> 如需只允许本机或指定 IP，直接改 `docker-compose.real.yml` 的 `ports`：
+> `"127.0.0.1:58000:8000"` 或 `"10.144.144.10:58000:8000"`。
 > 生产后端与视觉容器同属 `1panel-network` 时，用 `http://goodser-vision:8000`，不需要宿主机端口。
 > 如果网络不存在，`docker compose up` 会直接报 `network 1panel-network declared as external, but could not be found`。
 
@@ -88,11 +89,11 @@ docker network ls | Select-String 1panel-network    # Linux: docker network ls |
 cd external/goodser-vision
 cp env.real.example env.real
 # 按需修改模型路径、并发、显存比例、VLM 主备 Key
-docker compose --env-file env.real -f docker-compose.real.yml up -d --build
+docker compose -f docker-compose.real.yml up -d --build
 ```
 
-> `docker-compose.real.yml` 的 `environment` 全部使用 `${变量:-默认值}` 形式，
-> 因此 `env.real` 里的值（尤其 VLM 的 `*_API_KEY`）会真正注入容器；不传 `--env-file` 时使用默认值。
+> `docker-compose.real.yml` 通过 `env_file: ./env.real` 把配置注入容器，**不再依赖 `${...}` 插值**，
+> 所以 `env.real` 里的 VLM Key、OCR、显存等会直接生效，不需要额外 `--env-file`。
 > `env.real` 已被 `.gitignore` 排除，不要提交。
 >
 > 基础镜像的 Python 是 PEP 668 externally-managed，`Dockerfile.real` 已设置
@@ -103,8 +104,9 @@ docker compose --env-file env.real -f docker-compose.real.yml up -d --build
 > 运行时会自动回退 CPU；要彻底避免 GPU 依赖，可用下面的 CPU 构建：
 >
 > ```bash
-> PADDLE_REQUIREMENTS=requirements-real-cpu.txt \
-> docker compose --env-file env.real -f docker-compose.real.yml up -d --build
+> docker compose -f docker-compose.real.yml build \
+>   --build-arg PADDLE_REQUIREMENTS=requirements-real-cpu.txt
+> docker compose -f docker-compose.real.yml up -d
 > ```
 
 GPU / PyTorch 兼容性检查：
