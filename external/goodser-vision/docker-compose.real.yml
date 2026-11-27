@@ -10,7 +10,10 @@ services:
     container_name: goodser-vision
     restart: unless-stopped
     ports:
-      - "${GOODSER_VISION_BIND:-127.0.0.1}:${GOODSER_VISION_PORT:-8000}:8000"
+      # 宿主机端口默认 58000；容器内固定 8000。
+      # 跨主机/dev 访问时把 GOODSER_VISION_BIND 设为 0.0.0.0 或宿主机 EasyTier IP；
+      # 生产仅走 1panel-network 时可保持 127.0.0.1。
+      - "${GOODSER_VISION_BIND:-127.0.0.1}:${GOODSER_VISION_PORT:-58000}:8000"
     environment:
       DEVICE: "${DEVICE:-cuda}"
       GOODSER_VISION_EMBEDDER: "${GOODSER_VISION_EMBEDDER:-clip}"

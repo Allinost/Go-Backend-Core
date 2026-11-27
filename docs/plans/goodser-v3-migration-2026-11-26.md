@@ -1007,13 +1007,13 @@ API：
 ```env
 # 生产（后端与视觉容器同在 1panel-network）
 GOODSER_VISION_URL=http://goodser-vision:8000
-# dev（跨主机）
-GOODSER_VISION_URL=http://10.144.144.10:8000
+# dev（跨主机，宿主机映射端口 58000）
+GOODSER_VISION_URL=http://10.144.144.10:58000
 ```
 
 注意：
 
-- 视觉容器默认只绑定 `127.0.0.1:8000`；跨主机访问需设置 `GOODSER_VISION_BIND=0.0.0.0` 或宿主 IP。
+- 容器内端口固定 `8000`，宿主机默认映射 `58000`；跨主机访问需设置 `GOODSER_VISION_BIND=0.0.0.0` 或宿主 IP。
 - `apply` 只生成草稿，不改库存；入库仍走现有 inbound 接口。
 - Android 识别结果页与真实联调待后续。
 

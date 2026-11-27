@@ -158,15 +158,15 @@ GOODSER_VISION_VLM_CONFIG_FILE=data/vlm.json
 
 ```bash
 # 自动：主健康走主，主失败/冷却走备
-curl -X POST http://127.0.0.1:8000/v1/system/vlm/switch \
+curl -X POST http://127.0.0.1:58000/v1/system/vlm/switch \
   -H 'Content-Type: application/json' -d '{"slot":"auto"}'
 
 # 强制主
-curl -X POST http://127.0.0.1:8000/v1/system/vlm/switch \
+curl -X POST http://127.0.0.1:58000/v1/system/vlm/switch \
   -H 'Content-Type: application/json' -d '{"slot":"primary"}'
 
 # 强制备
-curl -X POST http://127.0.0.1:8000/v1/system/vlm/switch \
+curl -X POST http://127.0.0.1:58000/v1/system/vlm/switch \
   -H 'Content-Type: application/json' -d '{"slot":"backup"}'
 ```
 
@@ -189,13 +189,13 @@ curl -X POST http://127.0.0.1:8000/v1/system/vlm/switch \
 nvidia-smi
 
 # 模型加载状态 + 显存快照
-curl -s http://127.0.0.1:8000/v1/system/status
+curl -s http://127.0.0.1:58000/v1/system/status
 
 # Prometheus 指标
-curl -s http://127.0.0.1:8000/metrics
+curl -s http://127.0.0.1:58000/metrics
 
 # 模型清单与加载状态
-curl -s http://127.0.0.1:8000/v1/models
+curl -s http://127.0.0.1:58000/v1/models
 ```
 
 `/v1/system/status` 会返回：

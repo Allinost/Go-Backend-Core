@@ -76,11 +76,12 @@ docker network ls | Select-String 1panel-network    # Linux: docker network ls |
 > 如果后端不在 Docker 网络里（例如 dev 跨主机访问），需要让端口对外监听：
 >
 > ```env
-> GOODSER_VISION_BIND=0.0.0.0
-> GOODSER_VISION_PORT=8000
+> GOODSER_VISION_BIND=0.0.0.0      # 或宿主机 EasyTier IP，如 10.144.144.10
+> GOODSER_VISION_PORT=58000        # 宿主机映射端口；容器内仍是 8000
 > ```
 >
-> 然后用 `GOODSER_VISION_URL=http://<GPU主机IP>:8000`。默认 `127.0.0.1` 只能本机访问。
+> 然后用 `GOODSER_VISION_URL=http://<GPU主机IP>:58000`。默认 `127.0.0.1` 只能本机访问。
+> 生产后端与视觉容器同属 `1panel-network` 时，用 `http://goodser-vision:8000`，不需要宿主机端口。
 > 如果网络不存在，`docker compose up` 会直接报 `network 1panel-network declared as external, but could not be found`。
 
 ```bash
@@ -119,8 +120,8 @@ docker compose -f docker-compose.real.yml run --rm goodser-vision python scripts
 ```bash
 docker compose -f docker-compose.real.yml ps
 docker logs -f goodser-vision
-curl -s http://127.0.0.1:8000/healthz
-curl -s http://127.0.0.1:8000/v1/models
+curl -s http://127.0.0.1:58000/healthz
+curl -s http://127.0.0.1:58000/v1/models
 ```
 
 预期：
@@ -230,10 +231,10 @@ GOODSER_VISION_VLM_ENABLED=0
 
 ```bash
 # 查看当前主/备配置（不返回密钥明文，只返回 api_key_set）
-curl -s http://127.0.0.1:8000/v1/system/vlm
+curl -s http://127.0.0.1:58000/v1/system/vlm
 
 # 设置主/备并启用
-curl -X PUT http://127.0.0.1:8000/v1/system/vlm \
+curl -X PUT http://127.0.0.1:58000/v1/system/vlm \
   -H 'Content-Type: application/json' \
   -d '{
     "enabled": true,
@@ -254,10 +255,10 @@ curl -X PUT http://127.0.0.1:8000/v1/system/vlm \
   }'
 
 # 测试主/备；也可以加 ?slot=primary 或 ?slot=backup
-curl -X POST http://127.0.0.1:8000/v1/system/vlm/test
+curl -X POST http://127.0.0.1:58000/v1/system/vlm/test
 
 # 临时关闭
-curl -X POST http://127.0.0.1:8000/v1/system/vlm \
+curl -X POST http://127.0.0.1:58000/v1/system/vlm \
   -H 'Content-Type: application/json' \
   -d '{"enabled": false}'
 ```
@@ -266,15 +267,15 @@ curl -X POST http://127.0.0.1:8000/v1/system/vlm \
 
 ```bash
 # 自动：主健康走主，主失败/冷却走备
-curl -X POST http://127.0.0.1:8000/v1/system/vlm/switch \
+curl -X POST http://127.0.0.1:58000/v1/system/vlm/switch \
   -H 'Content-Type: application/json' -d '{"slot":"auto"}'
 
 # 强制主
-curl -X POST http://127.0.0.1:8000/v1/system/vlm/switch \
+curl -X POST http://127.0.0.1:58000/v1/system/vlm/switch \
   -H 'Content-Type: application/json' -d '{"slot":"primary"}'
 
 # 强制备
-curl -X POST http://127.0.0.1:8000/v1/system/vlm/switch \
+curl -X POST http://127.0.0.1:58000/v1/system/vlm/switch \
   -H 'Content-Type: application/json' -d '{"slot":"backup"}'
 ```
 
@@ -341,7 +342,7 @@ GOODSER_VISION_OCR_LANG=ch
 调用：
 
 ```bash
-curl -X POST http://127.0.0.1:8000/v1/verify \
+curl -X POST http://127.0.0.1:58000/v1/verify \
   -F image=@samples/item.jpg \
   -F prompt="判断图中商品是否与候选一致" \
   -F candidates='[{"product_id":"p1","name":"徽章 A","score":0.82}]'
@@ -350,8 +351,8 @@ curl -X POST http://127.0.0.1:8000/v1/verify \
 ### 4.3 显存监控
 
 ```bash
-curl -s http://127.0.0.1:8000/v1/system/status
-curl -s http://127.0.0.1:8000/metrics
+curl -s http://127.0.0.1:58000/v1/system/status
+curl -s http://127.0.0.1:58000/metrics
 ```
 
 `/v1/system/status` 返回：
@@ -382,7 +383,7 @@ goodser_vision_gpu_memory_bytes{state="total"} ...
 后端通过 `GOODSER_VISION_URL` 调用视觉服务：
 
 ```env
-GOODSER_VISION_URL=http://127.0.0.1:8000
+GOODSER_VISION_URL=http://127.0.0.1:58000
 ```
 
 如果后端也跑在 Docker 同一网络：
@@ -390,6 +391,11 @@ GOODSER_VISION_URL=http://127.0.0.1:8000
 ```env
 GOODSER_VISION_URL=http://goodser-vision:8000
 ```
+
+> 端口说明：
+> - 容器内固定 **8000**；生产后端走 `1panel-network` 用 `http://goodser-vision:8000`。
+> - 宿主机映射默认 **58000**；后端不在 Docker 网络时用 `http://127.0.0.1:58000`。
+> - dev 跨主机用 `http://<GPU主机IP>:58000`，并确保 `GOODSER_VISION_BIND` 不是 `127.0.0.1`。
 
 验证：
 
