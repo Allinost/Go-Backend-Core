@@ -66,7 +66,7 @@ def main() -> None:
     if not (APP / "app" / "main.py").is_file():
         raise SystemExit(
             f"[entrypoint] 找不到 {APP / 'app' / 'main.py'}；"
-            "请在本目录运行 compose，或设置 GOODSER_VISION_APP_DIR 指向 external/goodser-vision"
+            "请在仓库的 external/goodser-vision 目录执行 docker compose"
         )
     main_req = resolve_requirements("requirements-real.txt")
     paddle_req = resolve_requirements(

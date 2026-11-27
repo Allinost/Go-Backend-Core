@@ -103,13 +103,7 @@ docker compose -f docker-compose.real.yml up -d
 > 代码目录以只读方式挂到 `/app`，所以**改代码后只需
 > `docker compose restart goodser-vision`，不需要重建镜像、也不需要 docker cp**。
 >
-> 默认假设 compose 在仓库的 `external/goodser-vision` 目录执行。
-> 如果 compose 放在别处（例如模型目录），用环境变量指定代码位置：
->
-> ```bash
-> GOODSER_VISION_APP_DIR=/path/to/Go-Backend-Core/external/goodser-vision \
->   docker compose -f docker-compose.real.yml up -d
-> ```
+> compose 必须在仓库的 `external/goodser-vision` 目录执行（`./app`、`./scripts` 都相对它）。
 >
 > 依赖清单变化（`requirements*.txt`）会在下次启动时自动重新安装；
 > 想强制重装，删除 `deps/.installed.sha256` 后重启即可。

@@ -67,15 +67,14 @@ services:
       PIP_NO_CACHE_DIR: "1"
       PYTHONUNBUFFERED: "1"
     volumes:
-      # 代码来自仓库目录（默认 compose 同级）；依赖/模型/缓存留在 compose 同级目录。
-      # 如果 compose 不在仓库的 external/goodser-vision 下，用 GOODSER_VISION_APP_DIR 指向它。
-      - ${GOODSER_VISION_APP_DIR:-.}/app:/app/app
-      - ${GOODSER_VISION_APP_DIR:-.}/scripts:/app/scripts
-      - ${GOODSER_VISION_APP_DIR:-.}/requirements.txt:/app/requirements.txt:ro
-      - ${GOODSER_VISION_APP_DIR:-.}/requirements-real.txt:/app/requirements-real.txt:ro
-      - ${GOODSER_VISION_APP_DIR:-.}/requirements-real-gpu.txt:/app/requirements-real-gpu.txt:ro
-      - ${GOODSER_VISION_APP_DIR:-.}/requirements-real-cpu.txt:/app/requirements-real-cpu.txt:ro
-      # 以下都在宿主机 compose 同级目录，重建容器不丢，也不产生新镜像层
+      # 代码、依赖、模型、缓存都在 compose 同目录
+      - ./app:/app/app
+      - ./scripts:/app/scripts
+      - ./requirements.txt:/app/requirements.txt:ro
+      - ./requirements-real.txt:/app/requirements-real.txt:ro
+      - ./requirements-real-gpu.txt:/app/requirements-real-gpu.txt:ro
+      - ./requirements-real-cpu.txt:/app/requirements-real-cpu.txt:ro
+      # 以下重建容器不丢，也不产生新镜像层
       - ./deps:/app/deps
       - ./models:/app/models
       - ./hf-cache:/app/hf-cache
