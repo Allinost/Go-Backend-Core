@@ -547,6 +547,12 @@ external/goodser-vision/
 
 ### 5.7 Android 实现
 
+> **2026-11-27 进度**
+> - `ScanScreen`（CameraX 拍照）完成后自动进入 `RecognitionReviewScreen`。
+> - 复核页已支持：逐框 Top-K 候选、改选商品、数量增减、确认开关、生成入库草稿（只落草稿，不改库存）。
+> - 未匹配框高亮提示；原图检测框 overlay、手动补商品、相册入口、离线队列仍待做。
+> - 平铺图导出页已实现（见 6.x）：多选商品、数量、背景/列数/格式/价格口径、名称/价格/数量开关、预览、打开/复制结果链接。
+
 1. 依赖：
    - CameraX（`camera-core/camera-camera2/camera-lifecycle/camera-view`）
    - `androidx.activity:activity-compose`（已有）
