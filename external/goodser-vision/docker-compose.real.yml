@@ -49,6 +49,11 @@ services:
       GOODSER_VISION_OCR_ENABLED: "${GOODSER_VISION_OCR_ENABLED:-1}"
       GOODSER_VISION_OCR_DEVICE: "${GOODSER_VISION_OCR_DEVICE:-gpu}"
       GOODSER_VISION_OCR_LANG: "${GOODSER_VISION_OCR_LANG:-ch}"
+      # HuggingFace 国内镜像（避免直连 huggingface.co 超时）
+      HF_ENDPOINT: "${HF_ENDPOINT:-https://hf-mirror.com}"
+      # 模型已下载到 ./models 后强制离线，避免启动时联网检查 etag 卡住
+      HF_HUB_OFFLINE: "${HF_HUB_OFFLINE:-1}"
+      TRANSFORMERS_OFFLINE: "${TRANSFORMERS_OFFLINE:-1}"
       HF_HOME: /app/hf-cache
       PADDLEOCR_HOME: /app/paddle-cache
       PYTORCH_CUDA_ALLOC_CONF: max_split_size_mb:128

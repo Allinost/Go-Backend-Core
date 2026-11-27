@@ -132,6 +132,33 @@ curl -s http://127.0.0.1:58000/v1/models
 {"status":"ok","embedder":"clip-v1","detector":"yolo-v1","device":"cuda"}
 ```
 
+### 3.1 预下载 Chinese-CLIP 与离线启动
+
+容器没有外网时，先把模型下到宿主机 `./models`（对应容器 `/app/models`）：
+
+```bash
+cd external/goodser-vision
+mkdir -p models
+
+docker run --rm --network bridge \
+  -v "$PWD/models:/models" \
+  -e HF_ENDPOINT=https://hf-mirror.com \
+  goodser-vision:0.1.0-gpu \
+  python -c "from huggingface_hub import snapshot_download; snapshot_download('OFA-Sys/chinese-clip-vit-base-patch16', cache_dir='/models')"
+```
+
+确认缓存：
+
+```bash
+ls models/models--OFA-Sys--chinese-clip-vit-base-patch16/snapshots
+```
+
+compose 默认 `HF_HUB_OFFLINE=1`、`TRANSFORMERS_OFFLINE=1`，启动只读本地缓存，不会联网。
+如果模型没缓存，会快速回退 fallback，端口仍然可用。
+
+> 必须使用 `--cache-dir` 的 HF 缓存布局，不要用 `--local-dir`。
+> 如果默认 bridge 也不通，把 `--network bridge` 换成 `--network host`，或加 `-e HTTPS_PROXY=...`。
+
 ---
 
 ## 4. 环境变量
